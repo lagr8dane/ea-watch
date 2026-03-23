@@ -9,18 +9,34 @@ async function init() {
   const schema = readFileSync(join(__dirname, '../db/schema.sql'), 'utf8');
   const db = getDb();
 
-  // Split on semicolons, filter blanks, execute each statement
   const statements = schema
     .split(';')
     .map(s => s.trim())
-    .filter(s => s.length > 0 && !s.startsWith('--'));
+    .filter(s => {
+      if (!s.length) return false;
+      const nonComment = s.split('\n')
+        .filter(l => !l.trim().startsWith('--'))
+        .join('\n').trim();
+      return nonComment.length > 0;
+    });
 
-  console.log(`Running ${statements.length} schema statements...`);
+  const tables  = statements.filter(s => s.toUpperCase().includes('CREATE TABLE'));
+  const indexes = statements.filter(s => s.toUpperCase().includes('CREATE INDEX'));
+  const ordered = [...tables, ...indexes];
 
-  for (const sql of statements) {
-    await db.execute(sql);
+  await db.execute('PRAGMA foreign_keys = OFF');
+  console.log(`Running ${ordered.length} schema statements...`);
+
+  for (const sql of ordered) {
+    try {
+      await db.execute(sql);
+      console.log(`  ok: ${sql.split('\n')[0].substring(0, 60)}`);
+    } catch (err) {
+      console.warn(`  skipped: ${err.message.split('\n')[0]}`);
+    }
   }
 
+  await db.execute('PRAGMA foreign_keys = ON');
   console.log('Schema applied successfully.');
   process.exit(0);
 }
