@@ -26,7 +26,7 @@ export default async function handler(req, res) {
   if (!token) return res.status(401).json({ error: 'No session' });
 
   const session = await queryOne(
-    `SELECT s.id, s.device_id, s.is_shell
+    `SELECT s.token, s.device_id, s.is_shell
      FROM sessions s
      WHERE s.token = ? AND datetime(s.expires_at) > datetime('now')`,
     [token]
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
   if (!session) return res.status(401).json({ error: 'Invalid or expired session' });
   if (session.is_shell) return res.status(403).json({ error: 'Not available in restricted mode' });
 
-  const sessionId = session.id;
+  const sessionId = session.token;
 
   const body = await parseBody(req);
   const { chainStateId, action } = body;

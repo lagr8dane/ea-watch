@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   }
 
   const session = await queryOne(
-    `SELECT s.id, s.is_shell, s.owner_id, s.device_id
+    `SELECT s.token, s.is_shell, s.owner_id, s.device_id
      FROM sessions s
      WHERE s.token = ?
        AND datetime(s.expires_at) > datetime('now')`,
@@ -45,7 +45,7 @@ export default async function handler(req, res) {
   }
 
   const isShell    = session.is_shell === 1;
-  const sessionId  = session.id;
+  const sessionId  = session.token;
   const deviceId   = session.device_id;
 
   // --- Get EA personality from config ---
