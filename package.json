@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "echo 'no build step'",
     "db:init": "node --env-file=.env scripts/db-init.js"
   },
   "dependencies": {
