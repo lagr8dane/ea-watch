@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>EA</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0a0a0a;
+      --surface:  #141414;
+      --surface2: #1c1c1c;
+      --border:   rgba(255,255,255,0.07);
+      --text:     #f0f0f0;
+      --muted:    #666;
+      --ea-msg:   #1c1c1c;
+      --user-msg: #2a2a2a;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overscroll-behavior: none;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .ea-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .ea-status {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #3a3;
+    }
+
+    .status-dot.shell {
+      background: #a63;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.15s;
+    }
+
+    .icon-btn:active { color: var(--text); }
+
+    /* Messages */
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .msg {
+      max-width: 88%;
+      padding: 12px 16px;
+      border-radius: 18px;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .msg.ea {
+      background: var(--ea-msg);
+      border: 1px solid var(--border);
+      align-self: flex-start;
+      border-bottom-left-radius: 4px;
+      color: var(--text);
+    }
+
+    .msg.user {
+      background: var(--user-msg);
+      align-self: flex-end;
+      border-bottom-right-radius: 4px;
+      color: var(--text);
+    }
+
+    .msg.ea.typing {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+      padding: 14px 18px;
+    }
+
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+      animation: blink 1.2s ease-in-out infinite;
+    }
+
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.2; }
+      40%            { opacity: 1; }
+    }
+
+    /* Input bar */
+    .input-bar {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      padding: 12px 16px;
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+
+    .input-wrap {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      display: flex;
+      align-items: flex-end;
+      padding: 10px 16px;
+      gap: 8px;
+      transition: border-color 0.15s;
+    }
+
+    .input-wrap:focus-within {
+      border-color: rgba(255,255,255,0.15);
+    }
+
+    textarea {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      resize: none;
+      max-height: 120px;
+      line-height: 1.4;
+      -webkit-appearance: none;
+    }
+
+    textarea::placeholder { color: var(--muted); }
+
+    .voice-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.15s;
+    }
+
+    .voice-btn.listening {
+      color: #e05;
+      animation: pulse-red 1s ease-in-out infinite;
+    }
+
+    @keyframes pulse-red {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.5; }
+    }
+
+    .send-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--text);
+      border: none;
+      color: var(--bg);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.15s;
+    }
+
+    .send-btn:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+
+    .send-btn:not(:disabled):active { opacity: 0.8; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <div class="ea-name">EA</div>
+      <div class="ea-status">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">ready</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" onclick="clearChat()" title="Clear">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="messages" id="messages"></div>
+
+  <div class="input-bar">
+    <div class="input-wrap">
+      <textarea id="input" rows="1" placeholder="Message EA…"
+        onkeydown="handleKey(event)"
+        oninput="autoResize(this)"></textarea>
+      <button class="voice-btn" id="voice-btn" onclick="toggleVoice()" title="Voice input">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="2" width="6" height="11" rx="3"/>
+          <path d="M5 10a7 7 0 0014 0M12 19v3M8 22h8"/>
+        </svg>
+      </button>
+    </div>
+    <button class="send-btn" id="send-btn" onclick="send()" disabled>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 19V5M5 12l7-7 7 7"/>
+      </svg>
+    </button>
+  </div>
+
+  <script>
+    const params   = new URLSearchParams(location.search);
+    const isShell  = params.get('shell') === '1';
+    const messages = [];
+    let   isTyping = false;
+    let   recognition = null;
+
+    // Shell mode indicator
+    if (isShell) {
+      document.getElementById('status-dot').classList.add('shell');
+      document.getElementById('status-text').textContent = 'active';
+    }
+
+    // Greeting on load
+    window.addEventListener('load', () => {
+      const hour = new Date().getHours();
+      const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+      appendMsg('ea', `${greet}. What do you need?`);
+    });
+
+    // --- Message rendering ---
+
+    function appendMsg(role, text) {
+      const el = document.createElement('div');
+      el.className = `msg ${role}`;
+      el.textContent = text;
+      document.getElementById('messages').appendChild(el);
+      scrollBottom();
+      return el;
+    }
+
+    function showTyping() {
+      const el = document.createElement('div');
+      el.className = 'msg ea typing';
+      el.id = 'typing';
+      el.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+      document.getElementById('messages').appendChild(el);
+      scrollBottom();
+    }
+
+    function hideTyping() {
+      document.getElementById('typing')?.remove();
+    }
+
+    function scrollBottom() {
+      const m = document.getElementById('messages');
+      m.scrollTop = m.scrollHeight;
+    }
+
+    function clearChat() {
+      document.getElementById('messages').innerHTML = '';
+      messages.length = 0;
+      appendMsg('ea', 'Chat cleared. What do you need?');
+    }
+
+    // --- Input ---
+
+    function handleKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
+      document.getElementById('send-btn').disabled = !e.target.value.trim();
+    }
+
+    function autoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+      document.getElementById('send-btn').disabled = !el.value.trim();
+    }
+
+    // --- Send ---
+
+    async function send() {
+      const input = document.getElementById('input');
+      const text  = input.value.trim();
+      if (!text || isTyping) return;
+
+      input.value = '';
+      input.style.height = 'auto';
+      document.getElementById('send-btn').disabled = true;
+
+      appendMsg('user', text);
+      messages.push({ role: 'user', content: text });
+
+      isTyping = true;
+      setStatus('thinking…');
+      showTyping();
+
+      try {
+        const res = await fetch('/api/ea', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages, shell: isShell }),
+        });
+
+        hideTyping();
+
+        if (!res.ok) {
+          appendMsg('ea', 'Something went wrong. Try again.');
+          isTyping = false;
+          setStatus('ready');
+          return;
+        }
+
+        // Stream response
+        const reader  = res.body.getReader();
+        const decoder = new TextDecoder();
+        let   eaEl    = appendMsg('ea', '');
+        let   full    = '';
+
+        setStatus('responding…');
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          // SSE format: lines starting with "data: "
+          for (const line of chunk.split('\n')) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') break;
+              try {
+                const parsed = JSON.parse(data);
+                const token  = parsed.delta?.text ?? '';
+                full    += token;
+                eaEl.textContent = full;
+                scrollBottom();
+              } catch {}
+            }
+          }
+        }
+
+        messages.push({ role: 'assistant', content: full });
+        setStatus('ready');
+      } catch (e) {
+        hideTyping();
+        appendMsg('ea', 'Connection lost. Try again.');
+        setStatus('ready');
+      }
+
+      isTyping = false;
+      input.focus();
+    }
+
+    function setStatus(text) {
+      document.getElementById('status-text').textContent = text;
+    }
+
+    // --- Voice input (Web Speech API) ---
+
+    function toggleVoice() {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        appendMsg('ea', 'Voice input isn\'t supported on this browser. Try Chrome or Safari.');
+        return;
+      }
+
+      if (recognition) {
+        recognition.stop();
+        recognition = null;
+        document.getElementById('voice-btn').classList.remove('listening');
+        return;
+      }
+
+      const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+      recognition = new SR();
+      recognition.continuous      = false;
+      recognition.interimResults  = true;
+      recognition.lang            = 'en-US';
+
+      document.getElementById('voice-btn').classList.add('listening');
+      setStatus('listening…');
+
+      recognition.onresult = (e) => {
+        const transcript = Array.from(e.results)
+          .map(r => r[0].transcript)
+          .join('');
+        document.getElementById('input').value = transcript;
+        document.getElementById('send-btn').disabled = !transcript.trim();
+      };
+
+      recognition.onend = () => {
+        document.getElementById('voice-btn').classList.remove('listening');
+        recognition = null;
+        setStatus('ready');
+        // Auto-send if we got something
+        const val = document.getElementById('input').value.trim();
+        if (val) send();
+      };
+
+      recognition.onerror = () => {
+        document.getElementById('voice-btn').classList.remove('listening');
+        recognition = null;
+        setStatus('ready');
+      };
+
+      recognition.start();
+    }
+  </script>
+</body>
+</html>
