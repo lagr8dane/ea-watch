@@ -9,13 +9,13 @@
 
   :root {
     --bg:        #0a0a0a;
-    --surface:   #111111;
-    --border:    #222222;
-    --border-hi: #333333;
-    --text:      #e8e8e8;
-    --text-dim:  #666666;
-    --text-mid:  #999999;
-    --accent:    #e8e8e8;
+    --surface:   #161616;
+    --border:    #2a2a2a;
+    --border-hi: #404040;
+    --text:      #f0f0f0;
+    --text-dim:  #888888;
+    --text-mid:  #bbbbbb;
+    --accent:    #f0f0f0;
     --amber:     #f5a623;
     --red:       #e05252;
     --green:     #4caf7d;
@@ -67,7 +67,7 @@
     font-weight: 500;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--text-dim);
+    color: var(--text-mid);
   }
 
   .new-btn {
@@ -131,7 +131,7 @@
   .chain-meta {
     font-family: var(--mono);
     font-size: 11px;
-    color: var(--text-dim);
+    color: var(--text-mid);
     margin-top: 2px;
     white-space: nowrap;
     overflow: hidden;
@@ -174,7 +174,7 @@
     font-weight: 500;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--text-dim);
+    color: var(--text-mid);
   }
 
   .panel-actions { display: flex; gap: 8px; }
@@ -191,7 +191,7 @@
     cursor: pointer;
     transition: all 0.15s;
   }
-  .btn-ghost:hover { border-color: var(--text-dim); color: var(--text); }
+  .btn-ghost:hover { border-color: var(--text-mid); color: var(--text); }
   .btn-ghost.danger { border-color: transparent; color: var(--red); }
   .btn-ghost.danger:hover { border-color: var(--red); }
 
@@ -224,7 +224,7 @@
     font-size: 11px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--text-dim);
+    color: var(--text-mid);
     margin-bottom: 6px;
   }
 
@@ -242,8 +242,9 @@
     border-radius: 0;
   }
   input[type="text"]:focus, textarea:focus, select:focus { border-color: var(--border-hi); }
+  input[type="text"]::placeholder, textarea::placeholder { color: var(--text-dim); }
   textarea { resize: vertical; min-height: 60px; }
-  select { cursor: pointer; }
+  select { cursor: pointer; color: var(--text); background: var(--surface); }
 
   .field-hint {
     font-family: var(--mono);
@@ -295,7 +296,7 @@
     font-size: 11px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--text-dim);
+    color: var(--text-mid);
     margin: 24px 0 12px;
     display: flex;
     align-items: center;
