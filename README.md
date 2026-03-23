@@ -11,7 +11,7 @@ The same physical object. Two entirely different experiences, determined by iden
 
 ## Current status
 
-**Phase 1 — in progress.** Core infrastructure complete and running locally. Security review pass remaining before Phase 1 is closed.
+**Phase 1 — complete.** Running in production at `https://ea-watch.vercel.app`.
 
 | Task | Status |
 |---|---|
@@ -35,8 +35,22 @@ The same physical object. Two entirely different experiences, determined by iden
 | Ownership transfer flow | ✅ Done |
 | NFC stub endpoint | ✅ Done |
 | NFC stub UI | ✅ Done |
-| Security review pass | 🔲 Next |
-| Deploy + smoke test | 🔲 Next |
+| Security review pass | ✅ Done |
+| Production smoke test | ✅ Done |
+| **Phase 2 — chain builder** | 🔲 Next |
+
+---
+
+## Live URLs
+
+| Page | URL |
+|---|---|
+| Tap gateway | `https://ea-watch.vercel.app/` |
+| EA chat | `https://ea-watch.vercel.app/ea` |
+| Contact card | `https://ea-watch.vercel.app/contact` |
+| Challenge | `https://ea-watch.vercel.app/challenge` |
+| Config app | `https://ea-watch.vercel.app/config` |
+| NFC stub (dev only) | `https://ea-watch.vercel.app/stub` |
 
 ---
 
@@ -61,7 +75,7 @@ ea-watch/
 │   ├── config.html             # Owner config app
 │   └── stub.html               # NFC tap simulator (dev only)
 ├── lib/                        # Shared utilities
-│   ├── auth.js                 # Token generation, bcrypt, session state machine
+│   ├── auth.js                 # Token generation, bcryptjs, session state machine
 │   ├── audit.js                # Tap audit log writer
 │   ├── ratelimit.js            # Rate limiting + server-side lockout
 │   └── alert.js                # Danger word alert dispatcher
@@ -70,7 +84,7 @@ ea-watch/
 │   └── client.js               # Turso client + query helpers
 ├── scripts/
 │   └── db-init.js              # Applies schema to Turso
-├── server.js                   # Local dev server (replaces vercel dev)
+├── server.js                   # Local dev server (use instead of vercel dev)
 ├── .env.example                # Environment variable template
 ├── package.json
 └── vercel.json
@@ -85,7 +99,7 @@ ea-watch/
 | Hosting | Vercel | Serverless, deploys on push, free tier |
 | Database | Turso (SQLite edge) | Zero config, edge-hosted, free tier |
 | AI | Anthropic Claude API (claude-sonnet-4-5) | Powers EA chat, streaming |
-| Auth | bcrypt + HttpOnly cookies | No JWTs in localStorage |
+| Auth | bcryptjs + HttpOnly cookies | No native binaries, no JWTs in localStorage |
 | Frontend | Vanilla HTML/CSS/JS | Mobile-first, no build step |
 | Voice input | Web Speech API | Browser-native, no backend dependency |
 
@@ -112,27 +126,20 @@ node --env-file=.env server.js
 
 Server runs at `http://localhost:3000`.
 
+**Note:** Use `node --env-file=.env server.js` for local dev. Do not use `vercel dev` — it has a recursive invocation bug with this project setup.
+
 ### Environment variables
 
 ```
 TURSO_DATABASE_URL=libsql://your-db.turso.io
 TURSO_AUTH_TOKEN=your-token
 ANTHROPIC_API_KEY=your-key
-RESEND_API_KEY=your-key (optional for now)
-ALERT_FROM_EMAIL=alerts@yourdomain.com (optional for now)
-ENABLE_STUB=true
-APP_URL=http://localhost:3000
-NODE_ENV=development
+RESEND_API_KEY=your-key (optional — for danger word email alerts)
+ALERT_FROM_EMAIL=alerts@yourdomain.com (optional)
+ENABLE_STUB=true (local) / false (production)
+APP_URL=http://localhost:3000 (local)
+NODE_ENV=development (local)
 ```
-
-### NFC stub
-
-With `ENABLE_STUB=true`, open `http://localhost:3000/stub` to simulate tap scenarios:
-
-- **Owner — active session** → EA opens directly
-- **Owner — expired session** → Challenge screen
-- **Stranger tap** → Contact card
-- **Danger word entry** → Shell EA + silent alert
 
 ### Register test device (run once)
 
@@ -150,12 +157,7 @@ curl -X POST http://localhost:3000/api/device \
 git push origin main
 ```
 
-Vercel auto-deploys on every push. Environment variables are set in Vercel dashboard → Settings → Environment Variables.
-
-Production env vars match `.env.example` with:
-- `ENABLE_STUB=false`
-- `NODE_ENV=production`
-- `APP_URL=https://your-vercel-domain.vercel.app`
+Vercel auto-deploys on every push. Set all environment variables in Vercel dashboard → Settings → Environment Variables with `ENABLE_STUB=false` and `NODE_ENV=production`.
 
 ---
 
@@ -186,13 +188,15 @@ Production env vars match `.env.example` with:
 
 ---
 
-## Security non-negotiables
+## Security
 
-Three items must be present at all times:
+Three non-negotiables enforced in code:
 
-1. **UID + device code dual validation** — both checked together on every tap
-2. **HttpOnly cookies** — session tokens never in localStorage
-3. **Server-side lockout** — 5 failed attempts → 30-min lockout in DB, cannot be cleared client-side
+1. **UID + device code dual validation** — both checked together on every tap, never either alone
+2. **HttpOnly cookies** — session tokens never in localStorage, not accessible to JavaScript
+3. **Server-side lockout** — 5 failed attempts → 30-min lockout stored in DB, cannot be cleared client-side
+
+Additional: session expiry enforced on EA and config endpoints. Shell sessions cannot access config.
 
 ---
 
@@ -211,18 +215,10 @@ All tap events are stubbed until chips arrive.
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Identity + gateway, auth, EA chat, config app, NFC stub | 🔨 In progress |
-| 2 | Manual chain builder, OS delegation, action log | Not started |
+| 1 | Identity + gateway, auth, EA chat, config app, NFC stub | ✅ Complete |
+| 2 | Manual chain builder, OS delegation, action log | 🔲 Next |
 | 3 | Pattern detection, proactive suggestions | Not started |
 | 4 | Autonomous execution (per-chain opt-in) | Not started |
-
----
-
-## New session handoff
-
-To resume building in a new Claude session, paste the system prompt from the project spec at the top of the conversation, then add:
-
-> Phase 1 is complete except for the security review pass (task 21) and production smoke test (task 22). All code is committed to GitHub at lagr8dane/ea-watch. The local dev server runs via `node --env-file=.env server.js`. The NFC stub is working at /stub. The EA chat is working at /ea. Next step is the security review pass.
 
 ---
 
