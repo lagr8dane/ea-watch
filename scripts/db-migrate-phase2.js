@@ -48,7 +48,7 @@ const statements = [
   // chain_state
   `CREATE TABLE IF NOT EXISTS chain_state (
     id            TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
-    session_id    TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    session_id    TEXT NOT NULL REFERENCES sessions(token) ON DELETE CASCADE,
     chain_id      TEXT NOT NULL REFERENCES chains(id) ON DELETE CASCADE,
     current_step  INTEGER NOT NULL DEFAULT 0,
     status        TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'awaiting_confirm', 'completed', 'aborted', 'error')),
@@ -65,7 +65,7 @@ const statements = [
   // action_log
   `CREATE TABLE IF NOT EXISTS action_log (
     id              TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
-    session_id      TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    session_id      TEXT NOT NULL REFERENCES sessions(token) ON DELETE CASCADE,
     chain_state_id  TEXT REFERENCES chain_state(id) ON DELETE SET NULL,
     action_type     TEXT NOT NULL,
     action_config   TEXT NOT NULL DEFAULT '{}',
