@@ -10,7 +10,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@libsql/client": "^0.14.0",
-    "bcrypt": "^5.1.1",
+    "bcryptjs": "^3.0.3",
     "cookie": "^0.7.2",
     "uuid": "^11.0.5"
   },
