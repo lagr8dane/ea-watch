@@ -25,12 +25,13 @@ export default async function handler(req, res) {
   const session = await queryOne(
     `SELECT s.is_shell, s.owner_id
      FROM sessions s
-     WHERE s.token = ?`,
+     WHERE s.token = ?
+       AND datetime(s.expires_at) > datetime('now')`,
     [token]
   );
 
   if (!session) {
-    return res.status(401).json({ error: 'Invalid session' });
+    return res.status(401).json({ error: 'Invalid or expired session' });
   }
 
   const isShell = session.is_shell === 1;

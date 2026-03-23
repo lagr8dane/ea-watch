@@ -1,7 +1,6 @@
 import { parse as parseCookies } from 'cookie';
 import { queryOne, execute } from '../db/client.js';
 import { hashCredential } from '../lib/auth.js';
-import { v4 as uuid } from 'uuid';
 
 async function getOwner(req) {
   const cookies = parseCookies(req.headers.cookie ?? '');
@@ -9,7 +8,9 @@ async function getOwner(req) {
   if (!token) return null;
 
   const session = await queryOne(
-    `SELECT owner_id, is_shell FROM sessions WHERE token = ?`,
+    `SELECT owner_id, is_shell FROM sessions
+     WHERE token = ?
+       AND datetime(expires_at) > datetime('now')`,
     [token]
   );
 
@@ -45,7 +46,6 @@ export default async function handler(req, res) {
 
     const b = req.body ?? {};
 
-    // Hash any credentials that were provided
     const updates = {
       display_name:        b.display_name        ?? null,
       title:               b.title               ?? null,
@@ -67,13 +67,11 @@ export default async function handler(req, res) {
     if (b.access_word) updates.access_word_hash = await hashCredential(b.access_word);
     if (b.danger_word) updates.danger_word_hash = await hashCredential(b.danger_word);
 
-    // Check if config row exists
     const existing = await queryOne(
       `SELECT id FROM owner_config WHERE id = ?`, [ownerId]
     );
 
     if (existing) {
-      // Build dynamic UPDATE
       const fields = Object.keys(updates).map(k => `${k} = ?`).join(', ');
       const values = [...Object.values(updates), ownerId];
       await execute(
@@ -81,11 +79,9 @@ export default async function handler(req, res) {
         values
       );
     } else {
-      // First save — INSERT
-      const id = ownerId;
-      const keys   = ['id', ...Object.keys(updates)];
+      const keys         = ['id', ...Object.keys(updates)];
       const placeholders = keys.map(() => '?').join(', ');
-      const values = [id, ...Object.values(updates)];
+      const values       = [ownerId, ...Object.values(updates)];
       await execute(
         `INSERT INTO owner_config (${keys.join(', ')}) VALUES (${placeholders})`,
         values
