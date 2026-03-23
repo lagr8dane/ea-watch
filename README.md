@@ -9,15 +9,34 @@ The same physical object. Two entirely different experiences, determined by iden
 
 ---
 
-## How it works
+## Current status
 
-Every tap follows this sequence:
+**Phase 1 — in progress.** Core infrastructure complete and running locally. Security review pass remaining before Phase 1 is closed.
 
-1. NFC chip broadcasts a URL to the tapping phone: `https://tap.yourdomain.com?d=[device-code]`
-2. Phone opens the URL in the browser — no app required, works on iOS and Android
-3. Server validates the device code + hardware UID together
-4. Server checks for a valid session cookie
-5. Decision: known device with active session → EA | expired session → challenge | unknown device → contact card
+| Task | Status |
+|---|---|
+| Turso DB schema + client | ✅ Done |
+| Project scaffold + Vercel config | ✅ Done |
+| Shared lib: session token + bcrypt | ✅ Done |
+| Shared lib: audit log | ✅ Done |
+| Device registration endpoint | ✅ Done |
+| Tap gateway handler | ✅ Done |
+| Session management | ✅ Done |
+| Challenge-response auth | ✅ Done |
+| Rate limiting + server-side lockout | ✅ Done |
+| Danger word + shell mode | ✅ Done |
+| Alert dispatcher | ✅ Done |
+| Stranger contact card | ✅ Done |
+| Challenge UI | ✅ Done |
+| EA chat interface | ✅ Done |
+| EA streaming endpoint | ✅ Done |
+| Config app UI | ✅ Done |
+| Config read/write endpoint | ✅ Done |
+| Ownership transfer flow | ✅ Done |
+| NFC stub endpoint | ✅ Done |
+| NFC stub UI | ✅ Done |
+| Security review pass | 🔲 Next |
+| Deploy + smoke test | 🔲 Next |
 
 ---
 
@@ -25,34 +44,36 @@ Every tap follows this sequence:
 
 ```
 ea-watch/
-├── api/                    # Vercel serverless functions (one per route)
-│   ├── tap.js              # Gateway handler — UID+device code validation, session routing
-│   ├── auth.js             # Challenge-response, PIN/word verify, rate limit, lockout
-│   ├── ea.js               # EA chat endpoint — streams Claude API response
-│   ├── config.js           # Read/write owner config
-│   ├── device.js           # Device registration + ownership transfer
-│   ├── alert.js            # Danger word alert dispatcher
+├── api/                        # Vercel serverless functions
+│   ├── tap.js                  # Gateway — UID+device code validation, session routing
+│   ├── auth.js                 # Challenge-response, rate limiting, lockout, danger word
+│   ├── ea.js                   # EA chat endpoint — streams Claude API
+│   ├── config.js               # Owner config read/write (session gated)
+│   ├── device.js               # Device registration + ownership transfer
+│   ├── config/
+│   │   └── public.js           # Public config endpoint (stranger card fields only)
 │   └── dev/
-│       └── tap.js          # NFC stub endpoint (dev only, ENABLE_STUB gate)
-├── public/                 # Static HTML — served directly to phone browser
-│   ├── contact.html        # Stranger contact card
-│   ├── ea.html             # Owner EA chat interface
-│   ├── challenge.html      # Auth challenge UI
-│   ├── config.html         # Owner config app
-│   └── stub.html           # NFC tap simulator (dev only)
-├── lib/                    # Shared utilities
-│   ├── auth.js             # Token generation, bcrypt helpers, session state
-│   ├── audit.js            # Tap audit log writer
-│   ├── ratelimit.js        # Rate limiting + server-side lockout
-│   └── alert.js            # Danger word alert dispatcher
+│       └── tap.js              # NFC stub endpoint (ENABLE_STUB gate)
+├── public/                     # Static HTML — served to phone browser
+│   ├── contact.html            # Stranger contact card
+│   ├── ea.html                 # Owner EA chat interface
+│   ├── challenge.html          # Auth challenge UI
+│   ├── config.html             # Owner config app
+│   └── stub.html               # NFC tap simulator (dev only)
+├── lib/                        # Shared utilities
+│   ├── auth.js                 # Token generation, bcrypt, session state machine
+│   ├── audit.js                # Tap audit log writer
+│   ├── ratelimit.js            # Rate limiting + server-side lockout
+│   └── alert.js                # Danger word alert dispatcher
 ├── db/
-│   ├── schema.sql          # Database schema
-│   └── client.js           # Turso client + query helpers
+│   ├── schema.sql              # Database schema (5 tables)
+│   └── client.js               # Turso client + query helpers
 ├── scripts/
-│   └── db-init.js          # Applies schema to Turso on first run
-├── .env.example            # All required environment variables
+│   └── db-init.js              # Applies schema to Turso
+├── server.js                   # Local dev server (replaces vercel dev)
+├── .env.example                # Environment variable template
 ├── package.json
-└── vercel.json             # Route rewrites
+└── vercel.json
 ```
 
 ---
@@ -61,182 +82,128 @@ ea-watch/
 
 | Layer | Choice | Why |
 |---|---|---|
-| Hosting | Vercel | Serverless, deploys on push, free tier covers personal use |
-| Database | Turso (SQLite edge) | Zero config, works natively with Vercel, free tier |
-| AI | Anthropic Claude API | Powers the EA chat interface, streaming |
-| Auth | bcrypt + HttpOnly cookies | No JWTs in localStorage, server-side session management |
-| Frontend | Vanilla HTML/CSS/JS | No framework — mobile-first, fast, no build step |
+| Hosting | Vercel | Serverless, deploys on push, free tier |
+| Database | Turso (SQLite edge) | Zero config, edge-hosted, free tier |
+| AI | Anthropic Claude API (claude-sonnet-4-5) | Powers EA chat, streaming |
+| Auth | bcrypt + HttpOnly cookies | No JWTs in localStorage |
+| Frontend | Vanilla HTML/CSS/JS | Mobile-first, no build step |
 | Voice input | Web Speech API | Browser-native, no backend dependency |
 
 ---
 
-## Prerequisites
+## Local development
 
+### Prerequisites
 - Node.js 18+
-- A [Vercel](https://vercel.com) account
-- A [Turso](https://turso.tech) account and database
-- An [Anthropic](https://console.anthropic.com) API key
-- A [Resend](https://resend.com) API key (for danger word email alerts)
+- Turso account + database
+- Anthropic API key
 
----
-
-## Local setup
-
-### 1. Clone the repo
+### Setup
 
 ```bash
-git clone https://github.com/yourusername/ea-watch.git
+git clone https://github.com/lagr8dane/ea-watch.git
 cd ea-watch
 npm install
-```
-
-### 2. Configure environment variables
-
-```bash
 cp .env.example .env
+# Fill in .env with your values
+node --env-file=.env scripts/db-init.js
+node --env-file=.env server.js
 ```
 
-Fill in `.env`:
+Server runs at `http://localhost:3000`.
+
+### Environment variables
 
 ```
 TURSO_DATABASE_URL=libsql://your-db.turso.io
-TURSO_AUTH_TOKEN=your-turso-auth-token
-ANTHROPIC_API_KEY=your-anthropic-api-key
-RESEND_API_KEY=your-resend-api-key
-ALERT_FROM_EMAIL=alerts@yourdomain.com
+TURSO_AUTH_TOKEN=your-token
+ANTHROPIC_API_KEY=your-key
+RESEND_API_KEY=your-key (optional for now)
+ALERT_FROM_EMAIL=alerts@yourdomain.com (optional for now)
 ENABLE_STUB=true
 APP_URL=http://localhost:3000
 NODE_ENV=development
 ```
 
-### 3. Initialise the database
+### NFC stub
+
+With `ENABLE_STUB=true`, open `http://localhost:3000/stub` to simulate tap scenarios:
+
+- **Owner — active session** → EA opens directly
+- **Owner — expired session** → Challenge screen
+- **Stranger tap** → Contact card
+- **Danger word entry** → Shell EA + silent alert
+
+### Register test device (run once)
 
 ```bash
-npm run db:init
+curl -X POST http://localhost:3000/api/device \
+  -H "Content-Type: application/json" \
+  -d '{"uid":"04A1B2C3D4E5F6","device_code":"test-device-001","notes":"dev stub"}'
 ```
-
-This applies `db/schema.sql` to your Turso database. Safe to run multiple times — all statements use `CREATE IF NOT EXISTS`.
-
-### 4. Run locally
-
-```bash
-npm run dev
-```
-
-Vercel CLI runs the project locally at `http://localhost:3000`.
-
-### 5. Simulate a tap
-
-With `ENABLE_STUB=true`, open `http://localhost:3000/stub` in your browser. Four buttons simulate the four tap scenarios:
-
-- Owner tap — active session (goes straight to EA)
-- Owner tap — expired session (goes to challenge)
-- Stranger tap (goes to contact card)
-- Danger word entry (opens shell EA + fires alert)
 
 ---
 
 ## Deployment
 
-### 1. Push to GitHub
-
 ```bash
-git add .
-git commit -m "initial commit"
 git push origin main
 ```
 
-### 2. Connect to Vercel
+Vercel auto-deploys on every push. Environment variables are set in Vercel dashboard → Settings → Environment Variables.
 
-1. Go to [vercel.com](https://vercel.com) and create a new project
-2. Import your GitHub repo
-3. Vercel auto-detects Node.js — no build config needed
-
-### 3. Add environment variables
-
-In Vercel → Settings → Environment Variables, add everything from `.env.example` with production values. Set `ENABLE_STUB=false` and `NODE_ENV=production`.
-
-### 4. Deploy
-
-Every push to `main` deploys automatically. First deploy happens when you connect the repo.
+Production env vars match `.env.example` with:
+- `ENABLE_STUB=false`
+- `NODE_ENV=production`
+- `APP_URL=https://your-vercel-domain.vercel.app`
 
 ---
 
 ## Authentication
 
-Three credentials, each serving a different purpose:
+### Three credentials
 
 | Credential | Purpose | Behaviour |
 |---|---|---|
-| PIN | 4–6 digit numeric. Routine re-auth on expired sessions. | Rate limited — 5 attempts then 30-min server-side lockout. |
-| Access word | User-chosen passphrase. Higher entropy. Cold session auth. | Same rate limiting as PIN. |
-| Danger word | Duress credential. Authenticates successfully. | Opens shell EA (no sensitive data). Fires silent alert to trusted contact. Coercer sees a working assistant. |
+| PIN | 4–6 digit numeric. Routine re-auth. | Rate limited — 5 attempts then 30-min lockout. |
+| Access word | Passphrase. Cold session auth. | Same rate limiting. |
+| Danger word | Duress credential. | Authenticates normally. Opens shell EA. Fires silent alert to trusted contact. |
 
 ### Session states
 
 | State | Condition | Behaviour |
 |---|---|---|
-| Active | Within configured window (default 60 min) | EA opens directly — no challenge |
+| Active | Within configured window (default 60 min) | EA opens directly |
 | Warm | 1–8 hours past window | Light challenge |
-| Cold | 8+ hours past window | Full challenge |
-| Unknown | No session token, unrecognised device | Contact card — no challenge offered |
+| Cold | 8+ hours | Full challenge |
+| Unknown | Unrecognised device | Contact card only |
 
-Session tokens are stored as HttpOnly cookies. Not accessible to JavaScript.
+### Challenge style (configurable in config app)
 
-### Challenge style
+- `word_then_pin` — passphrase first, PIN as fallback (default)
+- `word` — passphrase only
+- `pin` — PIN only
 
-Configurable per owner in the config app:
+---
 
-- `pin` — always prompt for PIN
-- `word` — always prompt for access word
-- `word_then_pin` — prompt for access word, PIN accepted as fallback (default)
+## Security non-negotiables
+
+Three items must be present at all times:
+
+1. **UID + device code dual validation** — both checked together on every tap
+2. **HttpOnly cookies** — session tokens never in localStorage
+3. **Server-side lockout** — 5 failed attempts → 30-min lockout in DB, cannot be cleared client-side
 
 ---
 
 ## NFC hardware
 
-**Chip:** NTAG213 anti-metal. 144 bytes. 13.56MHz.  
-**Why anti-metal:** Watch case backs are metal. Standard NFC tags fail on metal. The anti-metal variant has a ferrite backing that redirects the RF field outward toward the tapper.
+**Chip:** NTAG213 anti-metal. 144 bytes. 13.56MHz. On order.  
+**NDEF format:** `https://tap.yourdomain.com?d=[device-code]`  
+**UID:** 7-byte hardware identifier, burned at manufacture, cannot be cloned.  
+**Write tool:** NFC Tools (wakdev) — iOS or Android. Free.
 
-**NDEF record format:**
-```
-https://tap.yourdomain.com?d=[device-code]
-```
-
-**Hardware UID:** 7-byte identifier burned at manufacture. Cannot be cloned. Validated server-side on every tap combined with the device code. Neither alone is sufficient.
-
-**Write tooling:** NFC Tools (wakdev) — iOS or Android. Free. Write takes ~2 seconds.  
-**Locking:** Lock the chip after setup is confirmed stable. Domain indirection means the chip never needs rewriting even if the app changes.
-
-### NFC stub (dev only)
-
-Until chips arrive, all tap events are simulated via:
-
-- `GET /api/dev/tap?d=[device-code]&uid=[simulated-uid]` — fires the tap flow programmatically
-- `http://localhost:3000/stub` — browser UI with four scenario buttons
-
-The stub is gated behind `ENABLE_STUB=true`. It is never present in production.
-
----
-
-## Security model
-
-Three items are non-negotiable before any production use:
-
-1. **UID + device code dual validation** — both must be checked together server-side on every tap. The device code is readable by anyone with an NFC reader app. The UID cannot be cloned. Together they are strong.
-2. **HttpOnly cookies** — session tokens are never in localStorage. Not accessible to JavaScript.
-3. **Server-side lockout** — 5 failed challenge attempts triggers a 30-minute lockout stored in the database. Cannot be cleared client-side.
-
-### Threat model
-
-| Threat | Mitigation |
-|---|---|
-| Curious stranger taps | Device recognition — unknown device goes straight to contact card, no challenge offered |
-| Phone theft — active session | Short session windows. Phone OS lock is first line of defence. |
-| Coercion | Danger word authenticates normally, opens shell EA, fires silent alert to trusted contact |
-| URL cloning | UID cannot be cloned. UID + device code dual validation rejects requests from different hardware. |
-| PIN brute force | 5 attempts then 30-min server-side lockout. Cannot be cleared client-side. |
-| Ownership transfer | Device code decommissioned server-side. UID re-registered to new owner via authorised onboarding flow. |
+All tap events are stubbed until chips arrive.
 
 ---
 
@@ -244,13 +211,22 @@ Three items are non-negotiable before any production use:
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Identity + gateway. Auth. EA chat. Config app. NFC stub. | 🔨 In progress |
-| 2 | Manual chain builder. OS delegation. Action log. | Not started |
-| 3 | Pattern detection. Proactive suggestions. | Not started |
-| 4 | Autonomous execution (per-chain opt-in). | Not started |
+| 1 | Identity + gateway, auth, EA chat, config app, NFC stub | 🔨 In progress |
+| 2 | Manual chain builder, OS delegation, action log | Not started |
+| 3 | Pattern detection, proactive suggestions | Not started |
+| 4 | Autonomous execution (per-chain opt-in) | Not started |
+
+---
+
+## New session handoff
+
+To resume building in a new Claude session, paste the system prompt from the project spec at the top of the conversation, then add:
+
+> Phase 1 is complete except for the security review pass (task 21) and production smoke test (task 22). All code is committed to GitHub at lagr8dane/ea-watch. The local dev server runs via `node --env-file=.env server.js`. The NFC stub is working at /stub. The EA chat is working at /ea. Next step is the security review pass.
 
 ---
 
 ## Owner
 
-Marco Rota — built for personal use first, potential productisation later.
+Marco Rota — building for personal use first, potential productisation later.  
+GitHub: lagr8dane/ea-watch
