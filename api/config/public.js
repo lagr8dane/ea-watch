@@ -1,4 +1,4 @@
-import { queryOne } from '../db/client.js';
+import { queryOne } from '../../db/client.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
