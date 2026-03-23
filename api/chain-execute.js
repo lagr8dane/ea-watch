@@ -11,7 +11,8 @@
 // doesn't need to handle button interactions. The UI calls this directly,
 // gets a result, and renders it in the chat as if the EA said it.
 
-import { requireOwnerSession } from '../lib/auth.js';
+import { parse as parseCookies } from 'cookie';
+import { queryOne } from '../db/client.js';
 import { resumeChain, abortActiveChain } from '../lib/chain-engine.js';
 import { getDeviceActionLog } from '../lib/action-log.js';
 
@@ -20,8 +21,20 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const session = await requireOwnerSession(req, res);
-  if (!session) return;
+  const cookies = parseCookies(req.headers.cookie ?? '');
+  const token = cookies['ea_session'];
+  if (!token) return res.status(401).json({ error: 'No session' });
+
+  const session = await queryOne(
+    `SELECT s.id, s.device_id, s.is_shell
+     FROM sessions s
+     WHERE s.token = ? AND datetime(s.expires_at) > datetime('now')`,
+    [token]
+  );
+  if (!session) return res.status(401).json({ error: 'Invalid or expired session' });
+  if (session.is_shell) return res.status(403).json({ error: 'Not available in restricted mode' });
+
+  const sessionId = session.id;
 
   const body = await parseBody(req);
   const { chainStateId, action } = body;
@@ -35,13 +48,12 @@ export default async function handler(req, res) {
     let result;
 
     if (action === 'abort' && !chainStateId) {
-      // Abort whatever is currently active for this session
-      result = await abortActiveChain(session.sessionId, 'user requested stop');
+      result = await abortActiveChain(sessionId, 'user requested stop');
     } else {
       if (!chainStateId) {
         return res.status(400).json({ error: 'chainStateId is required for continue/skip' });
       }
-      result = await resumeChain(session.sessionId, chainStateId, action);
+      result = await resumeChain(sessionId, chainStateId, action);
     }
 
     return res.status(200).json({ result });
@@ -61,13 +73,22 @@ export async function actionLogHandler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const session = await requireOwnerSession(req, res);
-  if (!session) return;
+  const cookies = parseCookies(req.headers.cookie ?? '');
+  const token = cookies['ea_session'];
+  if (!token) return res.status(401).json({ error: 'No session' });
+
+  const session = await queryOne(
+    `SELECT s.device_id, s.is_shell FROM sessions s
+     WHERE s.token = ? AND datetime(s.expires_at) > datetime('now')`,
+    [token]
+  );
+  if (!session) return res.status(401).json({ error: 'Invalid or expired session' });
+  if (session.is_shell) return res.status(403).json({ error: 'Not available in restricted mode' });
 
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const limit = parseInt(url.searchParams.get('limit') || '100', 10);
-    const entries = await getDeviceActionLog(session.deviceId, Math.min(limit, 500));
+    const entries = await getDeviceActionLog(session.device_id, Math.min(limit, 500));
     return res.status(200).json({ log: entries });
   } catch (err) {
     console.error('[chain-execute/log] Error:', err);

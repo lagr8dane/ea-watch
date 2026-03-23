@@ -12,50 +12,50 @@
 //   POST   /api/chains/:id/steps          — append a single step
 //   DELETE /api/chains/:id/steps/:stepId  — delete a single step, reorder remaining
 
+import { parse as parseCookies } from 'cookie';
 import { query, queryOne, execute } from '../db/client.js';
-import { requireOwnerSession } from '../lib/auth.js';
 
 export default async function handler(req, res) {
-  // All chain routes require an authenticated owner session
-  const session = await requireOwnerSession(req, res);
-  if (!session) return; // requireOwnerSession handles the 401 response
+  // --- Inline session validation (owner only) ---
+  const cookies = parseCookies(req.headers.cookie ?? '');
+  const token = cookies['ea_session'];
+  if (!token) return res.status(401).json({ error: 'No session' });
 
-  const { deviceId } = session;
+  const session = await queryOne(
+    `SELECT s.id, s.device_id, s.owner_id, s.is_shell
+     FROM sessions s
+     WHERE s.token = ? AND datetime(s.expires_at) > datetime('now')`,
+    [token]
+  );
+  if (!session) return res.status(401).json({ error: 'Invalid or expired session' });
+  if (session.is_shell) return res.status(403).json({ error: 'Not available in restricted mode' });
+
+  const deviceId = session.device_id;
+
   const url = new URL(req.url, `http://${req.headers.host}`);
   const parts = url.pathname.replace(/^\/api\/chains\/?/, '').split('/').filter(Boolean);
-  // parts[0] = chain id (optional)
-  // parts[1] = 'steps' (optional)
-  // parts[2] = step id (optional)
 
   const chainId = parts[0];
   const isSteps = parts[1] === 'steps';
-  const stepId = parts[2];
+  const stepId  = parts[2];
 
   try {
-    // -----------------------------------------------------------------------
-    // No chain ID — collection routes
-    // -----------------------------------------------------------------------
     if (!chainId) {
-      if (req.method === 'GET') return await listChains(req, res, deviceId);
+      if (req.method === 'GET')  return await listChains(req, res, deviceId);
       if (req.method === 'POST') return await createChain(req, res, deviceId);
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    // -----------------------------------------------------------------------
-    // Chain ID present — verify ownership before proceeding
-    // -----------------------------------------------------------------------
     const chain = await getChainForDevice(chainId, deviceId);
     if (!chain) return res.status(404).json({ error: 'Chain not found' });
 
-    // Steps sub-resource
     if (isSteps) {
-      if (req.method === 'PUT')    return await replaceSteps(req, res, chainId);
-      if (req.method === 'POST')   return await appendStep(req, res, chainId);
-      if (req.method === 'DELETE' && stepId) return await deleteStep(req, res, chainId, stepId);
+      if (req.method === 'PUT')                    return await replaceSteps(req, res, chainId);
+      if (req.method === 'POST')                   return await appendStep(req, res, chainId);
+      if (req.method === 'DELETE' && stepId)       return await deleteStep(req, res, chainId, stepId);
       return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    // Chain resource
     if (req.method === 'GET')    return await getChain(req, res, chainId);
     if (req.method === 'PUT')    return await updateChain(req, res, chainId);
     if (req.method === 'DELETE') return await deleteChain(req, res, chainId);
