@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>EA Config</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0a0a0a;
+      --surface: #141414;
+      --surface2:#1c1c1c;
+      --border:  rgba(255,255,255,0.08);
+      --text:    #f0f0f0;
+      --muted:   #666;
+      --danger:  #c0392b;
+      --success: #27ae60;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100%;
+    }
+
+    body {
+      padding: 0 0 60px;
+    }
+
+    /* Header */
+    header {
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+    }
+
+    header h1 {
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    .save-btn {
+      padding: 8px 18px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .save-btn:active   { opacity: 0.8; }
+    .save-btn:disabled { opacity: 0.4; cursor: default; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 14px;
+      transition: transform 0.3s ease;
+      z-index: 100;
+      white-space: nowrap;
+    }
+
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* Sections */
+    .section {
+      margin: 28px 0 0;
+      padding: 0 20px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+      padding-left: 4px;
+    }
+
+    .section-body {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    /* Fields */
+    .field {
+      display: flex;
+      flex-direction: column;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      gap: 6px;
+    }
+
+    .field:last-child { border-bottom: none; }
+
+    .field label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .field input,
+    .field textarea,
+    .field select {
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      width: 100%;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .field textarea {
+      resize: none;
+      line-height: 1.5;
+      min-height: 80px;
+    }
+
+    .field input::placeholder,
+    .field textarea::placeholder { color: var(--muted); }
+
+    .field select option {
+      background: #1c1c1c;
+      color: var(--text);
+    }
+
+    /* Range field */
+    .field.range-field {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .range-left { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .range-left label { font-size: 12px; color: var(--muted); font-weight: 500; }
+    .range-value { font-size: 15px; color: var(--text); }
+
+    input[type="range"] {
+      width: 120px;
+      accent-color: var(--text);
+    }
+
+    /* Security note */
+    .field-note {
+      font-size: 11px;
+      color: var(--muted);
+      padding: 10px 16px;
+      border-top: 1px solid var(--border);
+      line-height: 1.5;
+    }
+
+    /* Danger zone */
+    .danger-btn {
+      width: 100%;
+      padding: 14px;
+      background: none;
+      border: none;
+      color: var(--danger);
+      font-size: 15px;
+      font-family: inherit;
+      cursor: pointer;
+      text-align: center;
+      -webkit-tap-highlight-color: transparent;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>EA Config</h1>
+    <button class="save-btn" id="save-btn" onclick="save()">Save</button>
+  </header>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Identity -->
+  <div class="section">
+    <div class="section-title">Identity</div>
+    <div class="section-body">
+      <div class="field">
+        <label>Name</label>
+        <input type="text" id="display_name" placeholder="Marco Rota" autocomplete="name">
+      </div>
+      <div class="field">
+        <label>Title</label>
+        <input type="text" id="title" placeholder="Technology Executive" autocomplete="organization-title">
+      </div>
+    </div>
+  </div>
+
+  <!-- Session -->
+  <div class="section">
+    <div class="section-title">Session</div>
+    <div class="section-body">
+      <div class="field range-field">
+        <div class="range-left">
+          <label>Active window</label>
+          <div class="range-value"><span id="window-val">60</span> min</div>
+        </div>
+        <input type="range" id="session_window_mins" min="15" max="480" step="15" value="60"
+               oninput="document.getElementById('window-val').textContent = this.value">
+      </div>
+      <div class="field">
+        <label>Challenge style</label>
+        <select id="challenge_style">
+          <option value="word_then_pin">Passphrase, PIN as fallback (default)</option>
+          <option value="word">Passphrase only</option>
+          <option value="pin">PIN only</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Challenge phrase</label>
+        <input type="text" id="challenge_phrase" placeholder="Hey — it's been a while. What's the word?">
+      </div>
+    </div>
+  </div>
+
+  <!-- Credentials -->
+  <div class="section">
+    <div class="section-title">Credentials</div>
+    <div class="section-body">
+      <div class="field">
+        <label>PIN (4–6 digits)</label>
+        <input type="password" id="pin" inputmode="numeric" placeholder="leave blank to keep existing" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label>Access word</label>
+        <input type="password" id="access_word" placeholder="leave blank to keep existing" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label>Danger word</label>
+        <input type="password" id="danger_word" placeholder="leave blank to keep existing" autocomplete="new-password">
+      </div>
+      <div class="field-note">
+        Credentials are hashed before storage and never retrievable. Leave blank to keep existing values. The danger word authenticates normally but opens a restricted EA and alerts your trusted contact.
+      </div>
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  <div class="section">
+    <div class="section-title">Danger word alert</div>
+    <div class="section-body">
+      <div class="field">
+        <label>Alert phone (iMessage)</label>
+        <input type="tel" id="alert_phone" placeholder="+1 555 000 0000" autocomplete="tel">
+      </div>
+      <div class="field">
+        <label>Alert email (fallback)</label>
+        <input type="email" id="alert_email" placeholder="trusted@example.com" autocomplete="email">
+      </div>
+    </div>
+  </div>
+
+  <!-- EA Personality -->
+  <div class="section">
+    <div class="section-title">EA Personality</div>
+    <div class="section-body">
+      <div class="field">
+        <label>System prompt</label>
+        <textarea id="ea_personality" placeholder="You are EA, a personal assistant for Marco. You are direct, efficient, and intelligent. Keep responses concise."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stranger card -->
+  <div class="section">
+    <div class="section-title">Stranger card</div>
+    <div class="section-body">
+      <div class="field">
+        <label>Bio (optional)</label>
+        <textarea id="stranger_bio" placeholder="A short line about you, shown on the contact card." style="min-height:60px"></textarea>
+      </div>
+      <div class="field">
+        <label>LinkedIn URL</label>
+        <input type="url" id="stranger_linkedin" placeholder="https://linkedin.com/in/yourname">
+      </div>
+      <div class="field">
+        <label>Calendly URL</label>
+        <input type="url" id="stranger_calendly" placeholder="https://calendly.com/yourname">
+      </div>
+      <div class="field">
+        <label>iMessage / SMS number</label>
+        <input type="tel" id="stranger_imessage" placeholder="+1 555 000 0000">
+      </div>
+      <div class="field">
+        <label>WhatsApp number</label>
+        <input type="tel" id="stranger_whatsapp" placeholder="+1 555 000 0000">
+      </div>
+    </div>
+  </div>
+
+  <!-- Danger zone -->
+  <div class="section">
+    <div class="section-title">Device</div>
+    <div class="section-body">
+      <button class="danger-btn" onclick="confirmTransfer()">Transfer ownership…</button>
+    </div>
+  </div>
+
+  <script>
+    // Load existing config on mount
+    async function load() {
+      try {
+        const res = await fetch('/api/config');
+        if (!res.ok) return;
+        const c = await res.json();
+
+        const fields = [
+          'display_name','title','session_window_mins','challenge_style',
+          'challenge_phrase','alert_phone','alert_email','ea_personality',
+          'stranger_bio','stranger_linkedin','stranger_calendly',
+          'stranger_imessage','stranger_whatsapp'
+        ];
+
+        for (const f of fields) {
+          const el = document.getElementById(f);
+          if (el && c[f] != null) {
+            el.value = c[f];
+            if (f === 'session_window_mins') {
+              document.getElementById('window-val').textContent = c[f];
+            }
+          }
+        }
+      } catch (e) {
+        // First run — no config yet, defaults are fine
+      }
+    }
+
+    async function save() {
+      const btn = document.getElementById('save-btn');
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+
+      const body = {
+        display_name:        val('display_name'),
+        title:               val('title'),
+        session_window_mins: parseInt(val('session_window_mins')),
+        challenge_style:     val('challenge_style'),
+        challenge_phrase:    val('challenge_phrase'),
+        alert_phone:         val('alert_phone'),
+        alert_email:         val('alert_email'),
+        ea_personality:      val('ea_personality'),
+        stranger_bio:        val('stranger_bio'),
+        stranger_linkedin:   val('stranger_linkedin'),
+        stranger_calendly:   val('stranger_calendly'),
+        stranger_imessage:   val('stranger_imessage'),
+        stranger_whatsapp:   val('stranger_whatsapp'),
+      };
+
+      // Only include credentials if filled in
+      const pin         = val('pin');
+      const access_word = val('access_word');
+      const danger_word = val('danger_word');
+      if (pin)         body.pin         = pin;
+      if (access_word) body.access_word = access_word;
+      if (danger_word) body.danger_word = danger_word;
+
+      try {
+        const res = await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (res.ok) {
+          // Clear credential fields after save
+          ['pin','access_word','danger_word'].forEach(id => {
+            document.getElementById(id).value = '';
+          });
+          showToast('Saved');
+        } else {
+          showToast('Save failed — try again');
+        }
+      } catch (e) {
+        showToast('Connection error');
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Save';
+    }
+
+    function val(id) {
+      return document.getElementById(id)?.value?.trim() ?? '';
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    function confirmTransfer() {
+      if (confirm('Transfer ownership? This will decommission this device and require re-registration.')) {
+        fetch('/api/device/transfer', { method: 'POST' })
+          .then(() => showToast('Ownership transfer initiated'))
+          .catch(() => showToast('Transfer failed'));
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>

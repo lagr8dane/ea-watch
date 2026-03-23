@@ -1,0 +1,20 @@
+{
+  "name": "ea-watch",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "db:init": "node scripts/db-init.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@libsql/client": "^0.14.0",
+    "bcrypt": "^5.1.1",
+    "cookie": "^0.7.2",
+    "uuid": "^11.0.5"
+  },
+  "devDependencies": {
+    "vercel": "^39.0.0"
+  }
+}

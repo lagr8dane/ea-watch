@@ -1,0 +1,10 @@
+{
+  "rewrites": [
+    { "source": "/",        "destination": "/api/tap" },
+    { "source": "/stub",    "destination": "/public/stub.html" },
+    { "source": "/contact", "destination": "/public/contact.html" },
+    { "source": "/ea",      "destination": "/public/ea.html" },
+    { "source": "/challenge","destination": "/public/challenge.html" },
+    { "source": "/config",  "destination": "/public/config.html" }
+  ]
+}
