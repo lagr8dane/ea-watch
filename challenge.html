@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>EA</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0a0a0a;
+      --surface: #141414;
+      --border:  rgba(255,255,255,0.08);
+      --text:    #f0f0f0;
+      --muted:   #666;
+      --accent:  #f0f0f0;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      padding: 48px 28px;
+    }
+
+    .wrap {
+      width: 100%;
+      max-width: 340px;
+      display: flex;
+      flex-direction: column;
+      gap: 40px;
+    }
+
+    /* Pulse indicator */
+    .pulse-wrap {
+      display: flex;
+      justify-content: center;
+    }
+
+    .pulse {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--muted);
+      animation: pulse 2.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50%       { opacity: 1;   transform: scale(1.15); }
+    }
+
+    /* Challenge phrase */
+    .phrase {
+      font-size: 22px;
+      font-weight: 500;
+      line-height: 1.35;
+      letter-spacing: -0.3px;
+      color: var(--text);
+      text-align: center;
+    }
+
+    /* Input area */
+    .input-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Style toggle — only shown when challenge_style = word_then_pin */
+    .style-toggle {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .style-toggle button {
+      flex: 1;
+      padding: 10px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .style-toggle button.active {
+      background: rgba(255,255,255,0.07);
+      color: var(--text);
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="number"] {
+      width: 100%;
+      padding: 18px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      color: var(--text);
+      font-size: 18px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    input:focus {
+      border-color: rgba(255,255,255,0.2);
+    }
+
+    input::placeholder {
+      color: var(--muted);
+    }
+
+    /* PIN input — larger, numeric */
+    input.pin-input {
+      letter-spacing: 8px;
+      text-align: center;
+      font-size: 24px;
+    }
+
+    button.submit {
+      width: 100%;
+      padding: 18px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button.submit:active { opacity: 0.85; }
+    button.submit:disabled { opacity: 0.4; cursor: default; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="pulse-wrap"><div class="pulse"></div></div>
+    <p class="phrase" id="phrase">Hey — it's been a while. What's the word?</p>
+
+    <div class="input-wrap">
+      <!-- Style toggle — shown for word_then_pin only -->
+      <div class="style-toggle" id="style-toggle" style="display:none">
+        <button id="toggle-word" class="active" onclick="setMode('word')">Passphrase</button>
+        <button id="toggle-pin"  onclick="setMode('pin')">PIN</button>
+      </div>
+
+      <!-- Word input -->
+      <input type="password" id="word-input" placeholder="your passphrase"
+             autocomplete="off" autocorrect="off" spellcheck="false"
+             style="display:none"
+             onkeydown="if(event.key==='Enter') submit()">
+
+      <!-- PIN input -->
+      <input type="number" id="pin-input" placeholder="· · · ·"
+             class="pin-input"
+             inputmode="numeric" pattern="[0-9]*"
+             min="0" max="999999"
+             autocomplete="off"
+             style="display:none"
+             onkeydown="if(event.key==='Enter') submit()">
+
+      <button class="submit" id="submit-btn" onclick="submit()">Continue</button>
+    </div>
+  </div>
+
+  <script>
+    const params  = new URLSearchParams(location.search);
+    const d       = params.get('d') ?? '';
+    const uid     = params.get('uid') ?? '';
+    const style   = params.get('style') ?? 'word_then_pin';
+    const phrase  = params.get('phrase');
+    const failed  = params.get('failed') === '1';
+
+    let currentMode = 'word';
+
+    // Set phrase
+    if (phrase) {
+      document.getElementById('phrase').textContent = decodeURIComponent(phrase);
+    }
+
+    // If previous attempt failed — show a slightly different phrase (no error count)
+    if (failed) {
+      const el = document.getElementById('phrase');
+      // Append a subtle variation — feels conversational, not like a login error
+      el.textContent = el.textContent.replace('?', ' — try again?');
+    }
+
+    // Configure input mode based on challenge_style
+    function init() {
+      if (style === 'pin') {
+        showPin();
+      } else if (style === 'word') {
+        showWord();
+      } else {
+        // word_then_pin — show toggle + default to word
+        document.getElementById('style-toggle').style.display = 'flex';
+        showWord();
+      }
+    }
+
+    function showWord() {
+      currentMode = 'word';
+      document.getElementById('word-input').style.display = 'block';
+      document.getElementById('pin-input').style.display  = 'none';
+      document.getElementById('toggle-word')?.classList.add('active');
+      document.getElementById('toggle-pin')?.classList.remove('active');
+      document.getElementById('word-input').focus();
+    }
+
+    function showPin() {
+      currentMode = 'pin';
+      document.getElementById('pin-input').style.display  = 'block';
+      document.getElementById('word-input').style.display = 'none';
+      document.getElementById('toggle-pin')?.classList.add('active');
+      document.getElementById('toggle-word')?.classList.remove('active');
+      document.getElementById('pin-input').focus();
+    }
+
+    function setMode(mode) {
+      if (mode === 'pin') showPin(); else showWord();
+    }
+
+    async function submit() {
+      const input = currentMode === 'pin'
+        ? document.getElementById('pin-input')
+        : document.getElementById('word-input');
+
+      const credential = input.value.trim();
+      if (!credential) return;
+
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      // POST to auth endpoint
+      const form = new URLSearchParams({ d, uid, credential });
+
+      try {
+        const res = await fetch('/api/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: form.toString(),
+          redirect: 'follow',
+        });
+
+        // Auth endpoint redirects on both success and failure.
+        // Follow the redirect destination.
+        if (res.redirected) {
+          window.location.href = res.url;
+        } else {
+          // Unexpected — redirect to contact as fallback
+          window.location.href = '/contact';
+        }
+      } catch (e) {
+        window.location.href = '/contact';
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
