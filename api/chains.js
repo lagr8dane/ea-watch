@@ -1,0 +1,367 @@
+// api/chains.js
+// CRUD endpoints for chains and chain_steps.
+// All routes require a valid owner session — no stranger access.
+//
+// Routes:
+//   GET    /api/chains                    — list all chains for this device
+//   POST   /api/chains                    — create a new chain
+//   GET    /api/chains/:id                — get a single chain with its steps
+//   PUT    /api/chains/:id                — update chain metadata (name, trigger, description, enabled)
+//   DELETE /api/chains/:id                — delete a chain and all its steps
+//   PUT    /api/chains/:id/steps          — replace all steps for a chain (full reorder/edit)
+//   POST   /api/chains/:id/steps          — append a single step
+//   DELETE /api/chains/:id/steps/:stepId  — delete a single step, reorder remaining
+
+import { db } from '../db/client.js';
+import { requireOwnerSession } from '../lib/auth.js';
+
+export default async function handler(req, res) {
+  // All chain routes require an authenticated owner session
+  const session = await requireOwnerSession(req, res);
+  if (!session) return; // requireOwnerSession handles the 401 response
+
+  const { deviceId } = session;
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const parts = url.pathname.replace(/^\/api\/chains\/?/, '').split('/').filter(Boolean);
+  // parts[0] = chain id (optional)
+  // parts[1] = 'steps' (optional)
+  // parts[2] = step id (optional)
+
+  const chainId = parts[0];
+  const isSteps = parts[1] === 'steps';
+  const stepId = parts[2];
+
+  try {
+    // -----------------------------------------------------------------------
+    // No chain ID — collection routes
+    // -----------------------------------------------------------------------
+    if (!chainId) {
+      if (req.method === 'GET') return await listChains(req, res, deviceId);
+      if (req.method === 'POST') return await createChain(req, res, deviceId);
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // -----------------------------------------------------------------------
+    // Chain ID present — verify ownership before proceeding
+    // -----------------------------------------------------------------------
+    const chain = await getChainForDevice(chainId, deviceId);
+    if (!chain) return res.status(404).json({ error: 'Chain not found' });
+
+    // Steps sub-resource
+    if (isSteps) {
+      if (req.method === 'PUT')    return await replaceSteps(req, res, chainId);
+      if (req.method === 'POST')   return await appendStep(req, res, chainId);
+      if (req.method === 'DELETE' && stepId) return await deleteStep(req, res, chainId, stepId);
+      return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    // Chain resource
+    if (req.method === 'GET')    return await getChain(req, res, chainId);
+    if (req.method === 'PUT')    return await updateChain(req, res, chainId);
+    if (req.method === 'DELETE') return await deleteChain(req, res, chainId);
+    return res.status(405).json({ error: 'Method not allowed' });
+
+  } catch (err) {
+    console.error('[chains] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Collection handlers
+// ---------------------------------------------------------------------------
+
+async function listChains(req, res, deviceId) {
+  const result = await db.execute({
+    sql: `SELECT c.*,
+            COUNT(cs.id) as step_count
+          FROM chains c
+          LEFT JOIN chain_steps cs ON cs.chain_id = c.id
+          WHERE c.device_id = ?
+          GROUP BY c.id
+          ORDER BY c.created_at ASC`,
+    args: [deviceId],
+  });
+  return res.status(200).json({ chains: result.rows });
+}
+
+async function createChain(req, res, deviceId) {
+  const body = await parseBody(req);
+  const { name, trigger_phrase, description } = body;
+
+  if (!name?.trim()) {
+    return res.status(400).json({ error: 'name is required' });
+  }
+  if (!trigger_phrase?.trim()) {
+    return res.status(400).json({ error: 'trigger_phrase is required' });
+  }
+
+  // Check for duplicate trigger phrase on this device
+  const existing = await db.execute({
+    sql: `SELECT id FROM chains WHERE device_id = ? AND lower(trigger_phrase) = lower(?)`,
+    args: [deviceId, trigger_phrase.trim()],
+  });
+  if (existing.rows.length > 0) {
+    return res.status(409).json({ error: 'A chain with this trigger phrase already exists' });
+  }
+
+  const result = await db.execute({
+    sql: `INSERT INTO chains (device_id, name, trigger_phrase, description)
+          VALUES (?, ?, ?, ?)
+          RETURNING *`,
+    args: [deviceId, name.trim(), trigger_phrase.trim().toLowerCase(), description?.trim() || null],
+  });
+
+  return res.status(201).json({ chain: result.rows[0] });
+}
+
+// ---------------------------------------------------------------------------
+// Single chain handlers
+// ---------------------------------------------------------------------------
+
+async function getChain(req, res, chainId) {
+  const chain = await db.execute({
+    sql: `SELECT * FROM chains WHERE id = ?`,
+    args: [chainId],
+  });
+  const steps = await db.execute({
+    sql: `SELECT * FROM chain_steps WHERE chain_id = ? ORDER BY position ASC`,
+    args: [chainId],
+  });
+  return res.status(200).json({
+    chain: chain.rows[0],
+    steps: steps.rows.map(deserialiseStep),
+  });
+}
+
+async function updateChain(req, res, chainId) {
+  const body = await parseBody(req);
+  const { name, trigger_phrase, description, enabled } = body;
+
+  const fields = [];
+  const args = [];
+
+  if (name !== undefined) {
+    if (!name.trim()) return res.status(400).json({ error: 'name cannot be empty' });
+    fields.push('name = ?'); args.push(name.trim());
+  }
+  if (trigger_phrase !== undefined) {
+    if (!trigger_phrase.trim()) return res.status(400).json({ error: 'trigger_phrase cannot be empty' });
+    fields.push('trigger_phrase = ?'); args.push(trigger_phrase.trim().toLowerCase());
+  }
+  if (description !== undefined) {
+    fields.push('description = ?'); args.push(description?.trim() || null);
+  }
+  if (enabled !== undefined) {
+    fields.push('enabled = ?'); args.push(enabled ? 1 : 0);
+  }
+
+  if (fields.length === 0) {
+    return res.status(400).json({ error: 'No fields to update' });
+  }
+
+  fields.push(`updated_at = datetime('now')`);
+  args.push(chainId);
+
+  const result = await db.execute({
+    sql: `UPDATE chains SET ${fields.join(', ')} WHERE id = ? RETURNING *`,
+    args,
+  });
+
+  return res.status(200).json({ chain: result.rows[0] });
+}
+
+async function deleteChain(req, res, chainId) {
+  // Steps are deleted via ON DELETE CASCADE
+  await db.execute({ sql: `DELETE FROM chains WHERE id = ?`, args: [chainId] });
+  return res.status(200).json({ deleted: true });
+}
+
+// ---------------------------------------------------------------------------
+// Steps handlers
+// ---------------------------------------------------------------------------
+
+/**
+ * PUT /api/chains/:id/steps
+ * Replaces all steps for a chain in a single atomic operation.
+ * Used by the chain builder when saving after any reorder or edit.
+ *
+ * Body: { steps: [ { step_type, action_type, action_config, prompt_text, skip_on_fail }, ... ] }
+ * Steps are assigned positions 0..n in the order provided.
+ */
+async function replaceSteps(req, res, chainId) {
+  const body = await parseBody(req);
+  const { steps } = body;
+
+  if (!Array.isArray(steps)) {
+    return res.status(400).json({ error: 'steps must be an array' });
+  }
+
+  // Validate each step before touching the DB
+  for (let i = 0; i < steps.length; i++) {
+    const err = validateStep(steps[i], i);
+    if (err) return res.status(400).json({ error: err });
+  }
+
+  // Delete existing steps and re-insert — simplest approach for full replace
+  await db.execute({ sql: `DELETE FROM chain_steps WHERE chain_id = ?`, args: [chainId] });
+
+  const inserted = [];
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    const result = await db.execute({
+      sql: `INSERT INTO chain_steps
+              (chain_id, position, step_type, action_type, action_config, prompt_text, skip_on_fail)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            RETURNING *`,
+      args: [
+        chainId,
+        i,
+        step.step_type,
+        step.action_type,
+        JSON.stringify(step.action_config || {}),
+        step.prompt_text?.trim() || null,
+        step.skip_on_fail ? 1 : 0,
+      ],
+    });
+    inserted.push(deserialiseStep(result.rows[0]));
+  }
+
+  // Update chain updated_at
+  await db.execute({
+    sql: `UPDATE chains SET updated_at = datetime('now') WHERE id = ?`,
+    args: [chainId],
+  });
+
+  return res.status(200).json({ steps: inserted });
+}
+
+/**
+ * POST /api/chains/:id/steps
+ * Appends a single step at the end of the chain.
+ * Used for quick-add in the chain builder.
+ */
+async function appendStep(req, res, chainId) {
+  const body = await parseBody(req);
+  const err = validateStep(body, 0);
+  if (err) return res.status(400).json({ error: err });
+
+  // Get current max position
+  const maxResult = await db.execute({
+    sql: `SELECT COALESCE(MAX(position), -1) as max_pos FROM chain_steps WHERE chain_id = ?`,
+    args: [chainId],
+  });
+  const nextPos = (maxResult.rows[0]?.max_pos ?? -1) + 1;
+
+  const result = await db.execute({
+    sql: `INSERT INTO chain_steps
+            (chain_id, position, step_type, action_type, action_config, prompt_text, skip_on_fail)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          RETURNING *`,
+    args: [
+      chainId,
+      nextPos,
+      body.step_type,
+      body.action_type,
+      JSON.stringify(body.action_config || {}),
+      body.prompt_text?.trim() || null,
+      body.skip_on_fail ? 1 : 0,
+    ],
+  });
+
+  await db.execute({
+    sql: `UPDATE chains SET updated_at = datetime('now') WHERE id = ?`,
+    args: [chainId],
+  });
+
+  return res.status(201).json({ step: deserialiseStep(result.rows[0]) });
+}
+
+/**
+ * DELETE /api/chains/:id/steps/:stepId
+ * Deletes a step and re-normalises positions for remaining steps.
+ */
+async function deleteStep(req, res, chainId, stepId) {
+  // Verify step belongs to this chain
+  const existing = await db.execute({
+    sql: `SELECT * FROM chain_steps WHERE id = ? AND chain_id = ?`,
+    args: [stepId, chainId],
+  });
+  if (existing.rows.length === 0) {
+    return res.status(404).json({ error: 'Step not found' });
+  }
+
+  await db.execute({ sql: `DELETE FROM chain_steps WHERE id = ?`, args: [stepId] });
+
+  // Re-normalise positions
+  const remaining = await db.execute({
+    sql: `SELECT id FROM chain_steps WHERE chain_id = ? ORDER BY position ASC`,
+    args: [chainId],
+  });
+  for (let i = 0; i < remaining.rows.length; i++) {
+    await db.execute({
+      sql: `UPDATE chain_steps SET position = ? WHERE id = ?`,
+      args: [i, remaining.rows[i].id],
+    });
+  }
+
+  await db.execute({
+    sql: `UPDATE chains SET updated_at = datetime('now') WHERE id = ?`,
+    args: [chainId],
+  });
+
+  return res.status(200).json({ deleted: true });
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+async function getChainForDevice(chainId, deviceId) {
+  const result = await db.execute({
+    sql: `SELECT * FROM chains WHERE id = ? AND device_id = ?`,
+    args: [chainId, deviceId],
+  });
+  return result.rows[0] || null;
+}
+
+function validateStep(step, index) {
+  const validStepTypes = ['silent', 'confirmable', 'required', 'conditional'];
+  const validActionTypes = ['deeplink', 'shortcut', 'weather_check', 'time_check', 'calendar_check', 'message'];
+
+  if (!step.step_type || !validStepTypes.includes(step.step_type)) {
+    return `Step ${index}: step_type must be one of: ${validStepTypes.join(', ')}`;
+  }
+  if (!step.action_type || !validActionTypes.includes(step.action_type)) {
+    return `Step ${index}: action_type must be one of: ${validActionTypes.join(', ')}`;
+  }
+  if ((step.step_type === 'confirmable' || step.step_type === 'required') && !step.prompt_text?.trim()) {
+    return `Step ${index}: prompt_text is required for ${step.step_type} steps`;
+  }
+  return null;
+}
+
+function deserialiseStep(row) {
+  return {
+    ...row,
+    action_config: safeJson(row.action_config),
+    skip_on_fail: row.skip_on_fail === 1,
+  };
+}
+
+function safeJson(val) {
+  if (typeof val === 'object' && val !== null) return val;
+  try { return JSON.parse(val || '{}'); } catch { return {}; }
+}
+
+async function parseBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', chunk => { data += chunk; });
+    req.on('end', () => {
+      try { resolve(data ? JSON.parse(data) : {}); }
+      catch { reject(new Error('Invalid JSON body')); }
+    });
+    req.on('error', reject);
+  });
+}

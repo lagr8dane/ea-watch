@@ -240,6 +240,64 @@
     }
 
     .send-btn:not(:disabled):active { opacity: 0.8; }
+
+    /* Chain control buttons — rendered inside an EA message bubble */
+    .chain-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .chain-btn {
+      width: 100%;
+      padding: 9px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: inherit;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      text-align: center;
+      -webkit-tap-highlight-color: transparent;
+      transition: opacity 0.15s;
+    }
+    .chain-btn:active { opacity: 0.7; }
+
+    .chain-btn-continue {
+      background: var(--text);
+      color: var(--bg);
+    }
+    .chain-btn-skip {
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .chain-btn-stop {
+      background: none;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 400;
+    }
+
+    /* Action pill — shown when a deeplink/shortcut fires */
+    .action-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: color 0.15s;
+      text-decoration: none;
+    }
+    .action-pill:active { color: var(--text); }
   </style>
 </head>
 <body>
@@ -392,6 +450,8 @@
         const decoder = new TextDecoder();
         let   eaEl    = appendMsg('ea', '');
         let   full    = '';
+        let   pendingActions = [];
+        let   chainControl  = null;
 
         setStatus('responding…');
 
@@ -400,20 +460,43 @@
           if (done) break;
 
           const chunk = decoder.decode(value, { stream: true });
-          // SSE format: lines starting with "data: "
           for (const line of chunk.split('\n')) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') break;
-              try {
-                const parsed = JSON.parse(data);
-                const token  = parsed.delta?.text ?? '';
-                full    += token;
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6);
+            if (data === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(data);
+
+              // Text delta — stream into the message bubble
+              if (parsed.delta?.text) {
+                full += parsed.delta.text;
                 eaEl.textContent = full;
                 scrollBottom();
-              } catch {}
-            }
+              }
+
+              // Actions — collect deeplinks/shortcuts to fire after stream ends
+              if (parsed.actions) {
+                pendingActions = parsed.actions;
+              }
+
+              // Chain control — collect button config to render after stream ends
+              if (parsed.chain_control) {
+                chainControl = parsed.chain_control;
+              }
+            } catch {}
           }
+        }
+
+        // Fire any pending OS actions (deeplinks / Siri Shortcuts)
+        for (const action of pendingActions) {
+          if (action.url) {
+            fireAction(action, eaEl);
+          }
+        }
+
+        // Render chain control buttons if we're awaiting a confirmable step
+        if (chainControl) {
+          renderChainControls(eaEl, chainControl, full);
         }
 
         messages.push({ role: 'assistant', content: full });
@@ -480,6 +563,156 @@
       };
 
       recognition.start();
+    }
+
+    // --- Chain controls ---
+
+    /**
+     * Render Continue / Skip / Stop buttons inside an EA message bubble.
+     * Called after a confirmable or required step pauses the chain.
+     */
+    function renderChainControls(eaEl, control, promptText) {
+      const { chainStateId, skippable } = control;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'chain-controls';
+
+      const continueBtn = document.createElement('button');
+      continueBtn.className = 'chain-btn chain-btn-continue';
+      continueBtn.textContent = 'Continue';
+      continueBtn.onclick = () => resolveChain(chainStateId, 'continue', eaEl, wrap);
+      wrap.appendChild(continueBtn);
+
+      if (skippable) {
+        const skipBtn = document.createElement('button');
+        skipBtn.className = 'chain-btn chain-btn-skip';
+        skipBtn.textContent = 'Skip this step';
+        skipBtn.onclick = () => resolveChain(chainStateId, 'skip', eaEl, wrap);
+        wrap.appendChild(skipBtn);
+      }
+
+      const stopBtn = document.createElement('button');
+      stopBtn.className = 'chain-btn chain-btn-stop';
+      stopBtn.textContent = 'Stop chain';
+      stopBtn.onclick = () => resolveChain(chainStateId, 'abort', eaEl, wrap);
+      wrap.appendChild(stopBtn);
+
+      eaEl.appendChild(wrap);
+      scrollBottom();
+    }
+
+    /**
+     * Call /api/chain-execute with the user's choice, then render the result.
+     */
+    async function resolveChain(chainStateId, action, eaEl, controlWrap) {
+      // Remove buttons immediately — prevent double-tap
+      controlWrap.remove();
+      setStatus('thinking…');
+
+      try {
+        const res = await fetch('/api/chain-execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chainStateId, action }),
+        });
+
+        const data = await res.json();
+        const result = data.result;
+
+        if (!result) {
+          appendMsg('ea', 'Something went wrong.');
+          setStatus('ready');
+          return;
+        }
+
+        // Render the engine result as a new EA message
+        await renderChainResult(result);
+
+      } catch {
+        appendMsg('ea', 'Connection lost.');
+      }
+
+      setStatus('ready');
+    }
+
+    /**
+     * Render a chain engine result object as one or more EA messages.
+     * Handles nested `then` results recursively.
+     */
+    async function renderChainResult(result) {
+      if (!result) return;
+
+      if (result.status === 'actions') {
+        if (result.message) {
+          appendMsg('ea', result.message);
+        }
+        for (const action of (result.actions || [])) {
+          if (action.url) {
+            const el = appendMsg('ea', '');
+            fireAction(action, el);
+          }
+        }
+        if (result.then) {
+          await renderChainResult(result.then);
+        }
+        return;
+      }
+
+      if (result.status === 'awaiting') {
+        const el = appendMsg('ea', result.prompt || 'Continue?');
+        renderChainControls(el, {
+          chainStateId: result.chainStateId,
+          skippable: result.skippable,
+        }, result.prompt);
+        return;
+      }
+
+      // completed, aborted, error — just show the message
+      if (result.message) {
+        appendMsg('ea', result.message);
+      }
+    }
+
+    /**
+     * Fire a deeplink or Siri Shortcut URL.
+     * Opens via window.location to trigger iOS URL scheme handling.
+     * Also renders a small action pill in the EA message for visibility.
+     */
+    function fireAction(action, eaEl) {
+      const label = action.type === 'shortcut'
+        ? `▷ ${action.name || 'Shortcut'}`
+        : `↗ ${friendlyActionLabel(action.url)}`;
+
+      const pill = document.createElement('a');
+      pill.className    = 'action-pill';
+      pill.textContent  = label;
+      pill.href         = action.url;
+      // On iOS, setting location.href triggers the URL scheme
+      pill.onclick = (e) => {
+        e.preventDefault();
+        window.location.href = action.url;
+      };
+
+      eaEl.appendChild(pill);
+      scrollBottom();
+
+      // Auto-fire after a short delay to let the message render first
+      setTimeout(() => {
+        window.location.href = action.url;
+      }, 300);
+    }
+
+    function friendlyActionLabel(url) {
+      if (!url) return 'Action';
+      if (url.startsWith('maps://'))      return 'Maps';
+      if (url.startsWith('tel:'))         return 'Call';
+      if (url.startsWith('facetime'))     return 'FaceTime';
+      if (url.startsWith('sms:'))         return 'Messages';
+      if (url.startsWith('spotify:'))     return 'Spotify';
+      if (url.startsWith('shortcuts://')) return 'Shortcut';
+      if (url.startsWith('clock-timer:'))  return 'Timer';
+      if (url.startsWith('App-Prefs:'))   return 'Settings';
+      return 'Open';
     }
   </script>
 </body>

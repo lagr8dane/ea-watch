@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>EA — Chains</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg:        #0a0a0a;
+    --surface:   #111111;
+    --border:    #222222;
+    --border-hi: #333333;
+    --text:      #e8e8e8;
+    --text-dim:  #666666;
+    --text-mid:  #999999;
+    --accent:    #e8e8e8;
+    --amber:     #f5a623;
+    --red:       #e05252;
+    --green:     #4caf7d;
+    --mono:      'IBM Plex Mono', monospace;
+    --sans:      'IBM Plex Sans', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Layout ── */
+  .app { display: flex; flex-direction: column; min-height: 100vh; max-width: 640px; margin: 0 auto; }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .back-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    transition: color 0.15s;
+  }
+  .back-btn:hover { color: var(--text); }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .new-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .new-btn:hover { opacity: 0.85; }
+
+  /* ── Chain list ── */
+  .chain-list { padding: 0; flex: 1; }
+  .chain-list.empty { display: flex; align-items: center; justify-content: center; min-height: 200px; }
+
+  .empty-state {
+    text-align: center;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 2;
+  }
+
+  .chain-item {
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .chain-item:hover { background: var(--surface); }
+  .chain-item:first-child { border-top: 1px solid var(--border); margin-top: 16px; }
+
+  .chain-item-inner {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    gap: 12px;
+  }
+
+  .chain-enabled-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--green);
+  }
+  .chain-enabled-dot.disabled { background: var(--text-dim); }
+
+  .chain-item-text { flex: 1; min-width: 0; }
+  .chain-name {
+    font-weight: 500;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .chain-meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .chain-arrow {
+    color: var(--text-dim);
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  /* ── Panel (chain editor) ── */
+  .panel {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  .panel.open { transform: translateX(0); }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .panel-actions { display: flex; gap: 8px; }
+
+  .btn-ghost {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: none;
+    border: 1px solid var(--border-hi);
+    color: var(--text-mid);
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-ghost:hover { border-color: var(--text-dim); color: var(--text); }
+  .btn-ghost.danger { border-color: transparent; color: var(--red); }
+  .btn-ghost.danger:hover { border-color: var(--red); }
+
+  .btn-primary {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .panel-body { flex: 1; overflow-y: auto; padding: 20px; }
+
+  /* ── Form fields ── */
+  .field { margin-bottom: 20px; }
+  .field-row { display: flex; gap: 12px; }
+  .field-row .field { flex: 1; margin-bottom: 0; }
+
+  label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  input[type="text"], textarea, select {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color 0.15s;
+    -webkit-appearance: none;
+    border-radius: 0;
+  }
+  input[type="text"]:focus, textarea:focus, select:focus { border-color: var(--border-hi); }
+  textarea { resize: vertical; min-height: 60px; }
+  select { cursor: pointer; }
+
+  .field-hint {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 5px;
+    line-height: 1.4;
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .toggle-label { font-size: 14px; }
+  .toggle-sub { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  .toggle {
+    position: relative;
+    width: 40px; height: 22px;
+    flex-shrink: 0;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--border-hi);
+    cursor: pointer;
+    transition: background 0.2s;
+    border-radius: 11px;
+  }
+  .toggle-track::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 16px; height: 16px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    transition: transform 0.2s, background 0.2s;
+  }
+  .toggle input:checked + .toggle-track { background: var(--green); }
+  .toggle input:checked + .toggle-track::after { transform: translateX(18px); background: #fff; }
+
+  /* ── Section dividers ── */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 24px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Steps ── */
+  .steps-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .step-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .step-item.dragging { opacity: 0.5; border-color: var(--border-hi); }
+  .step-item.drag-over { border-color: var(--amber); }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .drag-handle {
+    color: var(--text-dim);
+    font-size: 14px;
+    cursor: grab;
+    flex-shrink: 0;
+    touch-action: none;
+  }
+  .drag-handle:active { cursor: grabbing; }
+
+  .step-type-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    flex-shrink: 0;
+  }
+  .badge-silent      { background: #1a2a1a; color: var(--green); }
+  .badge-confirmable { background: #2a2a1a; color: var(--amber); }
+  .badge-required    { background: #2a1a1a; color: var(--red); }
+  .badge-conditional { background: #1a1a2a; color: #7b9ce8; }
+
+  .step-summary { flex: 1; font-size: 13px; color: var(--text-mid); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .step-delete { background: none; border: none; color: var(--text-dim); font-size: 16px; cursor: pointer; padding: 4px; flex-shrink: 0; line-height: 1; }
+  .step-delete:hover { color: var(--red); }
+  .step-expand { color: var(--text-dim); font-size: 12px; flex-shrink: 0; transition: transform 0.2s; }
+  .step-expand.open { transform: rotate(180deg); }
+
+  .step-body { border-top: 1px solid var(--border); padding: 12px; display: none; }
+  .step-body.open { display: block; }
+  .step-body .field { margin-bottom: 12px; }
+  .step-body .field:last-child { margin-bottom: 0; }
+
+  .add-step-btn {
+    width: 100%;
+    background: none;
+    border: 1px dashed var(--border-hi);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 12px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: all 0.15s;
+  }
+  .add-step-btn:hover { border-color: var(--text-dim); color: var(--text); background: var(--surface); }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--text);
+    color: var(--bg);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 10px 18px;
+    white-space: nowrap;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 100;
+    pointer-events: none;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--red); color: #fff; }
+
+  /* ── Loading ── */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+  }
+
+  /* ── Config JSON editor ── */
+  .json-editor {
+    width: 100%;
+    background: #0d0d0d;
+    border: 1px solid var(--border);
+    color: var(--amber);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 10px 12px;
+    outline: none;
+    resize: vertical;
+    min-height: 80px;
+    transition: border-color 0.15s;
+    border-radius: 0;
+  }
+  .json-editor:focus { border-color: var(--border-hi); }
+  .json-invalid { border-color: var(--red) !important; }
+
+  @media (max-width: 480px) {
+    .panel-actions .btn-ghost.hide-mobile { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="header-left">
+      <a href="/config" class="back-btn">← Config</a>
+      <h1>Chains</h1>
+    </div>
+    <button class="new-btn" onclick="openNew()">+ New</button>
+  </header>
+
+  <div id="chainList" class="chain-list">
+    <div class="loading">Loading...</div>
+  </div>
+</div>
+
+<!-- Chain editor panel -->
+<div id="panel" class="panel">
+  <div class="panel-header">
+    <span class="panel-title" id="panelTitle">New Chain</span>
+    <div class="panel-actions">
+      <button class="btn-ghost danger hide-mobile" id="deleteBtn" onclick="deleteChain()" style="display:none">Delete</button>
+      <button class="btn-ghost" onclick="closePanel()">Cancel</button>
+      <button class="btn-primary" id="saveBtn" onclick="saveChain()">Save</button>
+    </div>
+  </div>
+  <div class="panel-body">
+
+    <div class="field">
+      <label>Chain name</label>
+      <input type="text" id="chainName" placeholder="Start my hike" maxlength="80">
+    </div>
+
+    <div class="field">
+      <label>Trigger phrase</label>
+      <input type="text" id="triggerPhrase" placeholder="start my hike" maxlength="120">
+      <div class="field-hint">Exactly what you say to the EA to run this chain.</div>
+    </div>
+
+    <div class="field">
+      <label>Description <span style="opacity:.4">(optional)</span></label>
+      <input type="text" id="chainDesc" placeholder="Prepares everything for a trail run" maxlength="200">
+    </div>
+
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-label">Enabled</div>
+        <div class="toggle-sub">Disabled chains are ignored by the EA</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="chainEnabled" checked>
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+
+    <div class="section-label">Steps</div>
+
+    <div id="stepsList" class="steps-list"></div>
+
+    <button class="add-step-btn" onclick="addStep()">+ Add step</button>
+
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+let chains     = [];
+let editingId  = null;   // null = new chain
+let steps      = [];     // current chain's steps (draft)
+let dragSrc    = null;
+
+// ---------------------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------------------
+async function init() {
+  await loadChains();
+}
+
+async function loadChains() {
+  const list = document.getElementById('chainList');
+  try {
+    const res = await fetch('/api/chains');
+    if (res.status === 401) { window.location = '/'; return; }
+    const data = await res.json();
+    chains = data.chains || [];
+    renderChainList();
+  } catch {
+    list.innerHTML = '<div class="loading">Failed to load chains.</div>';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Chain list rendering
+// ---------------------------------------------------------------------------
+function renderChainList() {
+  const list = document.getElementById('chainList');
+  if (chains.length === 0) {
+    list.className = 'chain-list empty';
+    list.innerHTML = `<div class="empty-state">No chains yet.<br>Tap + New to build your first one.</div>`;
+    return;
+  }
+  list.className = 'chain-list';
+  list.innerHTML = chains.map(c => `
+    <div class="chain-item" onclick="openEdit('${c.id}')">
+      <div class="chain-item-inner">
+        <div class="chain-enabled-dot ${c.enabled ? '' : 'disabled'}"></div>
+        <div class="chain-item-text">
+          <div class="chain-name">${esc(c.name)}</div>
+          <div class="chain-meta">"${esc(c.trigger_phrase)}" · ${c.step_count || 0} step${c.step_count !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="chain-arrow">›</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ---------------------------------------------------------------------------
+// Panel open/close
+// ---------------------------------------------------------------------------
+function openNew() {
+  editingId = null;
+  steps = [];
+  document.getElementById('panelTitle').textContent = 'New Chain';
+  document.getElementById('chainName').value = '';
+  document.getElementById('triggerPhrase').value = '';
+  document.getElementById('chainDesc').value = '';
+  document.getElementById('chainEnabled').checked = true;
+  document.getElementById('deleteBtn').style.display = 'none';
+  renderSteps();
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('chainName').focus();
+}
+
+async function openEdit(id) {
+  editingId = id;
+  document.getElementById('panelTitle').textContent = 'Edit Chain';
+  document.getElementById('deleteBtn').style.display = '';
+  document.getElementById('panel').classList.add('open');
+
+  try {
+    const res = await fetch(`/api/chains/${id}`);
+    const data = await res.json();
+    const c = data.chain;
+    steps = data.steps || [];
+    document.getElementById('chainName').value = c.name;
+    document.getElementById('triggerPhrase').value = c.trigger_phrase;
+    document.getElementById('chainDesc').value = c.description || '';
+    document.getElementById('chainEnabled').checked = c.enabled === 1;
+    renderSteps();
+  } catch {
+    showToast('Failed to load chain', true);
+    closePanel();
+  }
+}
+
+function closePanel() {
+  document.getElementById('panel').classList.remove('open');
+}
+
+// ---------------------------------------------------------------------------
+// Save / Delete
+// ---------------------------------------------------------------------------
+async function saveChain() {
+  const name           = document.getElementById('chainName').value.trim();
+  const trigger_phrase = document.getElementById('triggerPhrase').value.trim();
+  const description    = document.getElementById('chainDesc').value.trim();
+  const enabled        = document.getElementById('chainEnabled').checked;
+
+  if (!name)           { showToast('Chain name is required', true); return; }
+  if (!trigger_phrase) { showToast('Trigger phrase is required', true); return; }
+
+  // Validate step JSON configs
+  for (let i = 0; i < steps.length; i++) {
+    const s = steps[i];
+    if (!s.action_type) { showToast(`Step ${i + 1}: action type required`, true); return; }
+    if ((s.step_type === 'confirmable' || s.step_type === 'required') && !s.prompt_text?.trim()) {
+      showToast(`Step ${i + 1}: prompt text required for ${s.step_type} steps`, true); return;
+    }
+  }
+
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+
+  try {
+    let chainId = editingId;
+
+    if (!editingId) {
+      // Create chain
+      const res = await fetch('/api/chains', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, trigger_phrase, description }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        showToast(err.error || 'Failed to create chain', true);
+        return;
+      }
+      const data = await res.json();
+      chainId = data.chain.id;
+    } else {
+      // Update chain metadata
+      const res = await fetch(`/api/chains/${editingId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, trigger_phrase, description, enabled }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        showToast(err.error || 'Failed to update chain', true);
+        return;
+      }
+    }
+
+    // Save steps
+    const stepsRes = await fetch(`/api/chains/${chainId}/steps`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ steps }),
+    });
+    if (!stepsRes.ok) {
+      const err = await stepsRes.json();
+      showToast(err.error || 'Failed to save steps', true);
+      return;
+    }
+
+    showToast('Saved');
+    closePanel();
+    await loadChains();
+  } catch {
+    showToast('Save failed', true);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save';
+  }
+}
+
+async function deleteChain() {
+  if (!editingId) return;
+  if (!confirm('Delete this chain? This cannot be undone.')) return;
+
+  try {
+    await fetch(`/api/chains/${editingId}`, { method: 'DELETE' });
+    showToast('Chain deleted');
+    closePanel();
+    await loadChains();
+  } catch {
+    showToast('Delete failed', true);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Steps management
+// ---------------------------------------------------------------------------
+const STEP_DEFAULTS = {
+  silent:      { step_type: 'silent',      action_type: 'deeplink',  action_config: { kind: 'maps', destination: '' }, prompt_text: '', skip_on_fail: false },
+  confirmable: { step_type: 'confirmable', action_type: 'deeplink',  action_config: { kind: 'maps', destination: '' }, prompt_text: '', skip_on_fail: false },
+  required:    { step_type: 'required',    action_type: 'message',   action_config: { text: '' },                       prompt_text: '', skip_on_fail: false },
+  conditional: { step_type: 'conditional', action_type: 'weather_check', action_config: { kind: 'weather_check', lat: '', lon: '', condition: 'no_rain', warn_only: false }, prompt_text: '', skip_on_fail: true },
+};
+
+function addStep() {
+  steps.push(JSON.parse(JSON.stringify(STEP_DEFAULTS.silent)));
+  renderSteps();
+  // Expand the new step
+  const items = document.querySelectorAll('.step-item');
+  if (items.length > 0) toggleStep(items.length - 1);
+  // Scroll to bottom
+  document.getElementById('panel').querySelector('.panel-body').scrollTop = 99999;
+}
+
+function removeStep(i) {
+  steps.splice(i, 1);
+  renderSteps();
+}
+
+function renderSteps() {
+  const list = document.getElementById('stepsList');
+  if (steps.length === 0) {
+    list.innerHTML = '';
+    return;
+  }
+  list.innerHTML = steps.map((s, i) => renderStep(s, i)).join('');
+  attachDragHandlers();
+}
+
+function renderStep(s, i) {
+  const badge = `badge-${s.step_type}`;
+  const summary = stepSummary(s);
+  return `
+    <div class="step-item" draggable="true" data-index="${i}">
+      <div class="step-header" onclick="toggleStep(${i})">
+        <span class="drag-handle" onclick="event.stopPropagation()">⠿</span>
+        <span class="step-type-badge ${badge}">${s.step_type}</span>
+        <span class="step-summary">${esc(summary)}</span>
+        <button class="step-delete" onclick="event.stopPropagation(); removeStep(${i})">×</button>
+        <span class="step-expand" id="expand-${i}">▾</span>
+      </div>
+      <div class="step-body" id="step-body-${i}">
+        ${renderStepFields(s, i)}
+      </div>
+    </div>
+  `;
+}
+
+function renderStepFields(s, i) {
+  return `
+    <div class="field">
+      <label>Step type</label>
+      <select onchange="updateStepType(${i}, this.value)">
+        ${['silent','confirmable','required','conditional'].map(t =>
+          `<option value="${t}" ${s.step_type === t ? 'selected' : ''}>${t}</option>`
+        ).join('')}
+      </select>
+    </div>
+    <div class="field">
+      <label>Action type</label>
+      <select onchange="updateStepField(${i}, 'action_type', this.value)">
+        ${['deeplink','shortcut','message','weather_check','time_check','calendar_check'].map(t =>
+          `<option value="${t}" ${s.action_type === t ? 'selected' : ''}>${t}</option>`
+        ).join('')}
+      </select>
+    </div>
+    ${renderActionConfig(s, i)}
+    ${(s.step_type === 'confirmable' || s.step_type === 'required') ? `
+      <div class="field">
+        <label>Prompt text <span style="opacity:.4">(what EA says)</span></label>
+        <input type="text" value="${esc(s.prompt_text || '')}"
+          placeholder="${s.step_type === 'required' ? 'When should I remind you to head back?' : 'Same playlist as last time?'}"
+          onchange="updateStepField(${i}, 'prompt_text', this.value)">
+      </div>
+    ` : ''}
+    <div class="field">
+      <label>Skip on failure</label>
+      <select onchange="updateStepField(${i}, 'skip_on_fail', this.value === 'true')">
+        <option value="false" ${!s.skip_on_fail ? 'selected' : ''}>Abort chain on error</option>
+        <option value="true"  ${s.skip_on_fail  ? 'selected' : ''}>Skip step and continue</option>
+      </select>
+    </div>
+  `;
+}
+
+function renderActionConfig(s, i) {
+  const cfg = s.action_config || {};
+  const json = JSON.stringify(cfg, null, 2);
+
+  // Friendly config editors for common action types
+  if (s.action_type === 'deeplink') {
+    return `
+      <div class="field">
+        <label>Deeplink kind</label>
+        <select onchange="updateConfigField(${i}, 'kind', this.value)">
+          ${['maps','call','facetime','sms','spotify','timer','reminder','dnd','url'].map(k =>
+            `<option value="${k}" ${cfg.kind === k ? 'selected' : ''}>${k}</option>`
+          ).join('')}
+        </select>
+      </div>
+      ${renderDeeplinkFields(cfg, i)}
+    `;
+  }
+
+  if (s.action_type === 'shortcut') {
+    return `
+      <div class="field">
+        <label>Shortcut name</label>
+        <input type="text" value="${esc(cfg.name || '')}" placeholder="Start Hike"
+          onchange="updateConfigField(${i}, 'name', this.value)">
+        <div class="field-hint">Exact name of the Shortcut in your Shortcuts app.</div>
+      </div>
+      <div class="field">
+        <label>Input <span style="opacity:.4">(optional)</span></label>
+        <input type="text" value="${esc(cfg.input || '')}" placeholder="Optional text input"
+          onchange="updateConfigField(${i}, 'input', this.value)">
+      </div>
+      <div class="field">
+        <label>Message <span style="opacity:.4">(what EA says)</span></label>
+        <input type="text" value="${esc(cfg.message || '')}" placeholder="Starting workout..."
+          onchange="updateConfigField(${i}, 'message', this.value)">
+      </div>
+    `;
+  }
+
+  if (s.action_type === 'message') {
+    return `
+      <div class="field">
+        <label>Message text</label>
+        <textarea onchange="updateConfigField(${i}, 'text', this.value)"
+          placeholder="What EA says at this step...">${esc(cfg.text || '')}</textarea>
+      </div>
+    `;
+  }
+
+  if (s.action_type === 'weather_check') {
+    return `
+      <div class="field-row">
+        <div class="field">
+          <label>Latitude</label>
+          <input type="text" value="${esc(cfg.lat || '')}" placeholder="39.5296"
+            onchange="updateConfigField(${i}, 'lat', parseFloat(this.value) || this.value)">
+        </div>
+        <div class="field">
+          <label>Longitude</label>
+          <input type="text" value="${esc(cfg.lon || '')}" placeholder="-119.8138"
+            onchange="updateConfigField(${i}, 'lon', parseFloat(this.value) || this.value)">
+        </div>
+      </div>
+      <div class="field">
+        <label>Condition</label>
+        <select onchange="updateConfigField(${i}, 'condition', this.value)">
+          <option value="no_rain"    ${cfg.condition === 'no_rain'    ? 'selected' : ''}>No rain — skip if rain expected</option>
+          <option value="no_extreme" ${cfg.condition === 'no_extreme' ? 'selected' : ''}>No extreme weather</option>
+          <option value="always"     ${cfg.condition === 'always'     ? 'selected' : ''}>Always proceed, warn if bad</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>On bad weather</label>
+        <select onchange="updateConfigField(${i}, 'warn_only', this.value === 'true')">
+          <option value="false" ${!cfg.warn_only ? 'selected' : ''}>Skip/block the chain</option>
+          <option value="true"  ${ cfg.warn_only ? 'selected' : ''}>Warn but continue anyway</option>
+        </select>
+      </div>
+    `;
+  }
+
+  if (s.action_type === 'time_check') {
+    return `
+      <div class="field-row">
+        <div class="field">
+          <label>After <span style="opacity:.4">(HH:MM)</span></label>
+          <input type="text" value="${esc(cfg.after || '')}" placeholder="06:00"
+            onchange="updateConfigField(${i}, 'after', this.value)">
+        </div>
+        <div class="field">
+          <label>Before <span style="opacity:.4">(HH:MM)</span></label>
+          <input type="text" value="${esc(cfg.before || '')}" placeholder="20:00"
+            onchange="updateConfigField(${i}, 'before', this.value)">
+        </div>
+      </div>
+      <div class="field">
+        <label>Days <span style="opacity:.4">(leave blank for all days)</span></label>
+        <input type="text" value="${esc((cfg.days || []).join(', '))}" placeholder="mon, tue, wed, thu, fri"
+          onchange="updateConfigField(${i}, 'days', this.value.split(',').map(d=>d.trim().toLowerCase()).filter(Boolean))">
+      </div>
+    `;
+  }
+
+  // calendar_check or unknown — raw JSON editor
+  return `
+    <div class="field">
+      <label>Action config <span style="opacity:.4">(JSON)</span></label>
+      <textarea class="json-editor" id="json-${i}"
+        onchange="updateConfigJson(${i}, this)">${json}</textarea>
+    </div>
+  `;
+}
+
+function renderDeeplinkFields(cfg, i) {
+  const kind = cfg.kind || 'maps';
+  if (kind === 'maps') return `
+    <div class="field">
+      <label>Destination</label>
+      <input type="text" value="${esc(cfg.destination || '')}" placeholder="Tahoe Rim Trail"
+        onchange="updateConfigField(${i}, 'destination', this.value)">
+    </div>
+    <div class="field">
+      <label>Mode <span style="opacity:.4">(optional)</span></label>
+      <select onchange="updateConfigField(${i}, 'mode', this.value)">
+        <option value=""       ${!cfg.mode           ? 'selected' : ''}>Default</option>
+        <option value="drive"  ${cfg.mode === 'drive'  ? 'selected' : ''}>Drive</option>
+        <option value="walk"   ${cfg.mode === 'walk'   ? 'selected' : ''}>Walk</option>
+        <option value="transit"${cfg.mode === 'transit'? 'selected' : ''}>Transit</option>
+      </select>
+    </div>`;
+  if (kind === 'call' || kind === 'facetime') return `
+    <div class="field">
+      <label>Number or email</label>
+      <input type="text" value="${esc(cfg.contact || cfg.number || '')}" placeholder="+17755550123"
+        onchange="updateConfigField(${i}, kind === 'facetime' ? 'contact' : 'number', this.value)">
+    </div>`;
+  if (kind === 'sms') return `
+    <div class="field">
+      <label>Number</label>
+      <input type="text" value="${esc(cfg.number || '')}" placeholder="+17755550123"
+        onchange="updateConfigField(${i}, 'number', this.value)">
+    </div>
+    <div class="field">
+      <label>Pre-filled message <span style="opacity:.4">(optional)</span></label>
+      <input type="text" value="${esc(cfg.body || '')}" placeholder=""
+        onchange="updateConfigField(${i}, 'body', this.value)">
+    </div>`;
+  if (kind === 'spotify') return `
+    <div class="field">
+      <label>Spotify URI or URL</label>
+      <input type="text" value="${esc(cfg.uri || '')}" placeholder="spotify:playlist:37i9dQZF1DX..."
+        onchange="updateConfigField(${i}, 'uri', this.value)">
+    </div>`;
+  if (kind === 'timer') return `
+    <div class="field">
+      <label>Duration (minutes)</label>
+      <input type="text" value="${esc(cfg.minutes || '')}" placeholder="45"
+        onchange="updateConfigField(${i}, 'minutes', parseFloat(this.value) || this.value)">
+    </div>`;
+  if (kind === 'reminder') return `
+    <div class="field">
+      <label>Title</label>
+      <input type="text" value="${esc(cfg.title || '')}" placeholder="Head back to the car"
+        onchange="updateConfigField(${i}, 'title', this.value)">
+    </div>`;
+  if (kind === 'url') return `
+    <div class="field">
+      <label>URL</label>
+      <input type="text" value="${esc(cfg.url || '')}" placeholder="https://..."
+        onchange="updateConfigField(${i}, 'url', this.value)">
+    </div>`;
+  return ''; // dnd — no extra fields
+}
+
+// ---------------------------------------------------------------------------
+// Step field update helpers
+// ---------------------------------------------------------------------------
+function updateStepType(i, value) {
+  steps[i].step_type = value;
+  renderSteps();
+  toggleStep(i);
+}
+
+function updateStepField(i, field, value) {
+  steps[i][field] = value;
+  // Re-render badge/summary without full re-render
+  const item = document.querySelectorAll('.step-item')[i];
+  if (item) {
+    const badge = item.querySelector('.step-type-badge');
+    if (badge) { badge.className = `step-type-badge badge-${steps[i].step_type}`; badge.textContent = steps[i].step_type; }
+    const summary = item.querySelector('.step-summary');
+    if (summary) summary.textContent = stepSummary(steps[i]);
+  }
+}
+
+function updateConfigField(i, field, value) {
+  if (!steps[i].action_config) steps[i].action_config = {};
+  steps[i].action_config[field] = value;
+  // Update summary
+  const item = document.querySelectorAll('.step-item')[i];
+  if (item) {
+    const summary = item.querySelector('.step-summary');
+    if (summary) summary.textContent = stepSummary(steps[i]);
+  }
+}
+
+function updateConfigJson(i, textarea) {
+  try {
+    steps[i].action_config = JSON.parse(textarea.value);
+    textarea.classList.remove('json-invalid');
+  } catch {
+    textarea.classList.add('json-invalid');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Step expand/collapse
+// ---------------------------------------------------------------------------
+function toggleStep(i) {
+  const body   = document.getElementById(`step-body-${i}`);
+  const expand = document.getElementById(`expand-${i}`);
+  if (!body) return;
+  const isOpen = body.classList.contains('open');
+  // Close all
+  document.querySelectorAll('.step-body').forEach(b => b.classList.remove('open'));
+  document.querySelectorAll('.step-expand').forEach(e => e.classList.remove('open'));
+  if (!isOpen) {
+    body.classList.add('open');
+    expand?.classList.add('open');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Drag to reorder
+// ---------------------------------------------------------------------------
+function attachDragHandlers() {
+  const items = document.querySelectorAll('.step-item');
+  items.forEach(item => {
+    item.addEventListener('dragstart', e => {
+      dragSrc = parseInt(item.dataset.index);
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(() => item.classList.add('dragging'), 0);
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      document.querySelectorAll('.step-item').forEach(i => i.classList.remove('drag-over'));
+    });
+    item.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      document.querySelectorAll('.step-item').forEach(i => i.classList.remove('drag-over'));
+      item.classList.add('drag-over');
+    });
+    item.addEventListener('drop', e => {
+      e.preventDefault();
+      const target = parseInt(item.dataset.index);
+      if (dragSrc === null || dragSrc === target) return;
+      const moved = steps.splice(dragSrc, 1)[0];
+      steps.splice(target, 0, moved);
+      dragSrc = null;
+      renderSteps();
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+function stepSummary(s) {
+  const cfg = s.action_config || {};
+  if (s.action_type === 'deeplink')       return cfg.destination || cfg.number || cfg.contact || cfg.uri || cfg.url || cfg.kind || 'deeplink';
+  if (s.action_type === 'shortcut')       return cfg.name || 'shortcut';
+  if (s.action_type === 'message')        return cfg.text || 'message';
+  if (s.action_type === 'weather_check')  return `weather — ${cfg.condition || 'check'}`;
+  if (s.action_type === 'time_check')     return `time — ${cfg.after || '?'}–${cfg.before || '?'}`;
+  if (s.action_type === 'calendar_check') return 'calendar check';
+  return s.action_type;
+}
+
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ---------------------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------------------
+init();
+</script>
+</body>
+</html>

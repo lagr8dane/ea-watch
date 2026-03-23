@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>EA — Action Log</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg:        #0a0a0a;
+    --surface:   #111111;
+    --border:    #222222;
+    --border-hi: #333333;
+    --text:      #e8e8e8;
+    --text-dim:  #666666;
+    --text-mid:  #999999;
+    --mono:      'IBM Plex Mono', monospace;
+    --sans:      'IBM Plex Sans', sans-serif;
+    --green:     #4caf7d;
+    --amber:     #f5a623;
+    --red:       #e05252;
+    --blue:      #7b9ce8;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  .header-left { display: flex; align-items: center; gap: 12px; }
+
+  .back-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    transition: color 0.15s;
+  }
+  .back-btn:hover { color: var(--text); }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .refresh-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    background: none;
+    border: 1px solid var(--border-hi);
+    color: var(--text-dim);
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .refresh-btn:hover { border-color: var(--text-dim); color: var(--text); }
+
+  /* ── Filter bar ── */
+  .filter-bar {
+    display: flex;
+    gap: 0;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .filter-bar::-webkit-scrollbar { display: none; }
+
+  .filter-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    padding: 5px 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    margin-right: -1px;
+  }
+  .filter-btn:hover { color: var(--text); border-color: var(--border-hi); z-index: 1; position: relative; }
+  .filter-btn.active { background: var(--surface); color: var(--text); border-color: var(--border-hi); z-index: 1; position: relative; }
+
+  /* ── Stats bar ── */
+  .stats-bar {
+    display: flex;
+    gap: 0;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .stats-bar::-webkit-scrollbar { display: none; }
+
+  .stat {
+    padding: 10px 16px 10px 0;
+    margin-right: 16px;
+    border-right: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .stat:last-child { border-right: none; }
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1;
+  }
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-top: 3px;
+  }
+
+  /* ── Log entries ── */
+  .log-body { flex: 1; padding: 0; }
+
+  .day-group { margin-bottom: 0; }
+
+  .day-header {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    padding: 14px 20px 8px;
+    background: var(--bg);
+    position: sticky;
+    top: 57px;
+    z-index: 5;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .log-entry {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+    cursor: default;
+  }
+  .log-entry:hover { background: var(--surface); }
+
+  .outcome-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 5px;
+  }
+  .dot-success  { background: var(--green); }
+  .dot-skipped  { background: var(--text-dim); }
+  .dot-failed   { background: var(--red); }
+  .dot-aborted  { background: var(--amber); }
+
+  .entry-main { flex: 1; min-width: 0; }
+
+  .entry-top {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .entry-action {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .entry-chain {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .entry-detail {
+    font-size: 12px;
+    color: var(--text-mid);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .entry-error {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--red);
+    margin-top: 3px;
+  }
+
+  .entry-time {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  /* ── Outcome badge ── */
+  .outcome-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    padding: 1px 6px;
+    flex-shrink: 0;
+  }
+  .badge-success  { background: #1a2a1a; color: var(--green); }
+  .badge-skipped  { background: #1e1e1e; color: var(--text-dim); }
+  .badge-failed   { background: #2a1a1a; color: var(--red); }
+  .badge-aborted  { background: #2a2a1a; color: var(--amber); }
+
+  /* ── Empty / loading ── */
+  .state-msg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-align: center;
+    padding: 20px;
+    line-height: 2;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="header-left">
+      <a href="/config" class="back-btn">← Config</a>
+      <h1>Action Log</h1>
+    </div>
+    <button class="refresh-btn" onclick="loadLog()">Refresh</button>
+  </header>
+
+  <div class="filter-bar">
+    <button class="filter-btn active" data-filter="all"     onclick="setFilter('all',     this)">All</button>
+    <button class="filter-btn"        data-filter="success"  onclick="setFilter('success',  this)">Success</button>
+    <button class="filter-btn"        data-filter="skipped"  onclick="setFilter('skipped',  this)">Skipped</button>
+    <button class="filter-btn"        data-filter="failed"   onclick="setFilter('failed',   this)">Failed</button>
+    <button class="filter-btn"        data-filter="aborted"  onclick="setFilter('aborted',  this)">Aborted</button>
+    <button class="filter-btn"        data-filter="chains"   onclick="setFilter('chains',   this)">Chains only</button>
+  </div>
+
+  <div id="statsBar" class="stats-bar" style="display:none">
+    <div class="stat"><div class="stat-value" id="statTotal">—</div><div class="stat-label">Total</div></div>
+    <div class="stat"><div class="stat-value" id="statSuccess" style="color:var(--green)">—</div><div class="stat-label">Success</div></div>
+    <div class="stat"><div class="stat-value" id="statFailed" style="color:var(--red)">—</div><div class="stat-label">Failed</div></div>
+    <div class="stat"><div class="stat-value" id="statChains">—</div><div class="stat-label">Chains</div></div>
+  </div>
+
+  <div id="logBody" class="log-body">
+    <div class="state-msg">Loading...</div>
+  </div>
+</div>
+
+<script>
+let allEntries = [];
+let activeFilter = 'all';
+
+// ---------------------------------------------------------------------------
+// Load
+// ---------------------------------------------------------------------------
+async function loadLog() {
+  document.getElementById('logBody').innerHTML = '<div class="state-msg">Loading...</div>';
+  try {
+    const res = await fetch('/api/chain-execute/log?limit=200');
+    if (res.status === 401) { window.location = '/'; return; }
+    const data = await res.json();
+    allEntries = data.log || [];
+    renderStats();
+    renderLog();
+  } catch {
+    document.getElementById('logBody').innerHTML = '<div class="state-msg">Failed to load log.</div>';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Stats
+// ---------------------------------------------------------------------------
+function renderStats() {
+  if (allEntries.length === 0) {
+    document.getElementById('statsBar').style.display = 'none';
+    return;
+  }
+  document.getElementById('statsBar').style.display = '';
+  document.getElementById('statTotal').textContent   = allEntries.length;
+  document.getElementById('statSuccess').textContent = allEntries.filter(e => e.outcome === 'success').length;
+  document.getElementById('statFailed').textContent  = allEntries.filter(e => e.outcome === 'failed').length;
+  document.getElementById('statChains').textContent  = allEntries.filter(e => e.chain_state_id).length;
+}
+
+// ---------------------------------------------------------------------------
+// Filter
+// ---------------------------------------------------------------------------
+function setFilter(filter, btn) {
+  activeFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLog();
+}
+
+function applyFilter(entries) {
+  if (activeFilter === 'all')    return entries;
+  if (activeFilter === 'chains') return entries.filter(e => e.chain_state_id);
+  return entries.filter(e => e.outcome === activeFilter);
+}
+
+// ---------------------------------------------------------------------------
+// Render
+// ---------------------------------------------------------------------------
+function renderLog() {
+  const body = document.getElementById('logBody');
+  const filtered = applyFilter(allEntries);
+
+  if (filtered.length === 0) {
+    body.innerHTML = `<div class="state-msg">No entries${activeFilter !== 'all' ? ' matching this filter' : ''}.${allEntries.length === 0 ? '<br>Actions will appear here once you start using chains.' : ''}</div>`;
+    return;
+  }
+
+  // Group by day
+  const groups = {};
+  for (const entry of filtered) {
+    const day = formatDay(entry.executed_at);
+    if (!groups[day]) groups[day] = [];
+    groups[day].push(entry);
+  }
+
+  body.innerHTML = Object.entries(groups).map(([day, entries]) => `
+    <div class="day-group">
+      <div class="day-header">${day}</div>
+      ${entries.map(renderEntry).join('')}
+    </div>
+  `).join('');
+}
+
+function renderEntry(e) {
+  const cfg = e.action_config || {};
+  const detail = entryDetail(e, cfg);
+  const chainLabel = e.chain_name ? `· ${esc(e.chain_name)}` : '';
+
+  return `
+    <div class="log-entry">
+      <div class="outcome-dot dot-${e.outcome}"></div>
+      <div class="entry-main">
+        <div class="entry-top">
+          <span class="entry-action">${esc(e.action_type)}</span>
+          <span class="outcome-badge badge-${e.outcome}">${e.outcome}</span>
+          ${chainLabel ? `<span class="entry-chain">${esc(chainLabel)}</span>` : ''}
+        </div>
+        ${detail ? `<div class="entry-detail">${esc(detail)}</div>` : ''}
+        ${e.error_detail ? `<div class="entry-error">${esc(e.error_detail)}</div>` : ''}
+      </div>
+      <div class="entry-time">${formatTime(e.executed_at)}</div>
+    </div>
+  `;
+}
+
+function entryDetail(e, cfg) {
+  if (e.action_type === 'deeplink') {
+    if (cfg.kind === 'maps')    return cfg.destination ? `Maps → ${cfg.destination}` : 'Maps';
+    if (cfg.kind === 'call')    return `Call ${cfg.number || ''}`;
+    if (cfg.kind === 'facetime')return `FaceTime ${cfg.contact || ''}`;
+    if (cfg.kind === 'sms')     return `SMS ${cfg.number || ''}`;
+    if (cfg.kind === 'spotify') return `Spotify: ${cfg.uri || ''}`;
+    if (cfg.kind === 'timer')   return `Timer: ${cfg.minutes} min`;
+    if (cfg.kind === 'reminder')return `Reminder: ${cfg.title || ''}`;
+    if (cfg.kind === 'dnd')     return 'Do Not Disturb';
+    if (cfg.kind === 'url')     return cfg.url || '';
+    return cfg.kind || '';
+  }
+  if (e.action_type === 'shortcut')      return cfg.name ? `Shortcut: ${cfg.name}` : 'Shortcut';
+  if (e.action_type === 'message')       return cfg.text ? truncate(cfg.text, 60) : '';
+  if (e.action_type === 'weather_check') return `Weather check — ${cfg.condition || ''}`;
+  if (e.action_type === 'time_check')    return `Time check — ${cfg.after || '?'}–${cfg.before || '?'}`;
+  if (e.action_type === 'calendar_check')return 'Calendar check';
+  return '';
+}
+
+// ---------------------------------------------------------------------------
+// Formatting
+// ---------------------------------------------------------------------------
+function formatDay(iso) {
+  if (!iso) return 'Unknown';
+  const d = new Date(iso.endsWith('Z') ? iso : iso + 'Z');
+  const today = new Date();
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  if (sameDay(d, today))     return 'Today';
+  if (sameDay(d, yesterday)) return 'Yesterday';
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+}
+
+function formatTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso.endsWith('Z') ? iso : iso + 'Z');
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+}
+
+function sameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() &&
+         a.getMonth()    === b.getMonth()    &&
+         a.getDate()     === b.getDate();
+}
+
+function truncate(str, n) {
+  return str.length > n ? str.slice(0, n) + '…' : str;
+}
+
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ---------------------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------------------
+loadLog();
+</script>
+</body>
+</html>

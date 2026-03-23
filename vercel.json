@@ -1,10 +1,12 @@
 {
   "rewrites": [
-    { "source": "/",        "destination": "/api/tap" },
-    { "source": "/stub",    "destination": "/stub.html" },
-    { "source": "/contact", "destination": "/contact.html" },
-    { "source": "/ea",      "destination": "/ea.html" },
-    { "source": "/challenge","destination": "/challenge.html" },
-    { "source": "/config",  "destination": "/config.html" }
+    { "source": "/",            "destination": "/api/tap" },
+    { "source": "/stub",        "destination": "/stub.html" },
+    { "source": "/contact",     "destination": "/contact.html" },
+    { "source": "/ea",          "destination": "/ea.html" },
+    { "source": "/challenge",   "destination": "/challenge.html" },
+    { "source": "/config",      "destination": "/config.html" },
+    { "source": "/chains",      "destination": "/chain-builder.html" },
+    { "source": "/action-log",  "destination": "/action-log.html" }
   ]
 }
