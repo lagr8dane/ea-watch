@@ -28,6 +28,7 @@ const BRIEFING_INTENTS = {
   morning: ['morning briefing', 'good morning', 'morning routine', 'start my day', 'morning update'],
   weather: ["how's the weather", "what's the weather", 'weather today', 'weather forecast', 'weather update', "what's it like outside", 'is it nice out', 'how is the weather', 'what is the weather', 'the weather', 'weather report', 'weather briefing'],
   news:    ['top news', "what's the news", 'news today', 'news update', 'latest news', 'what happened today', 'headlines', 'what is the news', 'the news', 'news briefing'],
+  quote:   ['morning quote', 'motivational quote', 'give me a quote', 'inspire me'],
 };
 
 function detectBriefingIntent(input) {
@@ -293,14 +294,14 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
   try {
     const briefingData = await fetchBriefingData(type, lat, lon);
 
-    // Weather-only and news-only — stream as text (already working)
-    if (type === 'weather' || type === 'news') {
-      const prompt = buildBriefingPrompt(type, briefingData, localHour, displayName);
+    // Weather-only, news-only, quote-only — stream as text
+    if (type === 'weather' || type === 'news' || type === 'quote') {
+      const prompt = type === 'quote'
+        ? buildQuotePrompt(briefingData, localHour, displayName)
+        : buildBriefingPrompt(type, briefingData, localHour, displayName);
       const stream = await new Anthropic().messages.stream({
-        model:      'claude-sonnet-4-5',
-        max_tokens: 300,
-        system:     systemPrompt,
-        messages:   [{ role: 'user', content: prompt }],
+        model: 'claude-sonnet-4-5', max_tokens: type === 'quote' ? 80 : 300, system: systemPrompt,
+        messages: [{ role: 'user', content: prompt }],
       });
       for await (const event of stream) {
         if (event.type === 'content_block_delta') {
@@ -312,52 +313,13 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
       return;
     }
 
-    // Morning briefing — three sequential text responses
-    // 1. Weather
-    if (briefingData.weather) {
-      const weatherPrompt = buildBriefingPrompt('weather', briefingData, localHour, displayName);
-      const weatherStream = await new Anthropic().messages.stream({
-        model: 'claude-sonnet-4-5', max_tokens: 150, system: systemPrompt,
-        messages: [{ role: 'user', content: weatherPrompt }],
-      });
-      res.write(`data: ${JSON.stringify({ delta: { text: '\n' } })}\n\n`);
-      for await (const event of weatherStream) {
-        if (event.type === 'content_block_delta') {
-          res.write(`data: ${JSON.stringify({ delta: { text: event.delta.text } })}\n\n`);
-        }
-      }
+    // Morning briefing — signal client to make three separate calls
+    if (type === 'morning') {
+      res.write(`data: ${JSON.stringify({ morning_briefing: true })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return;
     }
-
-    // 2. News
-    if (briefingData.news && briefingData.news.length > 0) {
-      const newsPrompt = buildBriefingPrompt('news', briefingData, localHour, displayName);
-      const newsStream = await new Anthropic().messages.stream({
-        model: 'claude-sonnet-4-5', max_tokens: 300, system: systemPrompt,
-        messages: [{ role: 'user', content: newsPrompt }],
-      });
-      res.write(`data: ${JSON.stringify({ new_bubble: true })}\n\n`);
-      for await (const event of newsStream) {
-        if (event.type === 'content_block_delta') {
-          res.write(`data: ${JSON.stringify({ delta: { text: event.delta.text } })}\n\n`);
-        }
-      }
-    }
-
-    // 3. Quote
-    const quotePrompt = buildQuotePrompt(briefingData, localHour, displayName);
-    const quoteStream = await new Anthropic().messages.stream({
-      model: 'claude-sonnet-4-5', max_tokens: 80, system: systemPrompt,
-      messages: [{ role: 'user', content: quotePrompt }],
-    });
-    res.write(`data: ${JSON.stringify({ new_bubble: true })}\n\n`);
-    for await (const event of quoteStream) {
-      if (event.type === 'content_block_delta') {
-        res.write(`data: ${JSON.stringify({ delta: { text: event.delta.text } })}\n\n`);
-      }
-    }
-
-    res.write('data: [DONE]\n\n');
-    res.end();
 
   } catch (err) {
     console.error('[ea] Briefing error:', err.message);
