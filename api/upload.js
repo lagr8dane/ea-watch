@@ -66,6 +66,7 @@ export default async function handler(req, res) {
       access:          'public',
       contentType:     filePart.contentType,
       addRandomSuffix: false,
+      allowOverwrite:  true,
     });
 
     await execute(
