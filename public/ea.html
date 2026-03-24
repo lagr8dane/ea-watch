@@ -15,6 +15,7 @@
       --border:   rgba(255,255,255,0.07);
       --text:     #f0f0f0;
       --muted:    #666;
+      --hi:       #8ab4ff;
       --ea-msg:   #1c1c1c;
       --user-msg: #2a2a2a;
     }
@@ -102,14 +103,47 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    /* EA message row — avatar + bubble */
+    /* EA message row — avatar + bubble (+ copy) */
     .msg-row {
       display: flex;
-      align-items: flex-end;
+      align-items: flex-start;
       gap: 10px;
       align-self: flex-start;
       max-width: 92%;
     }
+
+    .msg-row > .ea-msg-stack {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+
+    .ea-msg-stack > .mb-panel {
+      flex: 1;
+      min-width: 0;
+      width: 100%;
+    }
+
+    .ea-copy-wrap {
+      padding: 0 2px;
+    }
+
+    .ea-copy-btn {
+      background: none;
+      border: none;
+      padding: 2px 0;
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .ea-copy-btn:hover { color: var(--hi); }
+    .ea-copy-btn:active { opacity: 0.85; }
 
     .ea-avatar {
       width: 28px;
@@ -338,16 +372,6 @@
     .mb-load-more:disabled { opacity: 0.5; }
 
     .mb-quote { padding: 14px 16px 16px; font-size: 14px; line-height: 1.5; color: #aab; font-style: italic; }
-
-    .msg-row > .mb-mindful-panel {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .msg-row > .mb-task-panel {
-      flex: 1;
-      min-width: 0;
-    }
 
     .mb-task-body { padding: 4px 0 0; }
     .mb-task-section-title {
@@ -890,16 +914,68 @@
       return panel;
     }
 
+    async function copyPlainTextToClipboard(text, btn) {
+      const t = (text || '').trim();
+      const label = btn.getAttribute('data-copy-label') || 'Copy';
+      if (!t) {
+        btn.textContent = 'Nothing to copy';
+        setTimeout(() => { btn.textContent = label; }, 1400);
+        return;
+      }
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(t);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = t;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        btn.textContent = 'Copied';
+        setTimeout(() => { btn.textContent = label; }, 1600);
+      } catch {
+        btn.textContent = 'Copy failed';
+        setTimeout(() => { btn.textContent = label; }, 1600);
+      }
+    }
+
+    function textToCopyFromEaStack(stack) {
+      const main = stack.querySelector('.msg.ea:not(.typing), .mb-panel');
+      if (!main) return '';
+      return (main.innerText || main.textContent || '').trim();
+    }
+
     function appendMsg(role, text) {
       if (role === 'ea') {
         const row = document.createElement('div');
         row.className = 'msg-row';
         row.appendChild(eaAvatar());
+        const stack = document.createElement('div');
+        stack.className = 'ea-msg-stack';
         const el = document.createElement('div');
         el.className = 'msg ea';
         el.style.whiteSpace = 'pre-wrap';
         el.textContent = text;
-        row.appendChild(el);
+        stack.appendChild(el);
+        const copyWrap = document.createElement('div');
+        copyWrap.className = 'ea-copy-wrap';
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.className = 'ea-copy-btn';
+        copyBtn.textContent = 'Copy';
+        copyBtn.setAttribute('data-copy-label', 'Copy');
+        copyBtn.setAttribute('aria-label', 'Copy this message to clipboard');
+        copyBtn.addEventListener('click', () => {
+          copyPlainTextToClipboard(textToCopyFromEaStack(stack), copyBtn);
+        });
+        copyWrap.appendChild(copyBtn);
+        stack.appendChild(copyWrap);
+        row.appendChild(stack);
         document.getElementById('messages').appendChild(row);
         scrollBottom();
         return el;

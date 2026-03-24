@@ -82,6 +82,8 @@
       color: var(--hi); font-size: 14px; text-decoration: none; font-weight: 500;
     }
     .card-actions a:hover { text-decoration: underline; }
+    .card-actions .radar-copy-btn { color: var(--muted); border-color: var(--border); }
+    .card-actions .radar-copy-btn:hover { color: var(--hi); border-color: rgba(138,180,255,0.35); }
 
     .due-picker {
       margin-top: 12px; margin-bottom: 10px;
@@ -500,6 +502,50 @@
       return sel.value;
     }
 
+    function formatRadarItemForClipboard(it) {
+      const lines = [];
+      if (it.title) lines.push(String(it.title));
+      const metaParts = [];
+      metaParts.push(it.distance_mi != null ? '~' + it.distance_mi + ' mi' : 'Distance unknown');
+      if (it.start_time_hint) metaParts.push(String(it.start_time_hint));
+      if (it.start_date) metaParts.push(String(it.start_date));
+      lines.push(metaParts.join(' · '));
+      if (it.summary) lines.push('', String(it.summary));
+      if (it.url) lines.push('', String(it.url));
+      lines.push('', 'Verify times and tickets at the source.');
+      return lines.join('\n').trim();
+    }
+
+    async function copyRadarPlainText(text, btn) {
+      const t = (text || '').trim();
+      const label = btn.getAttribute('data-copy-label') || 'Copy';
+      if (!t) {
+        btn.textContent = 'Nothing to copy';
+        setTimeout(function () { btn.textContent = label; }, 1400);
+        return;
+      }
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(t);
+        } else {
+          const ta = document.createElement('textarea');
+          ta.value = t;
+          ta.setAttribute('readonly', '');
+          ta.style.position = 'fixed';
+          ta.style.left = '-9999px';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+        }
+        btn.textContent = 'Copied';
+        setTimeout(function () { btn.textContent = label; }, 1600);
+      } catch {
+        btn.textContent = 'Failed';
+        setTimeout(function () { btn.textContent = label; }, 1600);
+      }
+    }
+
     let lastRadarItems = [];
 
     function setWorking(visible, title, sub) {
@@ -551,12 +597,22 @@
           buildDuePickerHtml(idx, it) +
           '<div class="card-actions">' +
           '<a href="' + escAttr(it.url) + '" target="_blank" rel="noopener noreferrer">Open source</a>' +
+          '<button type="button" class="btn btn-small radar-copy-btn" data-idx="' + idx + '" data-copy-label="Copy" aria-label="Copy this result to clipboard">Copy</button>' +
           '<button type="button" class="btn btn-small add-task-btn" data-idx="' + idx + '">Add task</button>' +
           '</div></div>'
         );
       }).join('');
 
       bindDuePickerListeners();
+
+      document.querySelectorAll('.radar-copy-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          const idx = parseInt(btn.getAttribute('data-idx'), 10);
+          const it = lastRadarItems[idx];
+          if (!it) return;
+          copyRadarPlainText(formatRadarItemForClipboard(it), btn);
+        });
+      });
 
       document.querySelectorAll('.add-task-btn').forEach(function (btn) {
         btn.addEventListener('click', async function () {
@@ -736,6 +792,6 @@
       await maybeAutoRunFromChip();
     })();
   </script>
-  <script src="/nav.js?v=radar4" defer></script>
+  <script src="/nav.js?v=radar5" defer></script>
 </body>
 </html>
