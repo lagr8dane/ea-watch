@@ -7,6 +7,8 @@ export default async function handler(req, res) {
 
   const config = await queryOne(
     `SELECT display_name, title, stranger_bio as bio,
+            stranger_focus as focus,
+            stranger_accent_hex as accent_hex,
             stranger_linkedin as linkedin,
             stranger_calendly as calendly,
             stranger_whatsapp as whatsapp,

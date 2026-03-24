@@ -56,6 +56,7 @@ app.all('/api/interest-radar',   async (req, res) => (await loadHandler('api/int
 app.get('/',               (req, res) => res.redirect('/api/tap'));
 app.get('/stub',           (req, res) => res.sendFile(join(__dirname, 'public/stub.html')));
 app.get('/contact',        (req, res) => res.sendFile(join(__dirname, 'public/contact.html')));
+app.get('/contact/setup',  (req, res) => res.sendFile(join(__dirname, 'public/contact-setup.html')));
 app.get('/ea',             (req, res) => res.sendFile(join(__dirname, 'public/ea.html')));
 app.get('/challenge',      (req, res) => res.sendFile(join(__dirname, 'public/challenge.html')));
 app.get('/config',         (req, res) => res.sendFile(join(__dirname, 'public/config.html')));

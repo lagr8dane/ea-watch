@@ -14,7 +14,7 @@
       --border:   rgba(255,255,255,0.08);
       --text:     #f0f0f0;
       --muted:    #888;
-      --accent:   #f0f0f0;
+      --accent:   #f0f0f0; /* overridden from saved accent when set */
     }
 
     html, body {
@@ -86,6 +86,23 @@
       font-size: 14px;
       color: var(--muted);
       line-height: 1.5;
+    }
+
+    .focus-line {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.45;
+      margin-top: 6px;
+      max-width: 320px;
+    }
+
+    .accent-rule {
+      width: 40px;
+      height: 2px;
+      border-radius: 1px;
+      background: var(--accent);
+      margin: 12px auto 0;
+      opacity: 0.85;
     }
 
     /* Actions */
@@ -179,7 +196,9 @@
       <div class="avatar" id="avatar"><span id="avatar-initials">MR</span></div>
       <div>
         <div class="name" id="display-name">Marco Rota</div>
+        <div class="accent-rule" id="accent-rule" style="display:none"></div>
         <div class="title" id="display-title">Technology Executive</div>
+        <div class="focus-line" id="display-focus" style="display:none"></div>
       </div>
     </div>
 
@@ -245,6 +264,11 @@
         if (!res.ok) return;
         const c = await res.json();
 
+        if (c.accent_hex && /^#[0-9A-Fa-f]{6}$/.test(c.accent_hex)) {
+          document.documentElement.style.setProperty('--accent', c.accent_hex);
+          document.getElementById('accent-rule').style.display = 'block';
+        }
+
         if (c.display_name) {
           document.getElementById('display-name').textContent = c.display_name;
           // Update initials too
@@ -252,6 +276,12 @@
           document.getElementById('avatar-initials').textContent = initials;
         }
         if (c.title)        document.getElementById('display-title').textContent = c.title;
+
+        if (c.focus) {
+          const fl = document.getElementById('display-focus');
+          fl.textContent = c.focus;
+          fl.style.display = 'block';
+        }
 
         if (c.avatar_url) {
           const avatar = document.getElementById('avatar');

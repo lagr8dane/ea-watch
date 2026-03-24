@@ -21,13 +21,15 @@ The same physical object. Two entirely different experiences, determined by iden
 | **Routines** — chain builder `/chains`, CRUD, engine, deeplinks/shortcuts/conditionals | ✅ |
 | **Routines picker** — say `routines` / `what can you run?` etc., or tap **Routines** chip | ✅ |
 | **Morning briefing** — JSON + panel UI (weather, news, quote, optional stocks); not auto-fired on open | ✅ |
-| **Quick chips** — Briefing, News, Weather, Mindful, Inspire me, Routines | ✅ |
+| **Quick chips** — Briefing, News, Weather, Mindful, Inspire me, Routines, **Tasks**, **Radar** (owner only; Radar opens interest radar with auto-run) | ✅ |
 | **Mindful** — random breathing vs stretching; panel + icon; separate from **Inspire me** (quote) | ✅ |
 | **Weather** — shows **where** (reverse geocode + coordinate fallback via `lib/briefing-data.js`) | ✅ |
-| Config: `briefing_interests`, `briefing_tickers` (+ migration script) | ✅ |
+| **Interest radar** — `/interest-radar`: geocode + Claude web search for nearby things; due-date presets + custom picker; **Copy** per result; EA **Radar** chip (cached location + saved interests). See [HANDOFF.md](HANDOFF.md) for implementation detail. | ✅ |
+| **Copy to clipboard** — EA assistant bubbles/panels; radar result cards (plain text for Notes, etc.) | ✅ |
+| Config: `briefing_interests`, `briefing_tickers`, `interest_radar_topics` (+ migrations) | ✅ |
 | Action log `/action-log` | ✅ |
 
-**Next focus:** productivity features (see [Build phases](#build-phases)).
+**Next focus:** productivity and richer discovery (see [Build phases](#build-phases) and [Future integrations](#future-integrations-yelp-style-poi-and-similar)).
 
 ---
 
@@ -37,6 +39,8 @@ The same physical object. Two entirely different experiences, determined by iden
 |---|---|
 | Tap gateway | `https://ea-watch.vercel.app/` |
 | EA chat | `https://ea-watch.vercel.app/ea` |
+| Tasks | `https://ea-watch.vercel.app/tasks` |
+| Interest radar | `https://ea-watch.vercel.app/interest-radar` |
 | Routines (chain builder) | `https://ea-watch.vercel.app/chains` |
 | Action log | `https://ea-watch.vercel.app/action-log` |
 | Contact card | `https://ea-watch.vercel.app/contact` |
@@ -54,6 +58,7 @@ ea-watch/
 │   ├── tap.js, auth.js, device.js
 │   ├── ea.js                   # Claude stream + chains + briefing intents + routine picker
 │   ├── morning-briefing.js     # JSON briefing panels (weather, news, quote, stocks)
+│   ├── interest-radar.js       # Geocode + Claude web search + distance hints
 │   ├── briefing.js             # Optional GET /api/briefing (auth) for testing
 │   ├── chains.js, chain-execute.js
 │   ├── config.js, upload.js
@@ -63,6 +68,8 @@ ea-watch/
 │   ├── ea.html, config.html, chain-builder.html, action-log.html, …
 ├── lib/
 │   ├── briefing-data.js        # Weather (Open-Meteo + location label), news helpers
+│   ├── geocode.js              # Photon + Open-Meteo (radar); Nominatim fallback
+│   ├── interest-radar.js       # Claude search + item normalization
 │   ├── chain-engine.js, action-log.js
 │   └── actions/ (deeplinks, shortcuts, conditional)
 ├── db/
@@ -204,6 +211,23 @@ All tap events are stubbed until chips arrive.
 | 3 | Briefing panels, mindful vs inspire, routine picker, chips, weather location | ✅ Substantially complete |
 | **Next** | **Productivity** — tasks, focus, calendar-adjacent flows, or owner-defined priorities | 🔲 In progress |
 | 4 | Pattern detection, proactive suggestions, autonomous execution (per-chain opt-in) | Not started |
+
+---
+
+## Future integrations (Yelp-style POI and similar)
+
+Interest radar today finds **candidates via web search** and requires **source URLs**. That is strong for events, niche venues, and one-off listings, but **bars and restaurants** are often better served by a **structured place API** (hours, ratings, photos, canonical maps links).
+
+| Direction | Role | Tradeoffs |
+|---|---|---|
+| **Yelp Fusion** | Search businesses by term + lat/lon; ratings, review count, hours, `url` | API key, [usage limits](https://docs.developer.yelp.com/), **attribution** and storage/display rules in ToS |
+| **Google Places** (New) | Similar; very broad coverage | Billing after free tier; Google branding/attribution |
+| **Foursquare Places** | POI + categories | Key + plan limits |
+| **OpenStreetMap / Overpass** | No key; good for “what exists” | Weaker hours/reviews; you build UX yourself |
+
+**Likely shape if you add it:** keep radar search for **breadth**, then **optional enrichment** step: for rows that look like eateries, call Yelp/Places to attach **rating, open-now, deep link** — or a dedicated EA intent / chip **“dinner near me”** that hits the POI API first and skips generic web search. Server-side only (keys in env), merge results in `api/interest-radar.js` or a sibling route.
+
+**Other gaps worth tracking:** saved snippets or “EA → Notes” flow (copy is the zero-integration option); meal-planning JSON panel (see HANDOFF backlog); proactive push still out of scope without APNs/SMS.
 
 ---
 

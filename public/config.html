@@ -358,6 +358,17 @@
   <div class="section">
     <div class="section-title">Stranger card</div>
     <div class="section-body">
+      <div class="field-note" style="margin-bottom:14px">
+        <a href="/contact/setup" style="color:#8ab4ff;font-weight:500">Guided setup</a> — step through name, tagline, links, and accent in about a minute.
+      </div>
+      <div class="field">
+        <label>Current focus (optional)</label>
+        <input type="text" id="stranger_focus" placeholder="What you’re working on or excited about right now" maxlength="160" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Accent color (optional)</label>
+        <input type="text" id="stranger_accent_hex" placeholder="#8ab4ff" maxlength="7" autocomplete="off" style="font-family:ui-monospace,monospace">
+      </div>
       <div class="field">
         <label>Bio (optional)</label>
         <textarea id="stranger_bio" placeholder="A short line about you, shown on the contact card." style="min-height:60px"></textarea>
@@ -401,6 +412,7 @@
           'display_name','title','session_window_mins','challenge_style',
           'challenge_phrase','alert_phone','alert_email','ea_personality',
           'briefing_interests','briefing_tickers','interest_radar_topics',
+          'stranger_focus','stranger_accent_hex',
           'stranger_bio','stranger_linkedin','stranger_calendly',
           'stranger_imessage','stranger_whatsapp'
         ];
@@ -445,6 +457,8 @@
         briefing_interests:  val('briefing_interests'),
         briefing_tickers:    val('briefing_tickers'),
         interest_radar_topics: val('interest_radar_topics'),
+        stranger_focus:      val('stranger_focus'),
+        stranger_accent_hex: val('stranger_accent_hex'),
         stranger_bio:        val('stranger_bio'),
         stranger_linkedin:   val('stranger_linkedin'),
         stranger_calendly:   val('stranger_calendly'),

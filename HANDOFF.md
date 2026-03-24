@@ -36,17 +36,20 @@ A custom wristwatch with an NTAG213 anti-metal NFC chip in the case back. Anyone
 - **Morning briefing** — `api/morning-briefing.js` returns **JSON** (`items` / `panels`). Client `ea.html` renders **panels** (not large JSON over SSE). Weather, news (+ load more, Google News explore link in panel), quote, optional stocks from `briefing_tickers`.
 - **Shared data** — `lib/briefing-data.js` (Open-Meteo weather, `location_label` via Nominatim + lat/lon fallback), news (NewsAPI + RSS fallback), `googleNewsSearchUrl`.
 - **Briefing intents** in `api/ea.js` — weather, news, morning → `briefing_panels_fetch` or `morning_briefing`; **mindful** (random breathing vs stretching, Claude stream) with **panel** + icon via SSE `mindful_panel`; **quote** / “inspire me” short motivational stream.
-- **Quick chips** (under greeting): Briefing, News, Weather, Mindful, Inspire me, **Routines**.
+- **Quick chips** (under greeting): Briefing, News, Weather, Mindful, Inspire me, **Routines**, **Tasks**, **Radar** (non–shell only). **Radar** → `/interest-radar?auto=1&when=tonight` (+ debug if EA has `debug=1`).
 - **Routine picker** — phrases like `routines`, `what can you run?`, `which routines`, etc. (see `detectRoutinePickerIntent` in `api/ea.js`). Returns SSE `routine_chips: [{ label, trigger, subtitle? }]`. Chips show **Say: &lt;trigger&gt;** when name ≠ trigger. Tap sends trigger text → normal chain match.
 - **Config** — `briefing_interests`, `briefing_tickers`, **`interest_radar_topics`** in `api/config.js` + `config.html`. Migrations: `scripts/db-migrate-briefing-settings.js`, **`scripts/db-migrate-interest-radar.js`** (`npm run db:migrate:interest-radar`).
-- **Interest radar** — `/interest-radar`: verify address (Nominatim) or use device location, radius + date window, interests; **`POST /api/interest-radar`** runs Claude **`web_search_20250305`**, requires URLs per hit, geocodes venues for **~mi** sort; add task with due date. **`ea_interest_radar`** in action log. Nav: **Radar**.
-- **Shell sessions** — no briefing routes / routine picker / personal chains as per existing `is_shell` checks.
+- **Interest radar** — `/interest-radar`: verify address or **Use my location**; radius + **When** (tonight / …); interests from textarea + Settings **`interest_radar_topics`**. **`POST /api/interest-radar`** (see `api/interest-radar.js`, `lib/interest-radar.js`, `lib/geocode.js`): Claude **web search**, URLs required per item; geocode for **~mi** (Photon + Open-Meteo parallel, bbox bias near anchor; capped batch). **Auto-run from EA:** loads config, **`ea_location`** sessionStorage or GPS, then search. **UI:** working spinner + disabled controls while searching; **task due** = presets (listed date if future, window anchors) + **custom date**; **Copy** per card (title, meta, summary, URL). **`ea_interest_radar`** in action log. Nav: **Radar**.
+- **Copy to clipboard** — `ea.html`: **Copy** under each EA bubble/stack (text or `.mb-panel` after mindful/tasks replace bubble). `interest-radar.html`: **Copy** on each result.
+- **Shell sessions** — no briefing routes / interest radar / personal chains / full config as per `is_shell` checks; **Radar chip hidden** on EA in shell.
 
 ---
 
-## Next: productivity
+## Next: productivity + discovery polish
 
-Prior handoff items like “chain suggestion from NL” and “feeling check-in” are still fair game, but **owner priority is productivity** next — interpret as tasks, focus blocks, calendar-adjacent flows, or lightweight planning surfaces integrated with EA (exact shape TBD in session).
+**Productivity** remains the main theme — tasks, focus, calendar-adjacent flows, planning surfaces in EA.
+
+**Discovery:** Interest radar v1 is **shipped** (see above). Natural extensions: **POI APIs** for food/drink (Yelp, Google Places, Foursquare) as enrichment or a parallel “restaurants near me” flow; **EA intent** “what’s on my radar…” without leaving chat (optional). Older ideas: chain-from-NL, feeling check-in — still fair game.
 
 ---
 
@@ -54,20 +57,24 @@ Prior handoff items like “chain suggestion from NL” and “feeling check-in�
 
 ### AI meal suggestions, recipes, and shopping lists
 
-- **Concept:** EA proposes meals (tonight / this week), short structured recipe (time, steps summary), and a **shopping list**; optional export (copy, Reminders, tasks).
+- **Concept:** EA proposes meals (tonight / this week), short structured recipe (time, steps summary), and a **shopping list**; optional export (**copy** is already available on EA messages; tasks/Reminders later).
 - **Config:** Diet prefs, dislikes, household size, max prep time in `owner_config` (similar pattern to `briefing_interests`).
 - **Delivery:** Prefer a **JSON panel** over SSE text (same lesson as morning briefing). One Claude call with strict JSON; stream optional for narrative only.
 - **Risks:** Hallucinated steps/temps; **allergies / medical diets** need disclaimers and “verify packaging / safe cooking” copy — never imply medical authority.
 - **Gmail:** Explicitly **out of scope** for now (OAuth, sensitivity).
 
-### Interest radar — finds things near you (from saved interests)
+### Yelp / Places-style enrichment (bars, restaurants, reliable hours)
 
-- **Concept:** Working name **Interest radar.** User saves **hobbies / interests** in settings (reuse or extend **`briefing_interests`** or a dedicated field). Server + **AI** (ideally with **web search** so results are **finds**, not fabrications) suggests **things happening or worth doing nearby** for **tonight / tomorrow / this week**, grounded in **lat/lon** (or city) like weather.
-- **Why not only ticket APIs:** Same as before — interests span niche venues, clubs, markets, lectures; one API rarely covers it. Search-backed radar casts a wider net.
-- **Panel UX (JSON like other briefings):** Each row: **title, time window, place, source URL, one-line why it matches.** User can **drill through** — tap row or explicit “Open” → **external browser** to the listing (tickets, venue, Meetup, etc.). No substitute for verifying time/cost on the source.
-- **Add to todo:** Per row (or after drill-through): **“Add to tasks”** with **title prefilled** (e.g. “Go to: Jazz at …”) and **due date** suggested from the event date (user can edit). Reuse **`/api/tasks`** POST and/or EA task flows; optional `source_url` in task notes if you add a notes field later (otherwise encode short link in title).
-- **Fit:** Settings + briefing chip or EA intent (“what’s on my radar this weekend?”); **`logUserEvent`** when shipped (e.g. `ea_interest_radar` with interest count, result count, no PII).
-- **Risks:** Stale or wrong listings — keep **links mandatory**, **as-of** time, and “verify before you go” copy; empty/rural → suggested search links.
+- **Problem:** Web search is great for **events and niche** listings; **dining** often wants **ratings, hours, open-now, canonical maps/Yelp links** — structured APIs beat scraping.
+- **Options:** **Yelp Fusion**, **Google Places (New)**, **Foursquare** — all need API keys, rate limits, and **ToS attribution**. **OSM/Overpass** is keyless but thin on hours/reviews.
+- **Integration patterns:** (1) **Post-process** radar hits: if category looks like food, resolve name+address via Places/Yelp and attach fields. (2) **Separate chip or mode** “Eat near me” that queries POI API first, radar second. (3) **Hybrid JSON** in one response — server merges search + POI (watch latency and cost).
+- **Risks:** Licensing/display rules; stale hours; cost at scale — gate behind owner config or env flags.
+
+### Interest radar — future tweaks (core shipped)
+
+- EA **in-chat** radar summary without full page navigation (larger UX project).
+- **`source_url` on tasks** or notes field for “why this task.”
+- Stronger **empty/rural** UX (suggested Google/Eventbrite search links).
 
 ---
 
@@ -110,7 +117,8 @@ api/config.js             Owner config (+ briefing_interests, briefing_tickers)
 lib/briefing-data.js      Weather, news, tickers parsing, location_label
 lib/chain-engine.js       Chain sequencer
 lib/actions/            deeplinks, shortcuts, conditional
-public/ea.html            Chat UI, chips, panels, mindful panel, routine chips
+public/ea.html            Chat UI, chips, Copy, panels, mindful panel, routine chips
+public/interest-radar.html
 public/chain-builder.html /chains
 scripts/db-migrate-briefing-settings.js
 server.js + vercel.json

@@ -8,6 +8,7 @@
     "db:init": "node scripts/db-init.js",
     "db:migrate:tasks": "node --env-file=.env scripts/db-migrate-tasks.js",
     "db:migrate:interest-radar": "node --env-file=.env scripts/db-migrate-interest-radar.js",
+    "db:migrate:contact-presence": "node --env-file=.env scripts/db-migrate-contact-presence.js",
     "db:seed:tasks": "node --env-file=.env scripts/db-seed-tasks-demo.js"
   },
   "dependencies": {

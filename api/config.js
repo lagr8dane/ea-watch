@@ -29,8 +29,9 @@ export default async function handler(req, res) {
     const config = await queryOne(
       `SELECT display_name, title, session_window_mins, challenge_style,
               challenge_phrase, alert_phone, alert_email, ea_personality,
-              stranger_bio, stranger_linkedin, stranger_calendly,
-              stranger_imessage, stranger_whatsapp,
+              stranger_bio, stranger_focus, stranger_accent_hex,
+              stranger_linkedin, stranger_calendly,
+              stranger_imessage, stranger_whatsapp, avatar_url,
               briefing_interests, briefing_tickers, interest_radar_topics
        FROM owner_config WHERE id = ?`,
       [ownerId]
@@ -65,6 +66,10 @@ export default async function handler(req, res) {
       briefing_tickers:    b.briefing_tickers     ?? null,
       interest_radar_topics: b.interest_radar_topics ?? null,
     };
+
+    if (b.avatar_url !== undefined) updates.avatar_url = b.avatar_url ?? null;
+    if (b.stranger_focus !== undefined) updates.stranger_focus = b.stranger_focus ?? null;
+    if (b.stranger_accent_hex !== undefined) updates.stranger_accent_hex = b.stranger_accent_hex ?? null;
 
     // Only update credentials if provided
     if (b.pin)         updates.pin_hash         = await hashCredential(b.pin);
