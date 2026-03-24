@@ -308,12 +308,13 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
 
     // Mindful — grounding / presence (not a motivational quote — that is "inspire me" / quote)
     if (type === 'mindful') {
-      const prompt = buildMindfulPrompt(localHour, displayName);
+      const session = buildMindfulSession(localHour, displayName);
+      res.write(`data: ${JSON.stringify({ mindful_panel: { icon: session.icon, title: session.title } })}\n\n`);
       const stream = await new Anthropic().messages.stream({
         model: 'claude-sonnet-4-5',
         max_tokens: 220,
         system: systemPrompt,
-        messages: [{ role: 'user', content: prompt }],
+        messages: [{ role: 'user', content: session.prompt }],
       });
       for await (const event of stream) {
         if (event.type === 'content_block_delta') {
@@ -405,7 +406,10 @@ function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function buildMindfulPrompt(localHour, displayName) {
+/**
+ * @returns {{ prompt: string, icon: string, title: string }}
+ */
+function buildMindfulSession(localHour, displayName) {
   const hour      = (localHour !== undefined && localHour !== null) ? Number(localHour) : new Date().getHours();
   const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
   const firstName = displayName ? displayName.split(' ')[0] : 'the owner';
@@ -437,12 +441,19 @@ Angle to use: ${angle}`
 Lead 2–4 very gentle movements they can do seated or standing. Pair movement with natural breathing.
 Emphasize small range of motion, no pain, stop if anything pinches. Angle to use: ${angle}`;
 
-  return `Write a brief mindful moment for ${firstName} — this is ${timeOfDay}.
+  const prompt = `Write a brief mindful moment for ${firstName} — this is ${timeOfDay}.
 
 ${modalityBlock}
 
 This is NOT a pep talk — no "you got this," hustle, or motivational-quote tone. No religious framing unless asked.
 About 60–120 words. Plain text only — no markdown, no bullet points.`;
+
+  const panel =
+    modality === 'breathing'
+      ? { icon: '🌬️', title: 'Breathing pause' }
+      : { icon: '🧘', title: 'Gentle movement' };
+
+  return { prompt, ...panel };
 }
 
 

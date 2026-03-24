@@ -303,6 +303,19 @@
 
     .mb-quote { padding: 14px 16px 16px; font-size: 14px; line-height: 1.5; color: #aab; font-style: italic; }
 
+    .msg-row > .mb-mindful-panel {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .mb-mindful-body {
+      padding: 14px 16px 16px;
+      font-size: 14px;
+      line-height: 1.55;
+      color: #c8c8d8;
+      white-space: pre-wrap;
+    }
+
     .mb-tick-row {
       display: flex;
       align-items: center;
@@ -659,6 +672,25 @@
       return av;
     }
 
+    /** Replace the empty EA bubble with a briefing-style panel; returns the body node for streaming text. */
+    function mountMindfulPanel(bubbleEl, meta) {
+      const panel = document.createElement('div');
+      panel.className = 'mb-panel mb-mindful-panel';
+      const head = document.createElement('div');
+      head.className = 'mb-panel-head';
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'mb-panel-icon';
+      iconSpan.textContent = meta.icon || '🪷';
+      head.appendChild(iconSpan);
+      head.appendChild(document.createTextNode(' ' + (meta.title || 'Mindful moment')));
+      const body = document.createElement('div');
+      body.className = 'mb-mindful-body';
+      panel.appendChild(head);
+      panel.appendChild(body);
+      bubbleEl.replaceWith(panel);
+      return body;
+    }
+
     function appendMsg(role, text) {
       if (role === 'ea') {
         const row = document.createElement('div');
@@ -1008,11 +1040,13 @@
         const reader  = res.body.getReader();
         const decoder = new TextDecoder();
         let   eaEl    = appendMsg('ea', '');
+        let   streamTextEl = eaEl;
         let   full    = '';
         let   pendingActions  = [];
         let   chainControl    = null;
         let   sseBuffer       = '';
         let   hadMorningBriefing = false;
+        let   hadMindfulPanel    = false;
         let   panelFetchKind     = null;
 
         setStatus('responding…');
@@ -1035,10 +1069,16 @@
             try {
               const parsed = JSON.parse(data);
 
-              // Text delta — stream into current message bubble
+              if (parsed.mindful_panel) {
+                hadMindfulPanel = true;
+                streamTextEl = mountMindfulPanel(streamTextEl, parsed.mindful_panel);
+                eaEl = streamTextEl;
+              }
+
+              // Text delta — stream into current message bubble (or mindful panel body)
               if (parsed.delta?.text) {
                 full += parsed.delta.text;
-                eaEl.textContent = full;
+                streamTextEl.textContent = full;
                 scrollBottom();
               }
 
@@ -1067,9 +1107,9 @@
           }
         }
 
-        // Remove empty EA bubble if nothing was streamed into it
-        if (eaEl && !full) {
-          eaEl.closest('.msg-row')?.remove();
+        // Remove empty EA bubble / panel if nothing was streamed into it
+        if (streamTextEl && !full) {
+          streamTextEl.closest('.msg-row')?.remove();
         }
 
         // Fire any pending OS actions (deeplinks / Siri Shortcuts)
@@ -1086,6 +1126,7 @@
 
         let assistantTranscript = full;
         if (hadMorningBriefing) assistantTranscript = '(Morning briefing)';
+        else if (hadMindfulPanel) assistantTranscript = '(Mindful moment)';
         else if (panelFetchKind === 'weather') assistantTranscript = '(Weather)';
         else if (panelFetchKind === 'news') assistantTranscript = '(Headlines)';
 
