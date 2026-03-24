@@ -842,9 +842,6 @@
         let   full    = '';
         let   pendingActions  = [];
         let   chainControl    = null;
-        let   briefingWeather = undefined;
-        let   briefingNews    = undefined;
-        let   briefingQuote   = undefined;
         let   sseBuffer       = '';
 
         setStatus('responding…');
@@ -867,50 +864,29 @@
             try {
               const parsed = JSON.parse(data);
 
-              // Text delta — stream into the message bubble
+              // Text delta — stream into current message bubble
               if (parsed.delta?.text) {
                 full += parsed.delta.text;
                 eaEl.textContent = full;
                 scrollBottom();
               }
 
-              // Briefing cards — three independent events
-              if (parsed.card === 'weather') {
-                appendWeatherCard(parsed.data);
-              }
-              if (parsed.card === 'news') {
-                appendNewsCard(parsed.data);
-              }
-              if (parsed.card === 'quote') {
-                appendQuoteCard(parsed.data);
+              // new_bubble — start a fresh EA message for next section
+              if (parsed.new_bubble) {
+                messages.push({ role: 'assistant', content: full });
+                full = '';
+                eaEl = appendMsg('ea', '');
               }
 
-              // Legacy compact format (fallback)
-              if (parsed.b) {
-                const b = parsed.b;
-                briefingWeather = b.bw ? { temp: b.bw.t, feels_like: b.bw.f, high: b.bw.h, low: b.bw.l, uv_index: b.bw.uv, rain_chance: b.bw.r, wind: b.bw.wi, condition: b.bw.c, outdoor_good: b.bw.ok } : null;
-                briefingNews    = (b.bn || []).map(n => ({ title: n.t, source: n.s, url: n.u }));
-                briefingQuote   = b.bq || '';
-              }
-              if (parsed.briefing_weather !== undefined) briefingWeather = parsed.briefing_weather;
-              if (parsed.briefing_news    !== undefined) briefingNews    = parsed.briefing_news;
-              if (parsed.briefing_quote   !== undefined) briefingQuote   = parsed.briefing_quote;
-
-              // Actions — collect deeplinks/shortcuts to fire after stream ends
-              if (parsed.actions) {
-                pendingActions = parsed.actions;
-              }
-
-              // Chain control — collect button config to render after stream ends
-              if (parsed.chain_control) {
-                chainControl = parsed.chain_control;
-              }
+              // Actions and chain control
+              if (parsed.actions) pendingActions = parsed.actions;
+              if (parsed.chain_control) chainControl = parsed.chain_control;
             } catch {}
           }
         }
 
-        // Remove empty EA bubble if cards were rendered inline during streaming
-        if (eaEl && !full && !pendingActions.length && !chainControl) {
+        // Remove empty EA bubble if nothing was streamed into it
+        if (eaEl && !full) {
           eaEl.closest('.msg-row')?.remove();
         }
 

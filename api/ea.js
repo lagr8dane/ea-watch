@@ -312,33 +312,50 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
       return;
     }
 
-    // Morning briefing — send three cards sequentially
-    // 1. Weather card
+    // Morning briefing — three sequential text responses
+    // 1. Weather
     if (briefingData.weather) {
-      res.write(`data: ${JSON.stringify({ card: 'weather', data: briefingData.weather })}\n\n`);
-    }
-
-    // 2. News card
-    if (briefingData.news && briefingData.news.length > 0) {
-      res.write(`data: ${JSON.stringify({ card: 'news', data: briefingData.news })}\n\n`);
-    }
-
-    // 3. Quote — generate with Claude
-    const quotePrompt = buildQuotePrompt(briefingData, localHour, displayName);
-    const quoteStream = await new Anthropic().messages.stream({
-      model:      'claude-sonnet-4-5',
-      max_tokens: 80,
-      system:     systemPrompt,
-      messages:   [{ role: 'user', content: quotePrompt }],
-    });
-
-    let quote = '';
-    for await (const event of quoteStream) {
-      if (event.type === 'content_block_delta') {
-        quote += event.delta.text;
+      const weatherPrompt = buildBriefingPrompt('weather', briefingData, localHour, displayName);
+      const weatherStream = await new Anthropic().messages.stream({
+        model: 'claude-sonnet-4-5', max_tokens: 150, system: systemPrompt,
+        messages: [{ role: 'user', content: weatherPrompt }],
+      });
+      res.write(`data: ${JSON.stringify({ delta: { text: '\n' } })}\n\n`);
+      for await (const event of weatherStream) {
+        if (event.type === 'content_block_delta') {
+          res.write(`data: ${JSON.stringify({ delta: { text: event.delta.text } })}\n\n`);
+        }
       }
     }
-    res.write(`data: ${JSON.stringify({ card: 'quote', data: quote.trim() })}\n\n`);
+
+    // 2. News
+    if (briefingData.news && briefingData.news.length > 0) {
+      const newsPrompt = buildBriefingPrompt('news', briefingData, localHour, displayName);
+      const newsStream = await new Anthropic().messages.stream({
+        model: 'claude-sonnet-4-5', max_tokens: 300, system: systemPrompt,
+        messages: [{ role: 'user', content: newsPrompt }],
+      });
+      res.write(`data: ${JSON.stringify({ new_bubble: true })}\n\n`);
+      for await (const event of newsStream) {
+        if (event.type === 'content_block_delta') {
+          res.write(`data: ${JSON.stringify({ delta: { text: event.delta.text } })}\n\n`);
+        }
+      }
+    }
+
+    // 3. Quote
+    const quotePrompt = buildQuotePrompt(briefingData, localHour, displayName);
+    const quoteStream = await new Anthropic().messages.stream({
+      model: 'claude-sonnet-4-5', max_tokens: 80, system: systemPrompt,
+      messages: [{ role: 'user', content: quotePrompt }],
+    });
+    res.write(`data: ${JSON.stringify({ new_bubble: true })}\n\n`);
+    for await (const event of quoteStream) {
+      if (event.type === 'content_block_delta') {
+        res.write(`data: ${JSON.stringify({ delta: { text: event.delta.text } })}\n\n`);
+      }
+    }
+
     res.write('data: [DONE]\n\n');
     res.end();
 
