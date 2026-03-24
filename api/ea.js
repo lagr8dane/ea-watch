@@ -15,7 +15,7 @@ import {
   createTask,
   updateTask,
   findOpenTasksByTitle,
-  formatTasksForChat,
+  buildTaskPanelPayload,
 } from '../lib/tasks.js';
 
 const client = new Anthropic();
@@ -394,7 +394,11 @@ async function handleTaskIntent(res, intent, ownerId) {
   try {
     if (intent.action === 'list') {
       const rows = await listTasks(ownerId);
-      sendText(res, formatTasksForChat(rows, { filter: intent.filter || 'all' }));
+      const payload = buildTaskPanelPayload(rows, { filter: intent.filter || 'all' });
+      res.write(`data: ${JSON.stringify({ task_panel: payload })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return;
     } else if (intent.action === 'add') {
       const row = await createTask(ownerId, {
         title: intent.title,
