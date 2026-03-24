@@ -70,9 +70,36 @@ function detectRoutinePickerIntent(input) {
     'what routines?',
     'show my routines',
     'list my routines',
+    'what can you run',
+    'what can you run?',
+    'what can i run',
+    'what can i run?',
+    'what could i run',
+    'what could i run?',
+    'what can we run',
+    'what routines can you run',
+    'what routines can i run',
+    'which routines',
+    'which routines?',
+    'show me my routines',
+    'show me routines',
+    'what are my routines',
+    'what are my routines?',
+    'do i have any routines',
+    'do i have routines',
+    'any routines',
+    'routine options',
+    'my routine options',
+    'list my routine options',
   ]);
   if (exact.has(t)) return true;
   if (t.startsWith('what routines ') || t.startsWith('show routines ') || t.startsWith('list routines ')) return true;
+  // Short questions that are clearly about listing automations (not open-ended "what can you do")
+  if (t.length <= 48) {
+    if (/^what (can|could) (you|i|we) run\??$/.test(t)) return true;
+    if (/^which routines\b/.test(t)) return true;
+    if (/^show (me )?(my )?routines\??$/.test(t)) return true;
+  }
   return false;
 }
 
@@ -94,10 +121,16 @@ async function sendRoutinePicker(res, deviceId) {
     res,
     'Here are your routines. Tap one to run it, or say its trigger phrase out loud (for example, start a workout).'
   );
-  const routine_chips = rows.map((c) => ({
-    label: (c.name && String(c.name).trim()) || c.trigger_phrase,
-    trigger: c.trigger_phrase,
-  }));
+  const routine_chips = rows.map((c) => {
+    const trigger = c.trigger_phrase;
+    const name = (c.name && String(c.name).trim()) || '';
+    const label = name || trigger;
+    const chip = { label, trigger };
+    if (name && name.toLowerCase() !== String(trigger).toLowerCase().trim()) {
+      chip.subtitle = trigger;
+    }
+    return chip;
+  });
   res.write(`data: ${JSON.stringify({ routine_chips })}\n\n`);
   res.write('data: [DONE]\n\n');
   res.end();
