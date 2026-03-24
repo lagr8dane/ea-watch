@@ -291,9 +291,10 @@ function sendText(res, text) {
 
 async function streamBriefing(req, res, type, lat, lon, localHour, displayName, systemPrompt, ownerId) {
   try {
+    // Fetch briefing data directly — no internal HTTP call
     const briefingData = await fetchBriefingData(type, lat, lon);
 
-    // Weather-only and news-only — stream as text (already working)
+    // For weather-only or news-only, stream as text
     if (type === 'weather' || type === 'news') {
       const prompt = buildBriefingPrompt(type, briefingData, localHour, displayName);
       const stream = await new Anthropic().messages.stream({
@@ -312,22 +313,12 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
       return;
     }
 
-    // Morning briefing — send three cards sequentially
-    // 1. Weather card
-    if (briefingData.weather) {
-      res.write(`data: ${JSON.stringify({ card: 'weather', data: briefingData.weather })}\n\n`);
-    }
-
-    // 2. News card
-    if (briefingData.news && briefingData.news.length > 0) {
-      res.write(`data: ${JSON.stringify({ card: 'news', data: briefingData.news })}\n\n`);
-    }
-
-    // 3. Quote — generate with Claude
+    // Morning briefing — get Claude to generate the closing quote,
+    // then send structured data for rich card rendering
     const quotePrompt = buildQuotePrompt(briefingData, localHour, displayName);
     const quoteStream = await new Anthropic().messages.stream({
       model:      'claude-sonnet-4-5',
-      max_tokens: 80,
+      max_tokens: 100,
       system:     systemPrompt,
       messages:   [{ role: 'user', content: quotePrompt }],
     });
@@ -338,7 +329,11 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
         quote += event.delta.text;
       }
     }
-    res.write(`data: ${JSON.stringify({ card: 'quote', data: quote.trim() })}\n\n`);
+
+    // Send briefing as separate small events — avoids chunk splitting issues
+    res.write(`data: ${JSON.stringify({ briefing_weather: briefingData.weather || null })}\n\n`);
+    res.write(`data: ${JSON.stringify({ briefing_news: briefingData.news || [] })}\n\n`);
+    res.write(`data: ${JSON.stringify({ briefing_quote: quote.trim() })}\n\n`);
     res.write('data: [DONE]\n\n');
     res.end();
 
