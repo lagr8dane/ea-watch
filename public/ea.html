@@ -170,6 +170,35 @@
     .typing-dot:nth-child(2) { animation-delay: 0.2s; }
     .typing-dot:nth-child(3) { animation-delay: 0.4s; }
 
+    /* Quick actions — under greeting */
+    .ea-quick-chips {
+      align-self: flex-start;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      max-width: 100%;
+      padding: 0 2px 4px;
+    }
+
+    .ea-chip {
+      padding: 8px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05);
+      color: #c8c8d8;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.12s, border-color 0.12s;
+    }
+
+    .ea-chip:active {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.18);
+    }
+
     @keyframes blink {
       0%, 80%, 100% { opacity: 0.2; }
       40%            { opacity: 1; }
@@ -559,12 +588,38 @@
       } catch {}
     }
 
-    // Greeting on load immediately; personalise when /api/config/public returns (non-blocking)
-    window.addEventListener('load', () => {
-      requestLocation();
+    function appendQuickChips() {
+      const messagesEl = document.getElementById('messages');
+      if (document.getElementById('ea-quick-chips')) return;
+      const bar = document.createElement('div');
+      bar.id = 'ea-quick-chips';
+      bar.className = 'ea-quick-chips';
+      bar.setAttribute('role', 'toolbar');
+      bar.setAttribute('aria-label', 'Quick actions');
+      const chips = [
+        { label: 'Briefing', text: 'morning briefing' },
+        { label: 'News', text: 'top news' },
+        { label: 'Weather', text: 'weather' },
+        { label: 'Mindful', text: 'mindful moment' },
+        { label: 'Inspire me', text: 'inspire me' },
+      ];
+      for (const c of chips) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ea-chip';
+        btn.textContent = c.label;
+        btn.addEventListener('click', () => sendChipMessage(c.text));
+        bar.appendChild(btn);
+      }
+      messagesEl.appendChild(bar);
+      scrollBottom();
+    }
+
+    function showGreetingAndChips() {
       const hour = new Date().getHours();
       const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
       const el = appendMsg('ea', `${greet}! How can I help?`);
+      appendQuickChips();
       loadOwnerName()
         .then(() => {
           if (ownerFirstName && el) {
@@ -572,6 +627,20 @@
           }
         })
         .catch(() => {});
+    }
+
+    async function sendChipMessage(text) {
+      if (isTyping) return;
+      const input = document.getElementById('input');
+      input.value = text;
+      input.style.height = 'auto';
+      document.getElementById('send-btn').disabled = false;
+      await send();
+    }
+
+    window.addEventListener('load', () => {
+      requestLocation();
+      showGreetingAndChips();
     });
 
     // --- Message rendering ---
@@ -872,7 +941,7 @@
     function clearChat() {
       document.getElementById('messages').innerHTML = '';
       messages.length = 0;
-      appendMsg('ea', 'Chat cleared. What do you need?');
+      showGreetingAndChips();
     }
 
     // --- Input ---

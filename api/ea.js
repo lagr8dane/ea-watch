@@ -1,7 +1,7 @@
 // api/ea.js
 import Anthropic from '@anthropic-ai/sdk';
 import { parse as parseCookies } from 'cookie';
-import { queryOne, execute } from '../db/client.js';
+import { queryOne } from '../db/client.js';
 import {
   matchChain,
   getActiveChainState,
@@ -29,6 +29,7 @@ const BRIEFING_INTENTS = {
   morning: ['morning briefing', 'good morning', 'morning routine', 'start my day', 'morning update'],
   weather: ["how's the weather", "what's the weather", 'weather today', 'weather forecast', 'weather update', "what's it like outside", 'is it nice out', 'how is the weather', 'what is the weather', 'the weather', 'weather report', 'weather briefing'],
   news:    ['top news', "what's the news", 'news today', 'news update', 'latest news', 'what happened today', 'headlines', 'what is the news', 'the news', 'news briefing'],
+  mindful: ['mindful moment', 'mindful moments', 'mindfulness', 'grounding moment', 'pause and breathe', 'take a breath'],
   quote:   ['morning quote', 'motivational quote', 'give me a quote', 'inspire me'],
 };
 
@@ -44,6 +45,7 @@ function detectBriefingIntent(input) {
   // Single word shortcuts
   if (lower === 'weather') return 'weather';
   if (lower === 'news')    return 'news';
+  if (lower === 'mindful') return 'mindful';
   if (lower === 'briefing' || lower === 'morning briefing') return 'morning';
 
   for (const [type, patterns] of Object.entries(BRIEFING_INTENTS)) {
@@ -165,15 +167,6 @@ acknowledge it clearly and provide the relevant deeplink or instruction.`;
     const briefingIntent = detectBriefingIntent(lastUserMessage);
     if (briefingIntent) {
       return streamBriefing(req, res, briefingIntent, lat, lon, localHour, req._displayName, systemPrompt, session.owner_id);
-    }
-
-    // 4. Check for first tap of the day — inject morning briefing proactively
-    if (sanitised.length === 1 && sanitised[0].role === 'user') {
-      const isFirstTapToday = await checkFirstTapToday(session.owner_id);
-      if (isFirstTapToday) {
-        await markMorningBriefingSent(session.owner_id);
-        return streamBriefing(req, res, 'morning', lat, lon, localHour, req._displayName, systemPrompt, session.owner_id);
-      }
     }
   }
 
@@ -313,9 +306,28 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
       return;
     }
 
+    // Mindful — grounding / presence (not a motivational quote — that is "inspire me" / quote)
+    if (type === 'mindful') {
+      const prompt = buildMindfulPrompt(localHour, displayName);
+      const stream = await new Anthropic().messages.stream({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 220,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: prompt }],
+      });
+      for await (const event of stream) {
+        if (event.type === 'content_block_delta') {
+          res.write(`data: ${JSON.stringify({ delta: { text: event.delta.text } })}\n\n`);
+        }
+      }
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return;
+    }
+
     const briefingData = await fetchBriefingData(type, lat, lon);
 
-    // Quote-only — stream as text
+    // Quote / "inspire me" — short motivational line
     if (type === 'quote') {
       const prompt = buildQuotePrompt(briefingData, localHour, displayName);
       const stream = await new Anthropic().messages.stream({
@@ -389,6 +401,17 @@ Make it genuine and specific — not a generic quote. Something a trusted friend
 One sentence only. No attribution, no quotes marks, just the thought. Plain text.`;
 }
 
+function buildMindfulPrompt(localHour, displayName) {
+  const hour      = (localHour !== undefined && localHour !== null) ? Number(localHour) : new Date().getHours();
+  const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+  const firstName = displayName ? displayName.split(' ')[0] : 'the owner';
+
+  return `Write a brief mindful moment for ${firstName} — this is ${timeOfDay}.
+Focus on presence, breath, or a gentle body awareness. Calm and concrete (e.g. notice shoulders, exhale length).
+This is NOT a pep talk or motivational quote — no "you got this" or hustle language. No religious framing unless asked.
+About 60–100 words. Plain text only — no markdown, no bullet points.`;
+}
+
 
 function buildBriefingPrompt(type, data, localHour, displayName) {
   const { weather, news } = data;
@@ -449,35 +472,3 @@ RULES:
   return prompt;
 }
 
-// ---------------------------------------------------------------------------
-// First-tap-of-day detection
-// We track morning briefings in owner_config.last_briefing_date
-// ---------------------------------------------------------------------------
-
-async function checkFirstTapToday(ownerId) {
-  try {
-    const config = await queryOne(
-      `SELECT last_briefing_date FROM owner_config WHERE id = ?`,
-      [ownerId]
-    );
-    if (!config) return false;
-
-    const today     = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    const lastDate  = config.last_briefing_date;
-    return lastDate !== today;
-  } catch {
-    return false;
-  }
-}
-
-async function markMorningBriefingSent(ownerId) {
-  try {
-    const today = new Date().toISOString().slice(0, 10);
-    await execute(
-      `UPDATE owner_config SET last_briefing_date = ? WHERE id = ?`,
-      [today, ownerId]
-    );
-  } catch (err) {
-    console.error('[ea] Failed to mark briefing sent:', err.message);
-  }
-}
