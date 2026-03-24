@@ -33,7 +33,13 @@ const BRIEFING_INTENTS = {
 };
 
 function detectBriefingIntent(input) {
-  const lower = input.toLowerCase().trim();
+  // Common misspellings → treat like "weather" (otherwise Claude falls through and often asks for location)
+  const lower = input
+    .toLowerCase()
+    .trim()
+    .replace(/\bwether\b/g, 'weather')
+    .replace(/\bweater\b/g, 'weather')
+    .replace(/\bwheather\b/g, 'weather');
 
   // Single word shortcuts
   if (lower === 'weather') return 'weather';
