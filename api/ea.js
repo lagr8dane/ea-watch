@@ -299,22 +299,52 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
       briefingData = await briefingRes.json();
     }
 
-    const prompt = buildBriefingPrompt(type, briefingData, localHour, displayName);
+    // For weather-only or news-only, stream as text
+    if (type === 'weather' || type === 'news') {
+      const prompt = buildBriefingPrompt(type, briefingData, localHour, displayName);
+      const stream = await new Anthropic().messages.stream({
+        model:      'claude-sonnet-4-5',
+        max_tokens: 300,
+        system:     systemPrompt,
+        messages:   [{ role: 'user', content: prompt }],
+      });
+      for await (const event of stream) {
+        if (event.type === 'content_block_delta') {
+          res.write(`data: ${JSON.stringify({ delta: { text: event.delta.text } })}\n\n`);
+        }
+      }
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return;
+    }
 
-    // Stream Claude response
-    const stream = await new Anthropic().messages.stream({
+    // Morning briefing — get Claude to generate the closing quote,
+    // then send structured data for rich card rendering
+    const quotePrompt = buildQuotePrompt(briefingData, localHour, displayName);
+    const quoteStream = await new Anthropic().messages.stream({
       model:      'claude-sonnet-4-5',
-      max_tokens: 600,
+      max_tokens: 100,
       system:     systemPrompt,
-      messages:   [{ role: 'user', content: prompt }],
+      messages:   [{ role: 'user', content: quotePrompt }],
     });
 
-    for await (const event of stream) {
+    let quote = '';
+    for await (const event of quoteStream) {
       if (event.type === 'content_block_delta') {
-        res.write(`data: ${JSON.stringify({ delta: { text: event.delta.text } })}\n\n`);
+        quote += event.delta.text;
       }
     }
 
+    // Send the structured briefing event — client renders as a rich card
+    const payload = {
+      briefing: {
+        weather: briefingData.weather || null,
+        news:    briefingData.news || [],
+        quote:   quote.trim(),
+      }
+    };
+
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
     res.write('data: [DONE]\n\n');
     res.end();
 
@@ -326,7 +356,19 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
   }
 }
 
-function buildBriefingPrompt(type, data, localHour, displayName) {
+function buildQuotePrompt(data, localHour, displayName) {
+  const hour      = (localHour !== undefined && localHour !== null) ? Number(localHour) : new Date().getHours();
+  const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+  const firstName = displayName ? displayName.split(' ')[0] : 'the owner';
+  const outdoor   = data.weather?.outdoor_good;
+
+  return `Write one short motivational closing thought for ${firstName}'s ${timeOfDay} briefing. 
+${outdoor ? 'Conditions are good outside today — you can reference getting outdoors.' : ''}
+Make it genuine and specific — not a generic quote. Something a trusted friend would say.
+One sentence only. No attribution, no quotes marks, just the thought. Plain text.`;
+}
+
+
   const { weather, news } = data;
 
   // Use client's local hour if provided, otherwise fall back to server UTC

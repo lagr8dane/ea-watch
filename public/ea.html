@@ -91,38 +91,65 @@
 
     .icon-btn:active { color: var(--text); }
 
-    /* Messages */
+    /* ── Messages ── */
     .messages {
       flex: 1;
       overflow-y: auto;
       padding: 20px 16px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
       -webkit-overflow-scrolling: touch;
     }
 
+    /* EA message row — avatar + bubble */
+    .msg-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      align-self: flex-start;
+      max-width: 92%;
+    }
+
+    .ea-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      border: 1px solid rgba(255,255,255,0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: rgba(255,255,255,0.8);
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
     .msg {
-      max-width: 88%;
       padding: 12px 16px;
       border-radius: 18px;
       font-size: 15px;
-      line-height: 1.5;
+      line-height: 1.6;
     }
 
     .msg.ea {
-      background: var(--ea-msg);
-      border: 1px solid var(--border);
-      align-self: flex-start;
+      background: #181825;
+      border: 1px solid rgba(255,255,255,0.08);
       border-bottom-left-radius: 4px;
-      color: var(--text);
+      color: #e8e8f0;
+      border-left: 2px solid rgba(100, 100, 200, 0.3);
     }
 
     .msg.user {
-      background: var(--user-msg);
+      background: #1e1e1e;
       align-self: flex-end;
       border-bottom-right-radius: 4px;
       color: var(--text);
+      max-width: 82%;
+      border: 1px solid rgba(255,255,255,0.07);
     }
 
     .msg.ea.typing {
@@ -147,6 +174,139 @@
       0%, 80%, 100% { opacity: 0.2; }
       40%            { opacity: 1; }
     }
+
+    /* ── Briefing card ── */
+    .briefing-card {
+      align-self: stretch;
+      background: #0d0d14;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    .briefing-weather {
+      padding: 20px 20px 16px;
+      background: linear-gradient(135deg, #0d1117 0%, #0d1929 100%);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .briefing-weather-icon {
+      font-size: 44px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .briefing-weather-main {
+      flex: 1;
+    }
+
+    .briefing-temp {
+      font-size: 36px;
+      font-weight: 300;
+      color: #f0f0f0;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+
+    .briefing-condition {
+      font-size: 14px;
+      color: #8888aa;
+      margin-top: 3px;
+    }
+
+    .briefing-weather-details {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .briefing-weather-detail {
+      font-size: 12px;
+      color: #666688;
+    }
+
+    .briefing-outdoor-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(76, 175, 125, 0.15);
+      border: 1px solid rgba(76, 175, 125, 0.3);
+      color: #4caf7d;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 20px;
+      margin-top: 8px;
+    }
+
+    .briefing-news {
+      padding: 4px 0;
+    }
+
+    .briefing-news-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      text-decoration: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s;
+    }
+
+    .briefing-news-item:last-child { border-bottom: none; }
+    .briefing-news-item:active { background: rgba(255,255,255,0.03); }
+
+    .briefing-news-content { flex: 1; min-width: 0; }
+
+    .briefing-news-title {
+      font-size: 14px;
+      color: #d0d0e0;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .briefing-news-source {
+      font-size: 11px;
+      color: #555570;
+      margin-top: 3px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .briefing-news-arrow {
+      color: #444460;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .briefing-quote {
+      padding: 14px 20px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      font-size: 13px;
+      color: #666688;
+      font-style: italic;
+      line-height: 1.5;
+    }
+
+    .briefing-attribution {
+      padding: 10px 20px;
+      font-size: 10px;
+      color: #333350;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border-top: 1px solid rgba(255,255,255,0.04);
+    }
+
 
     /* Input bar */
     .input-bar {
@@ -386,38 +546,175 @@
       document.getElementById('status-text').textContent = 'active';
     }
 
-    // Greeting on load + request location
-    window.addEventListener('load', () => {
+    let ownerFirstName = null;
+
+    // Fetch owner name for personalised greeting
+    async function loadOwnerName() {
+      try {
+        const res = await fetch('/api/config/public');
+        if (res.ok) {
+          const c = await res.json();
+          if (c.display_name) {
+            ownerFirstName = c.display_name.split(' ')[0];
+          }
+        }
+      } catch {}
+    }
+
+    // Greeting on load + request location + load owner name
+    window.addEventListener('load', async () => {
       requestLocation();
+      await loadOwnerName();
       const hour = new Date().getHours();
       const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-      appendMsg('ea', `${greet}. What do you need?`);
+      const name = ownerFirstName ? `, ${ownerFirstName}` : '';
+      appendMsg('ea', `${greet}${name}! How can I help?`);
     });
 
     // --- Message rendering ---
 
+    function eaAvatar() {
+      const av = document.createElement('div');
+      av.className = 'ea-avatar';
+      av.textContent = 'EA';
+      return av;
+    }
+
     function appendMsg(role, text) {
-      const el = document.createElement('div');
-      el.className = `msg ${role}`;
-      // Render line breaks — briefings use \n for section separation
-      el.style.whiteSpace = 'pre-wrap';
-      el.textContent = text;
-      document.getElementById('messages').appendChild(el);
-      scrollBottom();
-      return el;
+      if (role === 'ea') {
+        const row = document.createElement('div');
+        row.className = 'msg-row';
+        row.appendChild(eaAvatar());
+        const el = document.createElement('div');
+        el.className = 'msg ea';
+        el.style.whiteSpace = 'pre-wrap';
+        el.textContent = text;
+        row.appendChild(el);
+        document.getElementById('messages').appendChild(row);
+        scrollBottom();
+        return el;
+      } else {
+        const el = document.createElement('div');
+        el.className = 'msg user';
+        el.style.whiteSpace = 'pre-wrap';
+        el.textContent = text;
+        document.getElementById('messages').appendChild(el);
+        scrollBottom();
+        return el;
+      }
     }
 
     function showTyping() {
+      const row = document.createElement('div');
+      row.className = 'msg-row';
+      row.id = 'typing-row';
+      row.appendChild(eaAvatar());
       const el = document.createElement('div');
       el.className = 'msg ea typing';
       el.id = 'typing';
       el.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
-      document.getElementById('messages').appendChild(el);
+      row.appendChild(el);
+      document.getElementById('messages').appendChild(row);
       scrollBottom();
     }
 
     function hideTyping() {
+      document.getElementById('typing-row')?.remove();
       document.getElementById('typing')?.remove();
+    }
+
+    // --- Briefing card ---
+
+    function renderBriefingCard(data) {
+      const card = document.createElement('div');
+      card.className = 'briefing-card';
+
+      // Weather section
+      if (data.weather) {
+        const w = data.weather;
+        const section = document.createElement('div');
+        section.className = 'briefing-weather';
+
+        const icon = document.createElement('div');
+        icon.className = 'briefing-weather-icon';
+        icon.textContent = weatherEmoji(w.condition);
+
+        const main = document.createElement('div');
+        main.className = 'briefing-weather-main';
+        main.innerHTML = `
+          <div class="briefing-temp">${w.temp}°F</div>
+          <div class="briefing-condition">${w.condition} · Feels like ${w.feels_like}°</div>
+          <div class="briefing-weather-details">
+            <span class="briefing-weather-detail">H: ${w.high}° L: ${w.low}°</span>
+            <span class="briefing-weather-detail">UV: ${w.uv_index}</span>
+            <span class="briefing-weather-detail">Rain: ${w.rain_chance}%</span>
+            <span class="briefing-weather-detail">Wind: ${w.wind} mph</span>
+          </div>
+          ${w.outdoor_good ? '<div class="briefing-outdoor-pill">✦ Good day outside</div>' : ''}
+        `;
+
+        section.appendChild(icon);
+        section.appendChild(main);
+        card.appendChild(section);
+      }
+
+      // News section
+      if (data.news && data.news.length > 0) {
+        const newsSection = document.createElement('div');
+        newsSection.className = 'briefing-news';
+
+        data.news.forEach(story => {
+          const item = document.createElement('a');
+          item.className = 'briefing-news-item';
+          item.href = story.url || '#';
+          item.target = '_blank';
+          item.rel = 'noopener noreferrer';
+          item.innerHTML = `
+            <div class="briefing-news-content">
+              <div class="briefing-news-title">${esc(story.title)}</div>
+              <div class="briefing-news-source">${esc(story.source)}</div>
+            </div>
+            <div class="briefing-news-arrow">›</div>
+          `;
+          newsSection.appendChild(item);
+        });
+
+        card.appendChild(newsSection);
+      }
+
+      // Quote/closing
+      if (data.quote) {
+        const quote = document.createElement('div');
+        quote.className = 'briefing-quote';
+        quote.textContent = data.quote;
+        card.appendChild(quote);
+      }
+
+      // Attribution
+      const attr = document.createElement('div');
+      attr.className = 'briefing-attribution';
+      attr.textContent = 'Weather · Open-Meteo   ·   News · NewsAPI';
+      card.appendChild(attr);
+
+      return card;
+    }
+
+    function weatherEmoji(condition) {
+      if (!condition) return '🌤';
+      const c = condition.toLowerCase();
+      if (c.includes('clear'))      return '☀️';
+      if (c.includes('partly'))     return '⛅️';
+      if (c.includes('overcast'))   return '☁️';
+      if (c.includes('fog'))        return '🌫';
+      if (c.includes('drizzle'))    return '🌦';
+      if (c.includes('rain'))       return '🌧';
+      if (c.includes('snow'))       return '❄️';
+      if (c.includes('thunder'))    return '⛈';
+      return '🌤';
+    }
+
+    function esc(str) {
+      return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
     function scrollBottom() {
@@ -486,8 +783,9 @@
         const decoder = new TextDecoder();
         let   eaEl    = appendMsg('ea', '');
         let   full    = '';
-        let   pendingActions = [];
-        let   chainControl  = null;
+        let   pendingActions  = [];
+        let   chainControl    = null;
+        let   briefingData    = null;
 
         setStatus('responding…');
 
@@ -510,6 +808,11 @@
                 scrollBottom();
               }
 
+              // Briefing card — structured data for rich rendering
+              if (parsed.briefing) {
+                briefingData = parsed.briefing;
+              }
+
               // Actions — collect deeplinks/shortcuts to fire after stream ends
               if (parsed.actions) {
                 pendingActions = parsed.actions;
@@ -520,6 +823,18 @@
                 chainControl = parsed.chain_control;
               }
             } catch {}
+          }
+        }
+
+        // Render briefing card if we got structured briefing data
+        if (briefingData) {
+          // Remove the streaming text bubble — replace with rich card
+          const row = eaEl.closest('.msg-row');
+          const card = renderBriefingCard(briefingData);
+          if (row) {
+            row.replaceWith(card);
+          } else {
+            eaEl.replaceWith(card);
           }
         }
 
