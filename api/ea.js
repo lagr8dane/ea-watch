@@ -353,7 +353,7 @@ async function fetchBriefingData(type, lat, lon) {
   const useLat = (lat && !isNaN(lat)) ? lat : 39.5296;
   const useLon = (lon && !isNaN(lon)) ? lon : -119.8138;
 
-  if (type === 'all' || type === 'weather') {
+  if (type === 'weather' || type === 'morning') {
     try {
       result.weather = await fetchWeatherData(useLat, useLon);
       console.log('[briefing] Weather fetched:', result.weather?.temp, result.weather?.condition);
@@ -361,7 +361,7 @@ async function fetchBriefingData(type, lat, lon) {
       console.error('[briefing] Weather fetch failed:', err.message);
     }
   }
-  if (type === 'all' || type === 'news') {
+  if (type === 'news' || type === 'morning') {
     try {
       result.news = await fetchNewsData();
       console.log('[briefing] News fetched:', result.news?.length, 'stories');
