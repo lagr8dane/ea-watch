@@ -30,7 +30,7 @@ export default async function handler(req, res) {
       `SELECT display_name, title, session_window_mins, challenge_style,
               challenge_phrase, alert_phone, alert_email, ea_personality,
               stranger_bio, stranger_focus, stranger_accent_hex,
-              stranger_linkedin, stranger_calendly,
+              stranger_linkedin, stranger_instagram, stranger_calendly,
               stranger_imessage, stranger_whatsapp, avatar_url,
               briefing_interests, briefing_tickers, interest_radar_topics
        FROM owner_config WHERE id = ?`,
@@ -59,6 +59,7 @@ export default async function handler(req, res) {
       ea_personality:      b.ea_personality       ?? null,
       stranger_bio:        b.stranger_bio         ?? null,
       stranger_linkedin:   b.stranger_linkedin    ?? null,
+      stranger_instagram:  b.stranger_instagram   ?? null,
       stranger_calendly:   b.stranger_calendly    ?? null,
       stranger_imessage:   b.stranger_imessage    ?? null,
       stranger_whatsapp:   b.stranger_whatsapp    ?? null,

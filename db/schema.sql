@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS owner_config (
   alert_email         TEXT,               -- email fallback
   -- Stranger card
   stranger_linkedin   TEXT,
+  stranger_instagram  TEXT,
   stranger_calendly   TEXT,
   stranger_whatsapp   TEXT,
   stranger_imessage   TEXT,

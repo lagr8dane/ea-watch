@@ -191,6 +191,86 @@
       text-align: center;
       -webkit-tap-highlight-color: transparent;
     }
+
+    /* Collapsible — tap to meet */
+    .collapsible-panel { padding: 0; }
+    .collapsible-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      padding: 16px 16px;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .collapsible-head .sub {
+      display: block;
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .collapsible-head .chev {
+      flex-shrink: 0;
+      color: var(--muted);
+      font-size: 12px;
+      transition: transform 0.2s ease;
+    }
+    .collapsible-panel.open .collapsible-head .chev { transform: rotate(180deg); }
+    .collapsible-inner { display: none; border-top: 1px solid var(--border); }
+    .collapsible-panel.open .collapsible-inner { display: block; }
+
+    .field-sub {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+      margin-top: -2px;
+    }
+    .accent-iro-wrap {
+      display: flex;
+      justify-content: center;
+      margin: 10px 0 14px;
+    }
+    .accent-iro-wrap .IroColorPicker { margin: 0 auto; }
+
+    /* Nested groups inside Tap to meet */
+    details.tap-sub {
+      border-bottom: 1px solid var(--border);
+    }
+    details.tap-sub:last-of-type { border-bottom: none; }
+    details.tap-sub > summary {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    details.tap-sub > summary::-webkit-details-marker { display: none; }
+    details.tap-sub > summary::after {
+      content: '▼';
+      font-size: 10px;
+      color: var(--muted);
+      transition: transform 0.2s ease;
+    }
+    details.tap-sub[open] > summary::after { transform: rotate(180deg); }
+    details.tap-sub .tap-sub-inner { padding-bottom: 2px; }
   </style>
 </head>
 <body>
@@ -241,6 +321,7 @@
         <label>Title</label>
         <input type="text" id="title" placeholder="Technology Executive" autocomplete="organization-title">
       </div>
+      <div class="field-note">Same name and title appear on your <a href="/contact" style="color:#8ab4ff">public contact card</a> when someone taps your watch.</div>
     </div>
   </div>
 
@@ -354,40 +435,72 @@
     </div>
   </div>
 
-  <!-- Stranger card -->
-  <div class="section">
-    <div class="section-title">Stranger card</div>
-    <div class="section-body">
-      <div class="field-note" style="margin-bottom:14px">
-        <a href="/contact/setup" style="color:#8ab4ff;font-weight:500">Guided setup</a> — step through name, tagline, links, and accent in about a minute.
-      </div>
-      <div class="field">
-        <label>Current focus (optional)</label>
-        <input type="text" id="stranger_focus" placeholder="What you’re working on or excited about right now" maxlength="160" autocomplete="off">
-      </div>
-      <div class="field">
-        <label>Accent color (optional)</label>
-        <input type="text" id="stranger_accent_hex" placeholder="#8ab4ff" maxlength="7" autocomplete="off" style="font-family:ui-monospace,monospace">
-      </div>
-      <div class="field">
-        <label>Bio (optional)</label>
-        <textarea id="stranger_bio" placeholder="A short line about you, shown on the contact card." style="min-height:60px"></textarea>
-      </div>
-      <div class="field">
-        <label>LinkedIn URL</label>
-        <input type="url" id="stranger_linkedin" placeholder="https://linkedin.com/in/yourname">
-      </div>
-      <div class="field">
-        <label>Calendly URL</label>
-        <input type="url" id="stranger_calendly" placeholder="https://calendly.com/yourname">
-      </div>
-      <div class="field">
-        <label>iMessage / SMS number</label>
-        <input type="tel" id="stranger_imessage" placeholder="+1 555 000 0000">
-      </div>
-      <div class="field">
-        <label>WhatsApp number</label>
-        <input type="tel" id="stranger_whatsapp" placeholder="+1 555 000 0000">
+  <!-- Tap to meet (public card) -->
+  <div class="section" id="tap-meet-anchor">
+    <div class="section-title">Tap to meet</div>
+    <div class="section-body collapsible-panel" id="tap-meet-panel" role="region" aria-labelledby="tap-meet-toggle">
+      <button type="button" class="collapsible-head" id="tap-meet-toggle" aria-expanded="false" aria-controls="tap-meet-inner">
+        <span>
+          Public contact card
+          <span class="sub">Focus, accent, how to connect, links — edit in one place.</span>
+        </span>
+        <span class="chev" aria-hidden="true">▼</span>
+      </button>
+      <div class="collapsible-inner" id="tap-meet-inner">
+        <details class="tap-sub" open>
+          <summary>Copy &amp; look</summary>
+          <div class="tap-sub-inner">
+            <div class="field">
+              <label>Current focus</label>
+              <p class="field-sub">Optional. What you’re into right now — shows under your title on the card.</p>
+              <input type="text" id="stranger_focus" placeholder="e.g. Shipping a new hardware prototype" maxlength="160" autocomplete="off">
+            </div>
+            <div class="field">
+              <label>How to connect</label>
+              <p class="field-sub">Optional. One line on the kinds of conversations you welcome.</p>
+              <textarea id="stranger_bio" placeholder="e.g. Happy to grab coffee if you’re into NFC or small tools." style="min-height:72px"></textarea>
+            </div>
+            <div class="field">
+              <label>Accent color</label>
+              <p class="field-sub">A thin accent on your public card. Use the wheel, then fine-tune hex if you want.</p>
+              <div class="accent-iro-wrap" id="accent-iro-root"></div>
+              <input type="text" id="stranger_accent_hex" placeholder="#8AB4FF" maxlength="7" autocomplete="off" style="font-family:ui-monospace,monospace;max-width:120px">
+            </div>
+          </div>
+        </details>
+        <details class="tap-sub">
+          <summary>Profiles &amp; scheduling</summary>
+          <div class="tap-sub-inner">
+            <div class="field">
+              <label>LinkedIn</label>
+              <input type="url" id="stranger_linkedin" placeholder="https://linkedin.com/in/…" autocomplete="url">
+            </div>
+            <div class="field">
+              <label>Instagram</label>
+              <p class="field-sub">Profile URL or @handle.</p>
+              <input type="text" id="stranger_instagram" placeholder="https://instagram.com/… or @you" autocomplete="off">
+            </div>
+            <div class="field">
+              <label>Booking link</label>
+              <p class="field-sub">Calendly, SavvyCal, or any schedule URL.</p>
+              <input type="url" id="stranger_calendly" placeholder="https://…" autocomplete="url">
+            </div>
+          </div>
+        </details>
+        <details class="tap-sub">
+          <summary>Message me</summary>
+          <div class="tap-sub-inner">
+            <div class="field">
+              <label>iMessage / SMS</label>
+              <input type="tel" id="stranger_imessage" placeholder="+1 …" autocomplete="tel">
+            </div>
+            <div class="field">
+              <label>WhatsApp</label>
+              <input type="tel" id="stranger_whatsapp" placeholder="+1 …" autocomplete="tel">
+            </div>
+          </div>
+        </details>
+        <div class="field-note"><a href="/contact" style="color:#8ab4ff">Preview contact card</a> after you save.</div>
       </div>
     </div>
   </div>
@@ -400,12 +513,82 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5/dist/iro.min.js"></script>
   <script>
+    let accentPickerInstance = null;
+
+    function tapMeetValidHex() {
+      const raw = document.getElementById('stranger_accent_hex')?.value?.trim() || '';
+      return /^#[0-9A-Fa-f]{6}$/i.test(raw) ? raw.toUpperCase() : '#8AB4FF';
+    }
+
+    function initAccentPickerIfNeeded() {
+      const root = document.getElementById('accent-iro-root');
+      if (!root || typeof iro === 'undefined' || !iro.ColorPicker) return;
+      const hex = tapMeetValidHex();
+      if (!accentPickerInstance) {
+        root.innerHTML = '';
+        const w = Math.min(220, Math.max(180, (window.innerWidth || 360) - 72));
+        accentPickerInstance = new iro.ColorPicker(root, {
+          width: w,
+          color: hex,
+          layout: [
+            { component: iro.ui.Wheel },
+            { component: iro.ui.Slider, options: { sliderType: 'value' } },
+          ],
+        });
+        accentPickerInstance.on('color:change', function (c) {
+          const el = document.getElementById('stranger_accent_hex');
+          if (el) el.value = c.hexString.toUpperCase();
+        });
+      } else {
+        try { accentPickerInstance.color.set(hex); } catch (e) {}
+      }
+    }
+
+    let tapMeetBound = false;
+    function setupTapMeetPanel() {
+      if (tapMeetBound) return;
+      const panel = document.getElementById('tap-meet-panel');
+      const btn = document.getElementById('tap-meet-toggle');
+      const hexEl = document.getElementById('stranger_accent_hex');
+      if (!panel || !btn) return;
+      tapMeetBound = true;
+      btn.addEventListener('click', function () {
+        const open = !panel.classList.contains('open');
+        panel.classList.toggle('open', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (open) initAccentPickerIfNeeded();
+      });
+      if (hexEl) {
+        hexEl.addEventListener('input', function () {
+          const v = this.value.trim();
+          if (/^#[0-9A-Fa-f]{6}$/i.test(v) && accentPickerInstance) {
+            try { accentPickerInstance.color.set(v); } catch (e) {}
+          }
+        });
+      }
+    }
+
+    function openTapMeetFromHash() {
+      if (location.hash !== '#tap-meet') return;
+      const panel = document.getElementById('tap-meet-panel');
+      const tbtn = document.getElementById('tap-meet-toggle');
+      if (panel) panel.classList.add('open');
+      if (tbtn) tbtn.setAttribute('aria-expanded', 'true');
+      initAccentPickerIfNeeded();
+      document.getElementById('tap-meet-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
     // Load existing config on mount
     async function load() {
       try {
         const res = await fetch('/api/config');
-        if (!res.ok) return;
+        if (!res.ok) {
+          setupTapMeetPanel();
+          openTapMeetFromHash();
+          return;
+        }
         const c = await res.json();
 
         const fields = [
@@ -413,7 +596,7 @@
           'challenge_phrase','alert_phone','alert_email','ea_personality',
           'briefing_interests','briefing_tickers','interest_radar_topics',
           'stranger_focus','stranger_accent_hex',
-          'stranger_bio','stranger_linkedin','stranger_calendly',
+          'stranger_bio','stranger_linkedin','stranger_instagram','stranger_calendly',
           'stranger_imessage','stranger_whatsapp'
         ];
 
@@ -438,6 +621,9 @@
       } catch (e) {
         // First run — no config yet, defaults are fine
       }
+
+      setupTapMeetPanel();
+      openTapMeetFromHash();
     }
 
     async function save() {
@@ -461,6 +647,7 @@
         stranger_accent_hex: val('stranger_accent_hex'),
         stranger_bio:        val('stranger_bio'),
         stranger_linkedin:   val('stranger_linkedin'),
+        stranger_instagram:  val('stranger_instagram'),
         stranger_calendly:   val('stranger_calendly'),
         stranger_imessage:   val('stranger_imessage'),
         stranger_whatsapp:   val('stranger_whatsapp'),

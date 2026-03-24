@@ -10,6 +10,7 @@ export default async function handler(req, res) {
             stranger_focus as focus,
             stranger_accent_hex as accent_hex,
             stranger_linkedin as linkedin,
+            stranger_instagram as instagram,
             stranger_calendly as calendly,
             stranger_whatsapp as whatsapp,
             stranger_imessage as imessage,
