@@ -1,9 +1,9 @@
 {
   "functions": {
-    "api/**/*.js": {
-      "maxDuration": 30
+    "api/*.js": {
+      "maxDuration": 60
     },
-    "api/interest-radar.js": {
+    "api/**/*.js": {
       "maxDuration": 60
     }
   },
