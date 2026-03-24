@@ -717,6 +717,63 @@
       return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
+    // --- Independent card renderers for morning briefing ---
+
+    function appendWeatherCard(w) {
+      if (!w) return;
+      const card = document.createElement('div');
+      card.className = 'briefing-card';
+      card.innerHTML = `
+        <div class="briefing-weather">
+          <div class="briefing-weather-icon">${weatherEmoji(w.condition)}</div>
+          <div class="briefing-weather-main">
+            <div class="briefing-temp">${w.temp}°F</div>
+            <div class="briefing-condition">${esc(w.condition)} · Feels like ${w.feels_like}°</div>
+            <div class="briefing-weather-details">
+              <span class="briefing-weather-detail">H: ${w.high}° L: ${w.low}°</span>
+              <span class="briefing-weather-detail">UV: ${w.uv_index}</span>
+              <span class="briefing-weather-detail">Rain: ${w.rain_chance}%</span>
+              <span class="briefing-weather-detail">Wind: ${w.wind} mph</span>
+            </div>
+            ${w.outdoor_good ? '<div class="briefing-outdoor-pill">✦ Good day outside</div>' : ''}
+          </div>
+        </div>
+        <div class="briefing-attribution">Open-Meteo</div>
+      `;
+      document.getElementById('messages').appendChild(card);
+      scrollBottom();
+    }
+
+    function appendNewsCard(news) {
+      if (!news || news.length === 0) return;
+      const card = document.createElement('div');
+      card.className = 'briefing-card';
+      const newsHtml = news.map(story => `
+        <a class="briefing-news-item" href="${esc(story.url || '#')}" target="_blank" rel="noopener noreferrer">
+          <div class="briefing-news-content">
+            <div class="briefing-news-title">${esc(story.title)}</div>
+            <div class="briefing-news-source">${esc(story.source)}</div>
+          </div>
+          <div class="briefing-news-arrow">›</div>
+        </a>
+      `).join('');
+      card.innerHTML = `
+        <div class="briefing-news">${newsHtml}</div>
+        <div class="briefing-attribution">NewsAPI</div>
+      `;
+      document.getElementById('messages').appendChild(card);
+      scrollBottom();
+    }
+
+    function appendQuoteCard(quote) {
+      if (!quote) return;
+      const card = document.createElement('div');
+      card.className = 'briefing-card';
+      card.innerHTML = `<div class="briefing-quote">${esc(quote)}</div>`;
+      document.getElementById('messages').appendChild(card);
+      scrollBottom();
+    }
+
     function scrollBottom() {
       const m = document.getElementById('messages');
       m.scrollTop = m.scrollHeight;
@@ -817,14 +874,24 @@
                 scrollBottom();
               }
 
-              // Briefing card — compact format
+              // Briefing cards — three independent events
+              if (parsed.card === 'weather') {
+                appendWeatherCard(parsed.data);
+              }
+              if (parsed.card === 'news') {
+                appendNewsCard(parsed.data);
+              }
+              if (parsed.card === 'quote') {
+                appendQuoteCard(parsed.data);
+              }
+
+              // Legacy compact format (fallback)
               if (parsed.b) {
                 const b = parsed.b;
                 briefingWeather = b.bw ? { temp: b.bw.t, feels_like: b.bw.f, high: b.bw.h, low: b.bw.l, uv_index: b.bw.uv, rain_chance: b.bw.r, wind: b.bw.wi, condition: b.bw.c, outdoor_good: b.bw.ok } : null;
                 briefingNews    = (b.bn || []).map(n => ({ title: n.t, source: n.s, url: n.u }));
                 briefingQuote   = b.bq || '';
               }
-              // Legacy separate events (fallback)
               if (parsed.briefing_weather !== undefined) briefingWeather = parsed.briefing_weather;
               if (parsed.briefing_news    !== undefined) briefingNews    = parsed.briefing_news;
               if (parsed.briefing_quote   !== undefined) briefingQuote   = parsed.briefing_quote;
@@ -842,18 +909,9 @@
           }
         }
 
-        // Render briefing card if we got structured briefing data
-        if (briefingWeather !== undefined || briefingNews !== undefined || briefingQuote !== undefined) {
-          const briefingData = {
-            weather: briefingWeather || null,
-            news:    briefingNews    || [],
-            quote:   briefingQuote   || '',
-          };
-          const row  = eaEl.closest('.msg-row');
-          const card = renderBriefingCard(briefingData);
-          if (row) row.replaceWith(card);
-          else eaEl.replaceWith(card);
-          scrollBottom();
+        // Remove empty EA bubble if cards were rendered inline during streaming
+        if (eaEl && !full && !pendingActions.length && !chainControl) {
+          eaEl.closest('.msg-row')?.remove();
         }
 
         // Fire any pending OS actions (deeplinks / Siri Shortcuts)
