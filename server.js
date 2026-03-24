@@ -43,6 +43,10 @@ app.all('/api/chains/:id/steps',  async (req, res) => (await loadHandler('api/ch
 app.all('/api/chains/:id/steps/:stepId', async (req, res) => (await loadHandler('api/chains.js'))(req, res));
 app.all('/api/chain-execute',     async (req, res) => (await loadHandler('api/chain-execute.js'))(req, res));
 app.all('/api/chain-execute/log', async (req, res) => (await loadNamedHandler('api/chain-execute.js', 'actionLogHandler'))(req, res));
+app.all('/api/upload',            async (req, res) => (await loadHandler('api/upload.js'))(req, res));
+
+// Phase 3 routes
+app.all('/api/briefing',          async (req, res) => (await loadHandler('api/briefing.js'))(req, res));
 
 // Page routes
 app.get('/',               (req, res) => res.redirect('/api/tap'));

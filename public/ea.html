@@ -351,6 +351,20 @@
     const messages = [];
     let   isTyping = false;
     let   recognition = null;
+    let   userLat = null;
+    let   userLon = null;
+
+    // Request location silently on load — used for weather briefings
+    function requestLocation() {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          userLat = pos.coords.latitude;
+          userLon = pos.coords.longitude;
+        },
+        () => {} // Fail silently — server falls back to Reno coords
+      );
+    }
 
     // Shell mode indicator
     if (isShell) {
@@ -358,8 +372,9 @@
       document.getElementById('status-text').textContent = 'active';
     }
 
-    // Greeting on load
+    // Greeting on load + request location
     window.addEventListener('load', () => {
+      requestLocation();
       const hour = new Date().getHours();
       const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
       appendMsg('ea', `${greet}. What do you need?`);
@@ -438,7 +453,7 @@
         const res = await fetch('/api/ea', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages, shell: isShell }),
+          body: JSON.stringify({ messages, shell: isShell, lat: userLat, lon: userLon }),
         });
 
         hideTyping();
