@@ -401,15 +401,48 @@ Make it genuine and specific — not a generic quote. Something a trusted friend
 One sentence only. No attribution, no quotes marks, just the thought. Plain text.`;
 }
 
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 function buildMindfulPrompt(localHour, displayName) {
   const hour      = (localHour !== undefined && localHour !== null) ? Number(localHour) : new Date().getHours();
   const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
   const firstName = displayName ? displayName.split(' ')[0] : 'the owner';
 
+  const modality = pickRandom(['breathing', 'stretching']);
+  const breathingAngles = [
+    'slow inhales with a slightly longer, easy exhale — no rigid counting',
+    'noticing where the breath moves (belly, ribs, or nostrils) for a few natural cycles',
+    'soft belly breathing with shoulders dropped and jaw unclenched',
+    'a gentle pause at the end of the exhale, only if it still feels comfortable',
+    'breathing in through the nose and out through the nose, smooth and quiet',
+  ];
+  const stretchingAngles = [
+    'gentle ear-to-shoulder tilts and tiny neck nods — small range, no forcing',
+    'slow shoulder rolls: up, back, and down, then reverse once or twice',
+    'interlacing fingers, palms press up to the ceiling, then easy side lean',
+    'seated or standing: reach one arm overhead and lean slightly the other way, switch sides',
+    'wrist circles and opening/closing the hands — good if you have been typing',
+    'standing hip shift or a light calf raise with both feet planted — steady and small',
+  ];
+  const angle = modality === 'breathing' ? pickRandom(breathingAngles) : pickRandom(stretchingAngles);
+
+  const modalityBlock =
+    modality === 'breathing'
+      ? `MODALITY: BREATHING only — do not add a separate stretching routine in this reply.
+Lead a simple breathing practice they can do where they are. Concrete, step-by-step in flowing sentences.
+Angle to use: ${angle}`
+      : `MODALITY: GENTLE STRETCHING / MOBILITY only — do not turn this into a breath-only meditation.
+Lead 2–4 very gentle movements they can do seated or standing. Pair movement with natural breathing.
+Emphasize small range of motion, no pain, stop if anything pinches. Angle to use: ${angle}`;
+
   return `Write a brief mindful moment for ${firstName} — this is ${timeOfDay}.
-Focus on presence, breath, or a gentle body awareness. Calm and concrete (e.g. notice shoulders, exhale length).
-This is NOT a pep talk or motivational quote — no "you got this" or hustle language. No religious framing unless asked.
-About 60–100 words. Plain text only — no markdown, no bullet points.`;
+
+${modalityBlock}
+
+This is NOT a pep talk — no "you got this," hustle, or motivational-quote tone. No religious framing unless asked.
+About 60–120 words. Plain text only — no markdown, no bullet points.`;
 }
 
 
