@@ -103,6 +103,7 @@ npm install
 cp .env.example .env
 # Fill in .env with your values
 node --env-file=.env scripts/db-init.js
+# If upgrading an existing DB: node --env-file=.env scripts/db-migrate-briefing-settings.js
 npm run dev
 ```
 
