@@ -330,10 +330,14 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
       }
     }
 
-    // Send briefing as separate small events — avoids chunk splitting issues
-    res.write(`data: ${JSON.stringify({ briefing_weather: briefingData.weather || null })}\n\n`);
-    res.write(`data: ${JSON.stringify({ briefing_news: briefingData.news || [] })}\n\n`);
-    res.write(`data: ${JSON.stringify({ briefing_quote: quote.trim() })}\n\n`);
+    // Send minimal briefing payload — keep it small to avoid chunk splits
+    const w = briefingData.weather;
+    const compact = {
+      bw: w ? { t: w.temp, f: w.feels_like, h: w.high, l: w.low, uv: w.uv_index, r: w.rain_chance, wi: w.wind, c: w.condition, ok: w.outdoor_good } : null,
+      bn: (briefingData.news || []).map(n => ({ t: n.title, s: n.source, u: n.url })),
+      bq: quote.trim(),
+    };
+    res.write(`data: ${JSON.stringify({ b: compact })}\n\n`);
     res.write('data: [DONE]\n\n');
     res.end();
 

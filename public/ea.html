@@ -817,7 +817,14 @@
                 scrollBottom();
               }
 
-              // Briefing card — assembled from separate events
+              // Briefing card — compact format
+              if (parsed.b) {
+                const b = parsed.b;
+                briefingWeather = b.bw ? { temp: b.bw.t, feels_like: b.bw.f, high: b.bw.h, low: b.bw.l, uv_index: b.bw.uv, rain_chance: b.bw.r, wind: b.bw.wi, condition: b.bw.c, outdoor_good: b.bw.ok } : null;
+                briefingNews    = (b.bn || []).map(n => ({ title: n.t, source: n.s, url: n.u }));
+                briefingQuote   = b.bq || '';
+              }
+              // Legacy separate events (fallback)
               if (parsed.briefing_weather !== undefined) briefingWeather = parsed.briefing_weather;
               if (parsed.briefing_news    !== undefined) briefingNews    = parsed.briefing_news;
               if (parsed.briefing_quote   !== undefined) briefingQuote   = parsed.briefing_quote;
