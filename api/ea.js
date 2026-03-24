@@ -28,7 +28,6 @@ const BRIEFING_INTENTS = {
   morning: ['morning briefing', 'good morning', 'morning routine', 'start my day', 'morning update'],
   weather: ["how's the weather", "what's the weather", 'weather today', 'weather forecast', 'weather update', "what's it like outside", 'is it nice out', 'how is the weather', 'what is the weather', 'the weather', 'weather report', 'weather briefing'],
   news:    ['top news', "what's the news", 'news today', 'news update', 'latest news', 'what happened today', 'headlines', 'what is the news', 'the news', 'news briefing'],
-  quote:   ['morning quote', 'motivational quote', 'give me a quote', 'inspire me'],
 };
 
 function detectBriefingIntent(input) {
@@ -292,31 +291,17 @@ function sendText(res, text) {
 
 async function streamBriefing(req, res, type, lat, lon, localHour, displayName, systemPrompt, ownerId) {
   try {
+    // Fetch briefing data directly — no internal HTTP call
     const briefingData = await fetchBriefingData(type, lat, lon);
 
-    // Weather-only, news-only, quote-only — stream as text (or card for news)
-    if (type === 'weather' || type === 'news' || type === 'quote') {
-
-      // News — send as structured card data
-      if (type === 'news') {
-        const payload = {
-          news_card: {
-            stories:   briefingData.news || [],
-            timestamp: new Date().toISOString(),
-          }
-        };
-        res.write(`data: ${JSON.stringify(payload)}\n\n`);
-        res.write('data: [DONE]\n\n');
-        res.end();
-        return;
-      }
-
-      const prompt = type === 'quote'
-        ? buildQuotePrompt(briefingData, localHour, displayName)
-        : buildBriefingPrompt(type, briefingData, localHour, displayName);
+    // For weather-only or news-only, stream as text
+    if (type === 'weather' || type === 'news') {
+      const prompt = buildBriefingPrompt(type, briefingData, localHour, displayName);
       const stream = await new Anthropic().messages.stream({
-        model: 'claude-sonnet-4-5', max_tokens: type === 'quote' ? 80 : 300, system: systemPrompt,
-        messages: [{ role: 'user', content: prompt }],
+        model:      'claude-sonnet-4-5',
+        max_tokens: 300,
+        system:     systemPrompt,
+        messages:   [{ role: 'user', content: prompt }],
       });
       for await (const event of stream) {
         if (event.type === 'content_block_delta') {
@@ -328,13 +313,33 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
       return;
     }
 
-    // Morning briefing — signal client to make three separate calls
-    if (type === 'morning') {
-      res.write(`data: ${JSON.stringify({ morning_briefing: true })}\n\n`);
-      res.write('data: [DONE]\n\n');
-      res.end();
-      return;
+    // Morning briefing — get Claude to generate the closing quote,
+    // then send structured data for rich card rendering
+    const quotePrompt = buildQuotePrompt(briefingData, localHour, displayName);
+    const quoteStream = await new Anthropic().messages.stream({
+      model:      'claude-sonnet-4-5',
+      max_tokens: 100,
+      system:     systemPrompt,
+      messages:   [{ role: 'user', content: quotePrompt }],
+    });
+
+    let quote = '';
+    for await (const event of quoteStream) {
+      if (event.type === 'content_block_delta') {
+        quote += event.delta.text;
+      }
     }
+
+    // Send minimal briefing payload — keep it small to avoid chunk splits
+    const w = briefingData.weather;
+    const compact = {
+      bw: w ? { t: w.temp, f: w.feels_like, h: w.high, l: w.low, uv: w.uv_index, r: w.rain_chance, wi: w.wind, c: w.condition, ok: w.outdoor_good } : null,
+      bn: (briefingData.news || []).map(n => ({ t: n.title, s: n.source, u: n.url })),
+      bq: quote.trim(),
+    };
+    res.write(`data: ${JSON.stringify({ b: compact })}\n\n`);
+    res.write('data: [DONE]\n\n');
+    res.end();
 
   } catch (err) {
     console.error('[ea] Briefing error:', err.message);
@@ -353,7 +358,7 @@ async function fetchBriefingData(type, lat, lon) {
   const useLat = (lat && !isNaN(lat)) ? lat : 39.5296;
   const useLon = (lon && !isNaN(lon)) ? lon : -119.8138;
 
-  if (type === 'weather' || type === 'morning') {
+  if (type === 'all' || type === 'weather') {
     try {
       result.weather = await fetchWeatherData(useLat, useLon);
       console.log('[briefing] Weather fetched:', result.weather?.temp, result.weather?.condition);
@@ -361,7 +366,7 @@ async function fetchBriefingData(type, lat, lon) {
       console.error('[briefing] Weather fetch failed:', err.message);
     }
   }
-  if (type === 'news' || type === 'morning') {
+  if (type === 'all' || type === 'news') {
     try {
       result.news = await fetchNewsData();
       console.log('[briefing] News fetched:', result.news?.length, 'stories');
