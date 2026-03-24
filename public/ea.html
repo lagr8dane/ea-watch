@@ -708,12 +708,24 @@
         { label: 'Routines', text: 'routines' },
         { label: 'Tasks', text: 'my tasks' },
       ];
+      if (!isShell) {
+        chips.push({ label: 'Radar', kind: 'radar' });
+      }
       for (const c of chips) {
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'ea-chip';
         btn.textContent = c.label;
-        btn.addEventListener('click', () => sendChipMessage(c.text));
+        if (c.kind === 'radar') {
+          btn.title = 'Interest radar — your location & saved interests';
+          btn.addEventListener('click', () => {
+            const qs = new URLSearchParams({ auto: '1', when: 'tonight' });
+            if (urlDebug) qs.set('debug', '1');
+            window.location.href = '/interest-radar?' + qs.toString();
+          });
+        } else {
+          btn.addEventListener('click', () => sendChipMessage(c.text));
+        }
         bar.appendChild(btn);
       }
       messagesEl.appendChild(bar);

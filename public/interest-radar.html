@@ -94,6 +94,39 @@
       background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; font-family: inherit;
     }
     .seg button.on { background: rgba(138,180,255,0.2); color: var(--text); border-color: var(--hi); }
+
+    .radar-working {
+      display: none;
+      margin-top: 16px;
+      padding: 20px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(138,180,255,0.35);
+      background: rgba(138,180,255,0.08);
+      text-align: center;
+    }
+    .radar-working.visible { display: block; }
+    .radar-spinner {
+      width: 36px; height: 36px;
+      margin: 0 auto 14px;
+      border: 3px solid rgba(255,255,255,0.12);
+      border-top-color: var(--hi);
+      border-radius: 50%;
+      animation: radar-spin 0.75s linear infinite;
+    }
+    @keyframes radar-spin { to { transform: rotate(360deg); } }
+    .radar-working-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .radar-working-sub {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+      max-width: 280px;
+      margin: 0 auto;
+    }
   </style>
 </head>
 <body>
@@ -135,6 +168,12 @@
 
     <div class="row" style="margin-top:18px">
       <button type="button" class="btn btn-primary" id="btn-run">Run radar</button>
+    </div>
+
+    <div id="radar-working" class="radar-working" aria-live="polite">
+      <div class="radar-spinner" role="presentation"></div>
+      <div class="radar-working-title" id="radar-working-title">Working…</div>
+      <div class="radar-working-sub" id="radar-working-sub">Web search and maps can take 30–60 seconds. Keep this tab open.</div>
     </div>
 
     <div id="msg-err" class="err" style="display:none"></div>
@@ -325,6 +364,150 @@
 
     let lastRadarItems = [];
 
+    function setWorking(visible, title, sub) {
+      const wrap = document.getElementById('radar-working');
+      wrap.classList.toggle('visible', !!visible);
+      if (title) document.getElementById('radar-working-title').textContent = title;
+      if (sub !== undefined) document.getElementById('radar-working-sub').textContent = sub;
+    }
+
+    function setRadarBusy(busy) {
+      document.getElementById('btn-run').disabled = busy;
+      document.getElementById('btn-verify').disabled = busy;
+      document.getElementById('btn-locate').disabled = busy;
+      document.getElementById('address').disabled = busy;
+      document.getElementById('radius').disabled = busy;
+      document.getElementById('interests').disabled = busy;
+      document.querySelectorAll('#when-seg button').forEach(function (b) { b.disabled = busy; });
+    }
+
+    function renderRadarResponse(data) {
+      if (data.disclaimer) {
+        const d = document.getElementById('disclaimer');
+        d.textContent = data.disclaimer;
+        d.style.display = 'block';
+      }
+      const items = data.items || [];
+      if (!items.length) {
+        document.getElementById('results').innerHTML = '<div class="empty">No results with solid links. Try a wider radius, different window, or broader interests.</div>';
+        return;
+      }
+      lastRadarItems = items;
+      document.getElementById('results').innerHTML = items.map(function (it, idx) {
+        const dist = it.distance_mi != null ? '~' + it.distance_mi + ' mi' : 'Distance unknown';
+        const due = defaultDueForItem(it);
+        return (
+          '<div class="card" data-idx="' + idx + '">' +
+          '<h3>' + esc(it.title) + '</h3>' +
+          '<div class="meta">' + esc(dist) +
+          (it.start_time_hint ? ' · ' + esc(it.start_time_hint) : '') +
+          (it.start_date ? ' · ' + esc(it.start_date) : '') + '</div>' +
+          (it.summary ? '<div class="summary">' + esc(it.summary) + '</div>' : '') +
+          '<div class="card-actions">' +
+          '<a href="' + escAttr(it.url) + '" target="_blank" rel="noopener noreferrer">Open source</a>' +
+          '<button type="button" class="btn btn-small add-task-btn" data-idx="' + idx + '" data-due="' + escAttr(due) + '">Add task</button>' +
+          '</div></div>'
+        );
+      }).join('');
+
+      document.querySelectorAll('.add-task-btn').forEach(function (btn) {
+        btn.addEventListener('click', async function () {
+          const idx = parseInt(btn.getAttribute('data-idx'), 10);
+          const it = lastRadarItems[idx];
+          if (!it) return;
+          const title = ('Go: ' + it.title).slice(0, 500);
+          const due_at = btn.getAttribute('data-due');
+          btn.disabled = true;
+          try {
+            const res = await fetch('/api/tasks', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'same-origin',
+              body: JSON.stringify({ title: title, due_at: due_at, priority: 'normal' }),
+            });
+            if (res.ok) btn.textContent = 'Added';
+            else btn.textContent = 'Failed';
+          } catch {
+            btn.textContent = 'Failed';
+          }
+        });
+      });
+    }
+
+    async function executeRadarSearchCore() {
+      const radius = parseInt(document.getElementById('radius').value, 10) || 25;
+      const interests = document.getElementById('interests').value.trim();
+      const range_description = describeWindow(windowKey);
+      const data = await apiPost({
+        mode: 'search',
+        lat: selLat,
+        lon: selLon,
+        location_label: selLabel,
+        radius_miles: radius,
+        range_description: range_description,
+        interests: interests,
+        window: windowKey,
+      });
+      renderRadarResponse(data);
+    }
+
+    function applyWhenFromUrl(when) {
+      const ok = ['tonight', 'tomorrow', 'weekend', 'week'];
+      if (!when || ok.indexOf(when) === -1) return;
+      windowKey = when;
+      document.querySelectorAll('#when-seg button').forEach(function (x) {
+        x.classList.toggle('on', x.getAttribute('data-w') === when);
+      });
+    }
+
+    async function resolveLocationForQuickRadar() {
+      const cached = sessionStorage.getItem('ea_location');
+      if (cached) {
+        try {
+          const o = JSON.parse(cached);
+          const lat = Number(o.lat);
+          const lon = Number(o.lon);
+          if (Number.isFinite(lat) && Number.isFinite(lon)) {
+            try {
+              const data = await apiPost({ mode: 'reverse', lat: lat, lon: lon });
+              selLat = data.lat;
+              selLon = data.lon;
+              selLabel = data.location_label || '';
+              setLocPill('<strong>Using your location</strong><br>' + esc(selLabel));
+              return true;
+            } catch { /* try GPS */ }
+          }
+        } catch { /* bad cache */ }
+      }
+      if (!navigator.geolocation) return false;
+      return await new Promise(function (resolve) {
+        navigator.geolocation.getCurrentPosition(
+          async function (pos) {
+            try {
+              sessionStorage.setItem('ea_location', JSON.stringify({
+                lat: pos.coords.latitude,
+                lon: pos.coords.longitude,
+              }));
+              const data = await apiPost({
+                mode: 'reverse',
+                lat: pos.coords.latitude,
+                lon: pos.coords.longitude,
+              });
+              selLat = data.lat;
+              selLon = data.lon;
+              selLabel = data.location_label || '';
+              setLocPill('<strong>Using your location</strong><br>' + esc(selLabel));
+              resolve(true);
+            } catch {
+              resolve(false);
+            }
+          },
+          function () { resolve(false); },
+          { enableHighAccuracy: true, timeout: 12000 }
+        );
+      });
+    }
+
     document.getElementById('btn-run').onclick = async function () {
       showErr('');
       document.getElementById('disclaimer').style.display = 'none';
@@ -334,75 +517,15 @@
         showErr('Verify an address or use your location first.');
         return;
       }
-      const radius = parseInt(document.getElementById('radius').value, 10) || 25;
-      const interests = document.getElementById('interests').value.trim();
-      const range_description = describeWindow(windowKey);
-      this.disabled = true;
+      setWorking(true, 'Searching the web…', 'Interest radar uses search and maps — often 30–60 seconds. Keep this tab open.');
+      setRadarBusy(true);
       try {
-        const data = await apiPost({
-          mode: 'search',
-          lat: selLat,
-          lon: selLon,
-          location_label: selLabel,
-          radius_miles: radius,
-          range_description: range_description,
-          interests: interests,
-          window: windowKey,
-        });
-        if (data.disclaimer) {
-          const d = document.getElementById('disclaimer');
-          d.textContent = data.disclaimer;
-          d.style.display = 'block';
-        }
-        const items = data.items || [];
-        if (!items.length) {
-          document.getElementById('results').innerHTML = '<div class="empty">No results with solid links. Try a wider radius, different window, or broader interests.</div>';
-          return;
-        }
-        lastRadarItems = items;
-        document.getElementById('results').innerHTML = items.map(function (it, idx) {
-          const dist = it.distance_mi != null ? '~' + it.distance_mi + ' mi' : 'Distance unknown';
-          const due = defaultDueForItem(it);
-          return (
-            '<div class="card" data-idx="' + idx + '">' +
-            '<h3>' + esc(it.title) + '</h3>' +
-            '<div class="meta">' + esc(dist) +
-            (it.start_time_hint ? ' · ' + esc(it.start_time_hint) : '') +
-            (it.start_date ? ' · ' + esc(it.start_date) : '') + '</div>' +
-            (it.summary ? '<div class="summary">' + esc(it.summary) + '</div>' : '') +
-            '<div class="card-actions">' +
-            '<a href="' + escAttr(it.url) + '" target="_blank" rel="noopener noreferrer">Open source</a>' +
-            '<button type="button" class="btn btn-small add-task-btn" data-idx="' + idx + '" data-due="' + escAttr(due) + '">Add task</button>' +
-            '</div></div>'
-          );
-        }).join('');
-
-        document.querySelectorAll('.add-task-btn').forEach(function (btn) {
-          btn.addEventListener('click', async function () {
-            const idx = parseInt(btn.getAttribute('data-idx'), 10);
-            const it = lastRadarItems[idx];
-            if (!it) return;
-            const title = ('Go: ' + it.title).slice(0, 500);
-            const due_at = btn.getAttribute('data-due');
-            btn.disabled = true;
-            try {
-              const res = await fetch('/api/tasks', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'same-origin',
-                body: JSON.stringify({ title: title, due_at: due_at, priority: 'normal' }),
-              });
-              if (res.ok) btn.textContent = 'Added';
-              else btn.textContent = 'Failed';
-            } catch {
-              btn.textContent = 'Failed';
-            }
-          });
-        });
+        await executeRadarSearchCore();
       } catch (e) {
         showErr(e.message);
       } finally {
-        document.getElementById('btn-run').disabled = false;
+        setWorking(false);
+        setRadarBusy(false);
       }
     };
 
@@ -416,7 +539,7 @@
         .replace(/</g, '&lt;');
     }
 
-    (async function loadConfig() {
+    async function loadConfig() {
       try {
         const res = await fetch('/api/config', { credentials: 'same-origin' });
         if (!res.ok) return;
@@ -425,8 +548,40 @@
           document.getElementById('interests').value = c.interest_radar_topics;
         }
       } catch { /* ignore */ }
+    }
+
+    async function maybeAutoRunFromChip() {
+      const p = new URLSearchParams(location.search);
+      if (p.get('auto') !== '1' && p.get('quick') !== '1') return;
+      applyWhenFromUrl(p.get('when'));
+      showErr('');
+      document.getElementById('disclaimer').style.display = 'none';
+      document.getElementById('results').innerHTML = '';
+      lastRadarItems = [];
+
+      setWorking(true, 'Getting your location…', 'Reuses EA’s cached spot when you already shared location there.');
+      setRadarBusy(true);
+      try {
+        const ok = await resolveLocationForQuickRadar();
+        if (!ok) {
+          showErr('Could not determine location — verify an address or tap Use my location, then Run radar.');
+          return;
+        }
+        setWorking(true, 'Searching the web…', 'Matching your interests near you — often 30–60 seconds. Keep this tab open.');
+        await executeRadarSearchCore();
+      } catch (e) {
+        showErr(e.message);
+      } finally {
+        setWorking(false);
+        setRadarBusy(false);
+      }
+    }
+
+    (async function boot() {
+      await loadConfig();
+      await maybeAutoRunFromChip();
     })();
   </script>
-  <script src="/nav.js?v=radar2" defer></script>
+  <script src="/nav.js?v=radar3" defer></script>
 </body>
 </html>
