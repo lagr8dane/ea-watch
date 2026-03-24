@@ -43,15 +43,15 @@ export default async function handler(req, res) {
   const localHour = url.searchParams.get('localHour');
   const newsPage = Math.min(10, Math.max(1, parseInt(url.searchParams.get('news_page') || '1', 10) || 1));
 
-  const config = await queryOne(
-    `SELECT display_name, ea_personality, briefing_interests, briefing_tickers
-     FROM owner_config WHERE id = ?`,
-    [session.owner_id]
-  );
+  const sections = url.searchParams.get('sections');
 
-  // Pagination: extra headlines only (no duplicate weather/quote/Claude cost)
-  if (url.searchParams.get('sections') === 'news') {
-    const interests = parseBriefingInterests(config?.briefing_interests ?? '');
+  // Pagination: append headlines only (client "Show more")
+  if (sections === 'news_more') {
+    const configMore = await queryOne(
+      `SELECT briefing_interests FROM owner_config WHERE id = ?`,
+      [session.owner_id]
+    );
+    const interests = parseBriefingInterests(configMore?.briefing_interests ?? '');
     const newsResult = await fetchNewsStories({
       page: newsPage,
       pageSize: 5,
@@ -65,6 +65,73 @@ export default async function handler(req, res) {
       has_more: newsResult.has_more,
     });
   }
+
+  // Weather only — EA chat "weather" intent
+  if (sections === 'weather') {
+    let weatherOnly = null;
+    try {
+      weatherOnly = await fetchWeatherSnapshot(lat, lon);
+    } catch (err) {
+      console.error('[morning-briefing] weather:', err.message);
+    }
+    const panels = [];
+    if (weatherOnly) {
+      panels.push({
+        type: 'weather',
+        title: 'Weather',
+        icon: '☀️',
+        data: weatherOnly,
+      });
+    }
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.status(200).json({
+      version: 1,
+      greeting: null,
+      panels,
+      explore: null,
+    });
+  }
+
+  // Headlines only — EA chat "news" intent
+  if (sections === 'news') {
+    const configNews = await queryOne(
+      `SELECT briefing_interests FROM owner_config WHERE id = ?`,
+      [session.owner_id]
+    );
+    const interests = parseBriefingInterests(configNews?.briefing_interests ?? '');
+    const newsResult = await fetchNewsStories({
+      page: 1,
+      pageSize: 5,
+      interests,
+    });
+    const exploreQuery = interests.length > 0 ? interests.join(' ') : 'Top US news today';
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.status(200).json({
+      version: 1,
+      greeting: null,
+      panels: [
+        {
+          type: 'news',
+          title: interests.length ? 'News for you' : 'Headlines',
+          icon: '📰',
+          items: newsResult.items,
+          news_page: 1,
+          has_more: newsResult.has_more,
+          feed: newsResult.source,
+        },
+      ],
+      explore: {
+        label: 'Explore on Google News',
+        url: googleNewsSearchUrl(exploreQuery),
+      },
+    });
+  }
+
+  const config = await queryOne(
+    `SELECT display_name, ea_personality, briefing_interests, briefing_tickers
+     FROM owner_config WHERE id = ?`,
+    [session.owner_id]
+  );
 
   let systemPrompt =
     config?.ea_personality ||

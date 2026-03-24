@@ -653,7 +653,7 @@
       page += 1;
       btn.disabled = true;
       try {
-        const qs = new URLSearchParams({ sections: 'news', news_page: String(page), localHour: String(new Date().getHours()) });
+        const qs = new URLSearchParams({ sections: 'news_more', news_page: String(page), localHour: String(new Date().getHours()) });
         if (userLat != null && userLon != null) {
           qs.set('lat', userLat);
           qs.set('lon', userLon);
@@ -676,15 +676,18 @@
       const wrap = document.createElement('div');
       wrap.className = 'mb-wrap';
 
-      const greetRow = document.createElement('div');
-      greetRow.className = 'msg-row';
-      greetRow.appendChild(eaAvatar());
-      const greetBubble = document.createElement('div');
-      greetBubble.className = 'msg ea';
-      greetBubble.style.whiteSpace = 'pre-wrap';
-      greetBubble.textContent = data.greeting || 'Good morning';
-      greetRow.appendChild(greetBubble);
-      wrap.appendChild(greetRow);
+      const greetText = data.greeting != null ? String(data.greeting).trim() : '';
+      if (greetText) {
+        const greetRow = document.createElement('div');
+        greetRow.className = 'msg-row';
+        greetRow.appendChild(eaAvatar());
+        const greetBubble = document.createElement('div');
+        greetBubble.className = 'msg ea';
+        greetBubble.style.whiteSpace = 'pre-wrap';
+        greetBubble.textContent = greetText;
+        greetRow.appendChild(greetBubble);
+        wrap.appendChild(greetRow);
+      }
 
       for (const p of data.panels || []) {
         if (p.type === 'weather' && p.data) {
@@ -805,6 +808,42 @@
       setStatus('ready');
     }
 
+    async function runBriefingPanelsFetch(sections) {
+      if (isShell) return;
+      setStatus('Loading…');
+      showTyping();
+      try {
+        const qs = new URLSearchParams({ sections, localHour: String(new Date().getHours()) });
+        if (userLat != null && userLon != null) {
+          qs.set('lat', userLat);
+          qs.set('lon', userLon);
+        }
+        const res = await fetch('/api/morning-briefing?' + qs.toString(), { credentials: 'same-origin' });
+        hideTyping();
+        if (res.status === 403) {
+          appendMsg('ea', 'That isn\'t available in restricted mode.');
+          setStatus('ready');
+          return;
+        }
+        if (!res.ok) {
+          appendMsg('ea', 'Couldn\'t load that. Try again.');
+          setStatus('ready');
+          return;
+        }
+        const data = await res.json();
+        if (!data.panels || data.panels.length === 0) {
+          appendMsg('ea', 'Nothing to show right now. Try again in a moment.');
+          setStatus('ready');
+          return;
+        }
+        appendMorningBriefingUI(data);
+      } catch (e) {
+        hideTyping();
+        appendMsg('ea', 'Couldn\'t load that.');
+      }
+      setStatus('ready');
+    }
+
     function weatherEmoji(condition) {
       if (!condition) return '🌤';
       const c = condition.toLowerCase();
@@ -893,6 +932,7 @@
         let   chainControl    = null;
         let   sseBuffer       = '';
         let   hadMorningBriefing = false;
+        let   panelFetchKind     = null;
 
         setStatus('responding…');
 
@@ -937,6 +977,11 @@
                 hadMorningBriefing = true;
                 setTimeout(() => runMorningBriefingUI(), 0);
               }
+
+              if (parsed.briefing_panels_fetch?.sections) {
+                panelFetchKind = parsed.briefing_panels_fetch.sections;
+                setTimeout(() => runBriefingPanelsFetch(panelFetchKind), 0);
+              }
             } catch {}
           }
         }
@@ -958,9 +1003,14 @@
           renderChainControls(eaEl, chainControl, full);
         }
 
+        let assistantTranscript = full;
+        if (hadMorningBriefing) assistantTranscript = '(Morning briefing)';
+        else if (panelFetchKind === 'weather') assistantTranscript = '(Weather)';
+        else if (panelFetchKind === 'news') assistantTranscript = '(Headlines)';
+
         messages.push({
           role: 'assistant',
-          content: hadMorningBriefing ? '(Morning briefing)' : full,
+          content: assistantTranscript,
         });
         setStatus('ready');
       } catch (e) {

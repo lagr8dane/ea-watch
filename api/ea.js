@@ -293,15 +293,27 @@ function sendText(res, text) {
 
 async function streamBriefing(req, res, type, lat, lon, localHour, displayName, systemPrompt, ownerId) {
   try {
+    // Weather + news — client fetches panel JSON (no duplicate API fetch here)
+    if (type === 'weather') {
+      res.write(`data: ${JSON.stringify({ briefing_panels_fetch: { sections: 'weather' } })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return;
+    }
+    if (type === 'news') {
+      res.write(`data: ${JSON.stringify({ briefing_panels_fetch: { sections: 'news' } })}\n\n`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return;
+    }
+
     const briefingData = await fetchBriefingData(type, lat, lon);
 
-    // Weather-only, news-only, quote-only — stream as text
-    if (type === 'weather' || type === 'news' || type === 'quote') {
-      const prompt = type === 'quote'
-        ? buildQuotePrompt(briefingData, localHour, displayName)
-        : buildBriefingPrompt(type, briefingData, localHour, displayName);
+    // Quote-only — stream as text
+    if (type === 'quote') {
+      const prompt = buildQuotePrompt(briefingData, localHour, displayName);
       const stream = await new Anthropic().messages.stream({
-        model: 'claude-sonnet-4-5', max_tokens: type === 'quote' ? 80 : 300, system: systemPrompt,
+        model: 'claude-sonnet-4-5', max_tokens: 80, system: systemPrompt,
         messages: [{ role: 'user', content: prompt }],
       });
       for await (const event of stream) {
