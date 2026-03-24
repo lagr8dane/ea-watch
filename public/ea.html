@@ -199,6 +199,19 @@
       border-color: rgba(255,255,255,0.18);
     }
 
+    .ea-routine-chips {
+      align-self: flex-start;
+      max-width: 92%;
+      margin: -4px 0 8px 38px;
+    }
+
+    .ea-chip-long {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     @keyframes blink {
       0%, 80%, 100% { opacity: 0.2; }
       40%            { opacity: 1; }
@@ -622,6 +635,7 @@
         { label: 'Weather', text: 'weather' },
         { label: 'Mindful', text: 'mindful moment' },
         { label: 'Inspire me', text: 'inspire me' },
+        { label: 'Routines', text: 'routines' },
       ];
       for (const c of chips) {
         const btn = document.createElement('button');
@@ -656,6 +670,32 @@
       input.style.height = 'auto';
       document.getElementById('send-btn').disabled = false;
       await send();
+    }
+
+    /** Chips under an EA reply — tap sends `trigger` as the next user message. */
+    function appendRoutineChips(afterRow, items) {
+      if (!afterRow || !items || !items.length) return;
+      const parent = afterRow.parentNode;
+      if (!parent) return;
+      const bar = document.createElement('div');
+      bar.className = 'ea-quick-chips ea-routine-chips';
+      bar.setAttribute('role', 'toolbar');
+      bar.setAttribute('aria-label', 'Your routines');
+      for (const c of items) {
+        const trigger = c.trigger != null ? String(c.trigger) : '';
+        if (!trigger) continue;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ea-chip ea-chip-long';
+        const label = (c.label != null && String(c.label).trim()) || trigger;
+        btn.textContent = label;
+        btn.title = trigger;
+        btn.addEventListener('click', () => sendChipMessage(trigger));
+        bar.appendChild(btn);
+      }
+      if (!bar.children.length) return;
+      parent.insertBefore(bar, afterRow.nextSibling);
+      scrollBottom();
     }
 
     window.addEventListener('load', () => {
@@ -1047,6 +1087,7 @@
         let   sseBuffer       = '';
         let   hadMorningBriefing = false;
         let   hadMindfulPanel    = false;
+        let   hadRoutineChips    = false;
         let   panelFetchKind     = null;
 
         setStatus('responding…');
@@ -1103,6 +1144,12 @@
                 panelFetchKind = parsed.briefing_panels_fetch.sections;
                 setTimeout(() => runBriefingPanelsFetch(panelFetchKind), 0);
               }
+
+              if (parsed.routine_chips && Array.isArray(parsed.routine_chips)) {
+                hadRoutineChips = true;
+                const row = streamTextEl.closest('.msg-row');
+                appendRoutineChips(row, parsed.routine_chips);
+              }
             } catch {}
           }
         }
@@ -1127,6 +1174,7 @@
         let assistantTranscript = full;
         if (hadMorningBriefing) assistantTranscript = '(Morning briefing)';
         else if (hadMindfulPanel) assistantTranscript = '(Mindful moment)';
+        else if (hadRoutineChips) assistantTranscript = '(Routines)';
         else if (panelFetchKind === 'weather') assistantTranscript = '(Weather)';
         else if (panelFetchKind === 'news') assistantTranscript = '(Headlines)';
 

@@ -1,7 +1,7 @@
 // api/ea.js
 import Anthropic from '@anthropic-ai/sdk';
 import { parse as parseCookies } from 'cookie';
-import { queryOne } from '../db/client.js';
+import { query, queryOne } from '../db/client.js';
 import {
   matchChain,
   getActiveChainState,
@@ -52,6 +52,55 @@ function detectBriefingIntent(input) {
     if (patterns.some(p => lower.includes(p))) return type;
   }
   return null;
+}
+
+/** Phrases that list routines as chips (runs before chain trigger matching). */
+function detectRoutinePickerIntent(input) {
+  const t = input.toLowerCase().trim();
+  if (!t) return false;
+  const exact = new Set([
+    'routines',
+    'my routines',
+    'list routines',
+    'show routines',
+    'routine list',
+    'pick a routine',
+    'available routines',
+    'what routines',
+    'what routines?',
+    'show my routines',
+    'list my routines',
+  ]);
+  if (exact.has(t)) return true;
+  if (t.startsWith('what routines ') || t.startsWith('show routines ') || t.startsWith('list routines ')) return true;
+  return false;
+}
+
+async function sendRoutinePicker(res, deviceId) {
+  const rows = await query(
+    `SELECT name, trigger_phrase FROM chains WHERE device_id = ? AND enabled = 1 ORDER BY name COLLATE NOCASE ASC`,
+    [deviceId]
+  );
+  if (!rows.length) {
+    sendText(
+      res,
+      'You do not have any routines yet. Open the routine builder to create one — on the web app, go to /chains.'
+    );
+    res.write('data: [DONE]\n\n');
+    res.end();
+    return;
+  }
+  sendText(
+    res,
+    'Here are your routines. Tap one to run it, or say its trigger phrase out loud (for example, start a workout).'
+  );
+  const routine_chips = rows.map((c) => ({
+    label: (c.name && String(c.name).trim()) || c.trigger_phrase,
+    trigger: c.trigger_phrase,
+  }));
+  res.write(`data: ${JSON.stringify({ routine_chips })}\n\n`);
+  res.write('data: [DONE]\n\n');
+  res.end();
 }
 
 export default async function handler(req, res) {
@@ -156,14 +205,20 @@ acknowledge it clearly and provide the relevant deeplink or instruction.`;
       await abortActiveChain(sessionId, 'superseded by new message');
     }
 
-    // 2. Check if this message matches a chain trigger phrase
+    // 2. "Routines" keyword — list chains as chips (before trigger matching so "routines" never starts a chain by accident)
+    if (detectRoutinePickerIntent(lastUserMessage)) {
+      await sendRoutinePicker(res, deviceId);
+      return;
+    }
+
+    // 3. Check if this message matches a chain trigger phrase
     const matchedChain = await matchChain(deviceId, lastUserMessage);
     if (matchedChain) {
       const result = await startChain(sessionId, matchedChain);
       return sendChainResult(res, result);
     }
 
-    // 3. Check for briefing intents
+    // 4. Check for briefing intents
     const briefingIntent = detectBriefingIntent(lastUserMessage);
     if (briefingIntent) {
       return streamBriefing(req, res, briefingIntent, lat, lon, localHour, req._displayName, systemPrompt, session.owner_id);
