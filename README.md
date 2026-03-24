@@ -11,33 +11,23 @@ The same physical object. Two entirely different experiences, determined by iden
 
 ## Current status
 
-**Phase 1 — complete.** Running in production at `https://ea-watch.vercel.app`.
+**Phases 1–2 complete; owner EA experience (briefings, routines, mindful) is in production** at `https://ea-watch.vercel.app`.
 
-| Task | Status |
+| Area | Status |
 |---|---|
-| Turso DB schema + client | ✅ Done |
-| Project scaffold + Vercel config | ✅ Done |
-| Shared lib: session token + bcrypt | ✅ Done |
-| Shared lib: audit log | ✅ Done |
-| Device registration endpoint | ✅ Done |
-| Tap gateway handler | ✅ Done |
-| Session management | ✅ Done |
-| Challenge-response auth | ✅ Done |
-| Rate limiting + server-side lockout | ✅ Done |
-| Danger word + shell mode | ✅ Done |
-| Alert dispatcher | ✅ Done |
-| Stranger contact card | ✅ Done |
-| Challenge UI | ✅ Done |
-| EA chat interface | ✅ Done |
-| EA streaming endpoint | ✅ Done |
-| Config app UI | ✅ Done |
-| Config read/write endpoint | ✅ Done |
-| Ownership transfer flow | ✅ Done |
-| NFC stub endpoint | ✅ Done |
-| NFC stub UI | ✅ Done |
-| Security review pass | ✅ Done |
-| Production smoke test | ✅ Done |
-| **Phase 2 — chain builder** | 🔲 Next |
+| Identity, tap gateway, auth, sessions, shell mode | ✅ |
+| Stranger contact card + config | ✅ |
+| EA chat (Claude streaming, voice, plain-text formatting rules) | ✅ |
+| **Routines** — chain builder `/chains`, CRUD, engine, deeplinks/shortcuts/conditionals | ✅ |
+| **Routines picker** — say `routines` / `what can you run?` etc., or tap **Routines** chip | ✅ |
+| **Morning briefing** — JSON + panel UI (weather, news, quote, optional stocks); not auto-fired on open | ✅ |
+| **Quick chips** — Briefing, News, Weather, Mindful, Inspire me, Routines | ✅ |
+| **Mindful** — random breathing vs stretching; panel + icon; separate from **Inspire me** (quote) | ✅ |
+| **Weather** — shows **where** (reverse geocode + coordinate fallback via `lib/briefing-data.js`) | ✅ |
+| Config: `briefing_interests`, `briefing_tickers` (+ migration script) | ✅ |
+| Action log `/action-log` | ✅ |
+
+**Next focus:** productivity features (see [Build phases](#build-phases)).
 
 ---
 
@@ -47,6 +37,8 @@ The same physical object. Two entirely different experiences, determined by iden
 |---|---|
 | Tap gateway | `https://ea-watch.vercel.app/` |
 | EA chat | `https://ea-watch.vercel.app/ea` |
+| Routines (chain builder) | `https://ea-watch.vercel.app/chains` |
+| Action log | `https://ea-watch.vercel.app/action-log` |
 | Contact card | `https://ea-watch.vercel.app/contact` |
 | Challenge | `https://ea-watch.vercel.app/challenge` |
 | Config app | `https://ea-watch.vercel.app/config` |
@@ -58,35 +50,25 @@ The same physical object. Two entirely different experiences, determined by iden
 
 ```
 ea-watch/
-├── api/                        # Vercel serverless functions
-│   ├── tap.js                  # Gateway — UID+device code validation, session routing
-│   ├── auth.js                 # Challenge-response, rate limiting, lockout, danger word
-│   ├── ea.js                   # EA chat endpoint — streams Claude API
-│   ├── config.js               # Owner config read/write (session gated)
-│   ├── device.js               # Device registration + ownership transfer
-│   ├── config/
-│   │   └── public.js           # Public config endpoint (stranger card fields only)
-│   └── dev/
-│       └── tap.js              # NFC stub endpoint (ENABLE_STUB gate)
-├── public/                     # Static HTML — served to phone browser
-│   ├── contact.html            # Stranger contact card
-│   ├── ea.html                 # Owner EA chat interface
-│   ├── challenge.html          # Auth challenge UI
-│   ├── config.html             # Owner config app
-│   └── stub.html               # NFC tap simulator (dev only)
-├── lib/                        # Shared utilities
-│   ├── auth.js                 # Token generation, bcryptjs, session state machine
-│   ├── audit.js                # Tap audit log writer
-│   ├── ratelimit.js            # Rate limiting + server-side lockout
-│   └── alert.js                # Danger word alert dispatcher
+├── api/
+│   ├── tap.js, auth.js, device.js
+│   ├── ea.js                   # Claude stream + chains + briefing intents + routine picker
+│   ├── morning-briefing.js     # JSON briefing panels (weather, news, quote, stocks)
+│   ├── briefing.js             # Optional GET /api/briefing (auth) for testing
+│   ├── chains.js, chain-execute.js
+│   ├── config.js, upload.js
+│   ├── config/public.js
+│   └── dev/tap.js
+├── public/
+│   ├── ea.html, config.html, chain-builder.html, action-log.html, …
+├── lib/
+│   ├── briefing-data.js        # Weather (Open-Meteo + location label), news helpers
+│   ├── chain-engine.js, action-log.js
+│   └── actions/ (deeplinks, shortcuts, conditional)
 ├── db/
-│   ├── schema.sql              # Database schema (5 tables)
-│   └── client.js               # Turso client + query helpers
 ├── scripts/
-│   └── db-init.js              # Applies schema to Turso
-├── server.js                   # Local dev server (use instead of vercel dev)
-├── .env.example                # Environment variable template
-├── package.json
+│   ├── db-init.js, db-migrate-phase2.js, db-migrate-briefing-settings.js, …
+├── server.js
 └── vercel.json
 ```
 
@@ -121,12 +103,12 @@ npm install
 cp .env.example .env
 # Fill in .env with your values
 node --env-file=.env scripts/db-init.js
-node --env-file=.env server.js
+npm run dev
 ```
 
-Server runs at `http://localhost:3000`.
+Server runs at `http://localhost:3000` (`npm run dev` is `node --env-file=.env server.js`).
 
-**Note:** Use `node --env-file=.env server.js` for local dev. Do not use `vercel dev` — it has a recursive invocation bug with this project setup.
+**Note:** Do not use `vercel dev` for this project — use `npm run dev` instead.
 
 ### Environment variables
 
@@ -134,7 +116,8 @@ Server runs at `http://localhost:3000`.
 TURSO_DATABASE_URL=libsql://your-db.turso.io
 TURSO_AUTH_TOKEN=your-token
 ANTHROPIC_API_KEY=your-key
-RESEND_API_KEY=your-key (optional — for danger word email alerts)
+NEWSAPI_KEY=your-key (optional — richer news in briefings; AP RSS fallback without it)
+RESEND_API_KEY=your-key (optional — danger word email alerts)
 ALERT_FROM_EMAIL=alerts@yourdomain.com (optional)
 ENABLE_STUB=true (local) / false (production)
 APP_URL=http://localhost:3000 (local)
@@ -216,9 +199,10 @@ All tap events are stubbed until chips arrive.
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Identity + gateway, auth, EA chat, config app, NFC stub | ✅ Complete |
-| 2 | Manual chain builder, OS delegation, action log | 🔲 Next |
-| 3 | Pattern detection, proactive suggestions | Not started |
-| 4 | Autonomous execution (per-chain opt-in) | Not started |
+| 2 | Routines (chain builder), OS delegation, action log | ✅ Complete |
+| 3 | Briefing panels, mindful vs inspire, routine picker, chips, weather location | ✅ Substantially complete |
+| **Next** | **Productivity** — tasks, focus, calendar-adjacent flows, or owner-defined priorities | 🔲 In progress |
+| 4 | Pattern detection, proactive suggestions, autonomous execution (per-chain opt-in) | Not started |
 
 ---
 
