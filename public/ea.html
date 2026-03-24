@@ -785,7 +785,10 @@
         let   full    = '';
         let   pendingActions  = [];
         let   chainControl    = null;
-        let   briefingData    = null;
+        let   briefingWeather = undefined;
+        let   briefingNews    = undefined;
+        let   briefingQuote   = undefined;
+        let   sseBuffer       = '';
 
         setStatus('responding…');
 
@@ -794,9 +797,15 @@
           if (done) break;
 
           const chunk = decoder.decode(value, { stream: true });
-          for (const line of chunk.split('\n')) {
+          sseBuffer += chunk;
+
+          // Process complete lines only
+          const lines = sseBuffer.split('\n');
+          sseBuffer = lines.pop(); // keep incomplete last line in buffer
+
+          for (const line of lines) {
             if (!line.startsWith('data: ')) continue;
-            const data = line.slice(6);
+            const data = line.slice(6).trim();
             if (data === '[DONE]') break;
             try {
               const parsed = JSON.parse(data);
@@ -808,10 +817,10 @@
                 scrollBottom();
               }
 
-              // Briefing card — structured data for rich rendering
-              if (parsed.briefing) {
-                briefingData = parsed.briefing;
-              }
+              // Briefing card — assembled from separate events
+              if (parsed.briefing_weather !== undefined) briefingWeather = parsed.briefing_weather;
+              if (parsed.briefing_news    !== undefined) briefingNews    = parsed.briefing_news;
+              if (parsed.briefing_quote   !== undefined) briefingQuote   = parsed.briefing_quote;
 
               // Actions — collect deeplinks/shortcuts to fire after stream ends
               if (parsed.actions) {
@@ -827,15 +836,17 @@
         }
 
         // Render briefing card if we got structured briefing data
-        if (briefingData) {
-          // Remove the streaming text bubble — replace with rich card
-          const row = eaEl.closest('.msg-row');
+        if (briefingWeather !== undefined || briefingNews !== undefined || briefingQuote !== undefined) {
+          const briefingData = {
+            weather: briefingWeather || null,
+            news:    briefingNews    || [],
+            quote:   briefingQuote   || '',
+          };
+          const row  = eaEl.closest('.msg-row');
           const card = renderBriefingCard(briefingData);
-          if (row) {
-            row.replaceWith(card);
-          } else {
-            eaEl.replaceWith(card);
-          }
+          if (row) row.replaceWith(card);
+          else eaEl.replaceWith(card);
+          scrollBottom();
         }
 
         // Fire any pending OS actions (deeplinks / Siri Shortcuts)

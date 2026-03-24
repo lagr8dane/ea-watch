@@ -330,16 +330,10 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
       }
     }
 
-    // Send the structured briefing event — client renders as a rich card
-    const payload = {
-      briefing: {
-        weather: briefingData.weather || null,
-        news:    briefingData.news || [],
-        quote:   quote.trim(),
-      }
-    };
-
-    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    // Send briefing as separate small events — avoids chunk splitting issues
+    res.write(`data: ${JSON.stringify({ briefing_weather: briefingData.weather || null })}\n\n`);
+    res.write(`data: ${JSON.stringify({ briefing_news: briefingData.news || [] })}\n\n`);
+    res.write(`data: ${JSON.stringify({ briefing_quote: quote.trim() })}\n\n`);
     res.write('data: [DONE]\n\n');
     res.end();
 
@@ -451,14 +445,14 @@ async function fetchNewsData() {
   if (NEWSAPI_KEY) {
     try {
       const res = await fetch(
-        `https://newsapi.org/v2/top-headlines?country=us&pageSize=5&apiKey=${NEWSAPI_KEY}`,
+        `https://newsapi.org/v2/top-headlines?country=us&pageSize=8&apiKey=${NEWSAPI_KEY}`,
         { signal: AbortSignal.timeout(5000) }
       );
       if (res.ok) {
         const data = await res.json();
         return (data.articles || [])
           .filter(a => a.title && a.title !== '[Removed]')
-          .slice(0, 3)
+          .slice(0, 6)
           .map(a => ({ title: a.title, source: a.source?.name || 'News', url: a.url }));
       }
     } catch {}
