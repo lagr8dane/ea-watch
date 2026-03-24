@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>EA — Interest radar</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --border: rgba(255,255,255,0.1);
+      --text: #f0f0f0;
+      --muted: #888;
+      --hi: #8ab4ff;
+      --ok: #6c9;
+    }
+    html, body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, sans-serif; min-height: 100%; }
+    body { padding-bottom: 48px; }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 18px; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: var(--bg); z-index: 5;
+    }
+    h1 { font-size: 17px; font-weight: 600; }
+    .nav-btn {
+      background: none; border: none; color: var(--text); font-size: 22px; cursor: pointer;
+      padding: 4px 8px; line-height: 1; -webkit-tap-highlight-color: transparent;
+    }
+
+    main { padding: 16px 18px; max-width: 560px; margin: 0 auto; }
+
+    .hint { font-size: 13px; color: var(--muted); line-height: 1.45; margin-bottom: 18px; }
+
+    label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; margin-top: 14px; }
+    label:first-of-type { margin-top: 0; }
+
+    input[type="text"], textarea, select {
+      width: 100%; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: 16px; font-family: inherit;
+    }
+    textarea { min-height: 72px; resize: vertical; }
+
+    .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .btn {
+      padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: 14px; font-weight: 500;
+      cursor: pointer; font-family: inherit;
+    }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+    .btn-small { padding: 8px 12px; font-size: 13px; }
+
+    .status-pill {
+      margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: rgba(138,180,255,0.12);
+      border: 1px solid rgba(138,180,255,0.25); font-size: 13px; line-height: 1.4;
+    }
+    .status-pill.warn { background: rgba(245,166,35,0.1); border-color: rgba(245,166,35,0.3); }
+
+    .pick-list { margin-top: 10px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .pick-item {
+      padding: 12px 14px; border-bottom: 1px solid var(--border); font-size: 14px; cursor: pointer;
+      background: var(--surface);
+    }
+    .pick-item:last-child { border-bottom: none; }
+    .pick-item:active { background: rgba(255,255,255,0.06); }
+    .pick-item small { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+    .disclaimer { font-size: 11px; color: var(--muted); margin-top: 20px; line-height: 1.5; }
+
+    .card {
+      margin-top: 14px; padding: 14px; border-radius: 12px; border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .card h3 { font-size: 15px; font-weight: 600; line-height: 1.35; margin-bottom: 6px; }
+    .card .meta { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .card .summary { font-size: 14px; color: #ccc; line-height: 1.45; margin-bottom: 12px; }
+    .card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .card-actions a {
+      color: var(--hi); font-size: 14px; text-decoration: none; font-weight: 500;
+    }
+    .card-actions a:hover { text-decoration: underline; }
+
+    .empty { text-align: center; color: var(--muted); padding: 28px 16px; font-size: 14px; }
+    .err { color: #e88; font-size: 14px; margin-top: 12px; white-space: pre-wrap; }
+
+    .seg {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+    }
+    .seg button {
+      padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; font-family: inherit;
+    }
+    .seg button.on { background: rgba(138,180,255,0.2); color: var(--text); border-color: var(--hi); }
+  </style>
+</head>
+<body>
+  <header>
+    <button type="button" class="nav-btn" onclick="navOpen()" aria-label="Menu">☰</button>
+    <h1>Interest radar</h1>
+    <span style="width:36px"></span>
+  </header>
+
+  <main>
+    <p class="hint">Find things to do near a verified spot using your interests. Uses web search — verify times and tickets on each link. Good after tapping your watch and opening EA.</p>
+
+    <label>Location</label>
+    <input type="text" id="address" placeholder="Street, city, or ZIP" autocomplete="street-address">
+    <div class="row">
+      <button type="button" class="btn btn-small" id="btn-verify">Verify address</button>
+      <button type="button" class="btn btn-small" id="btn-locate">Use my location</button>
+    </div>
+    <div id="loc-status" class="status-pill" style="display:none"></div>
+    <div id="pick-wrap" style="display:none"></div>
+
+    <label>Search radius</label>
+    <select id="radius">
+      <option value="10">10 miles</option>
+      <option value="25" selected>25 miles</option>
+      <option value="50">50 miles</option>
+    </select>
+
+    <label>When</label>
+    <div class="seg" id="when-seg">
+      <button type="button" data-w="tonight" class="on">Tonight</button>
+      <button type="button" data-w="tomorrow">Tomorrow</button>
+      <button type="button" data-w="weekend">This weekend</button>
+      <button type="button" data-w="week">This week</button>
+    </div>
+
+    <label>Interests (comma or line — saved in Settings too)</label>
+    <textarea id="interests" placeholder="mountain biking, photography, museums, art"></textarea>
+
+    <div class="row" style="margin-top:18px">
+      <button type="button" class="btn btn-primary" id="btn-run">Run radar</button>
+    </div>
+
+    <div id="msg-err" class="err" style="display:none"></div>
+    <p id="disclaimer" class="disclaimer" style="display:none"></p>
+    <div id="results"></div>
+  </main>
+
+  <script>
+    let selLat = null;
+    let selLon = null;
+    let selLabel = '';
+    let windowKey = 'tonight';
+
+    function showErr(t) {
+      const el = document.getElementById('msg-err');
+      el.style.display = t ? 'block' : 'none';
+      el.textContent = t || '';
+    }
+
+    function setLocPill(html, warn) {
+      const el = document.getElementById('loc-status');
+      el.style.display = 'block';
+      el.className = 'status-pill' + (warn ? ' warn' : '');
+      el.innerHTML = html;
+    }
+
+    function hidePick() {
+      document.getElementById('pick-wrap').style.display = 'none';
+      document.getElementById('pick-wrap').innerHTML = '';
+    }
+
+    async function apiPost(body) {
+      const res = await fetch('/api/interest-radar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || data.detail || res.statusText);
+      return data;
+    }
+
+    document.getElementById('btn-verify').onclick = async function () {
+      showErr('');
+      hidePick();
+      const q = document.getElementById('address').value.trim();
+      if (!q) { showErr('Enter an address to verify.'); return; }
+      this.disabled = true;
+      try {
+        const data = await apiPost({ mode: 'geocode', query: q });
+        const results = data.results || [];
+        if (!results.length) {
+          setLocPill('No matches — try a simpler city + state or ZIP.', true);
+          selLat = null;
+          return;
+        }
+        if (results.length === 1) {
+          pickResult(results[0]);
+          return;
+        }
+        const wrap = document.getElementById('pick-wrap');
+        wrap.style.display = 'block';
+        wrap.innerHTML = '<div class="pick-list">' + results.map(function (r, i) {
+          return '<div class="pick-item" data-i="' + i + '"><strong>Option ' + (i + 1) + '</strong><small>' + esc(r.display_name) + '</small></div>';
+        }).join('') + '</div>';
+        wrap.querySelectorAll('.pick-item').forEach(function (el) {
+          el.onclick = function () {
+            const i = parseInt(el.getAttribute('data-i'), 10);
+            pickResult(results[i]);
+            hidePick();
+          };
+        });
+      } catch (e) {
+        showErr(e.message);
+      } finally {
+        document.getElementById('btn-verify').disabled = false;
+      }
+    };
+
+    function pickResult(r) {
+      selLat = r.lat;
+      selLon = r.lon;
+      selLabel = r.display_name;
+      setLocPill('<strong>Using</strong><br>' + esc(selLabel));
+    }
+
+    document.getElementById('btn-locate').onclick = async function () {
+      showErr('');
+      hidePick();
+      if (!navigator.geolocation) { showErr('Geolocation not available in this browser.'); return; }
+      this.disabled = true;
+      navigator.geolocation.getCurrentPosition(
+        async function (pos) {
+          try {
+            const data = await apiPost({
+              mode: 'reverse',
+              lat: pos.coords.latitude,
+              lon: pos.coords.longitude,
+            });
+            selLat = data.lat;
+            selLon = data.lon;
+            selLabel = data.location_label;
+            setLocPill('<strong>Using your location</strong><br>' + esc(selLabel));
+          } catch (e) {
+            showErr(e.message);
+          } finally {
+            document.getElementById('btn-locate').disabled = false;
+          }
+        },
+        function () {
+          document.getElementById('btn-locate').disabled = false;
+          showErr('Could not read location — try verifying an address instead.');
+        },
+        { enableHighAccuracy: true, timeout: 12000 }
+      );
+    };
+
+    document.querySelectorAll('#when-seg button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        document.querySelectorAll('#when-seg button').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        windowKey = b.getAttribute('data-w');
+      });
+    });
+
+    function longDate(d) {
+      return d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    }
+
+    function describeWindow(key) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      if (key === 'tonight') {
+        return 'Tonight: the evening of ' + longDate(today) + ' from about 5:00 PM local time through the end of the day.';
+      }
+      if (key === 'tomorrow') {
+        const t = new Date(today);
+        t.setDate(t.getDate() + 1);
+        return 'All day ' + longDate(t) + ' (local time), morning through evening.';
+      }
+      if (key === 'weekend') {
+        const day = today.getDay();
+        let dSat;
+        if (day === 6) dSat = 0;
+        else if (day === 0) dSat = 6;
+        else dSat = 6 - day;
+        const sat = new Date(today);
+        sat.setDate(sat.getDate() + dSat);
+        const sun = new Date(sat);
+        sun.setDate(sun.getDate() + 1);
+        return 'The upcoming Saturday–Sunday window: ' + longDate(sat) + ' and ' + longDate(sun) + ' (local times).';
+      }
+      const end = new Date(today);
+      end.setDate(end.getDate() + 6);
+      return 'The 7-day period from ' + longDate(today) + ' through ' + longDate(end) + ' inclusive (local dates).';
+    }
+
+    function ymd(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    }
+
+    function defaultDueForItem(item) {
+      if (item.start_date && /^\d{4}-\d{2}-\d{2}$/.test(item.start_date)) return item.start_date;
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      if (windowKey === 'tonight' || windowKey === 'week') return ymd(today);
+      if (windowKey === 'tomorrow') {
+        const t = new Date(today);
+        t.setDate(t.getDate() + 1);
+        return ymd(t);
+      }
+      if (windowKey === 'weekend') {
+        const day = today.getDay();
+        let dSat;
+        if (day === 6) dSat = 0;
+        else if (day === 0) dSat = 6;
+        else dSat = 6 - day;
+        const sat = new Date(today);
+        sat.setDate(sat.getDate() + dSat);
+        return ymd(sat);
+      }
+      return ymd(today);
+    }
+
+    let lastRadarItems = [];
+
+    document.getElementById('btn-run').onclick = async function () {
+      showErr('');
+      document.getElementById('disclaimer').style.display = 'none';
+      document.getElementById('results').innerHTML = '';
+      lastRadarItems = [];
+      if (selLat == null || selLon == null) {
+        showErr('Verify an address or use your location first.');
+        return;
+      }
+      const radius = parseInt(document.getElementById('radius').value, 10) || 25;
+      const interests = document.getElementById('interests').value.trim();
+      const range_description = describeWindow(windowKey);
+      this.disabled = true;
+      try {
+        const data = await apiPost({
+          mode: 'search',
+          lat: selLat,
+          lon: selLon,
+          location_label: selLabel,
+          radius_miles: radius,
+          range_description: range_description,
+          interests: interests,
+          window: windowKey,
+        });
+        if (data.disclaimer) {
+          const d = document.getElementById('disclaimer');
+          d.textContent = data.disclaimer;
+          d.style.display = 'block';
+        }
+        const items = data.items || [];
+        if (!items.length) {
+          document.getElementById('results').innerHTML = '<div class="empty">No results with solid links. Try a wider radius, different window, or broader interests.</div>';
+          return;
+        }
+        lastRadarItems = items;
+        document.getElementById('results').innerHTML = items.map(function (it, idx) {
+          const dist = it.distance_mi != null ? '~' + it.distance_mi + ' mi' : 'Distance unknown';
+          const due = defaultDueForItem(it);
+          return (
+            '<div class="card" data-idx="' + idx + '">' +
+            '<h3>' + esc(it.title) + '</h3>' +
+            '<div class="meta">' + esc(dist) +
+            (it.start_time_hint ? ' · ' + esc(it.start_time_hint) : '') +
+            (it.start_date ? ' · ' + esc(it.start_date) : '') + '</div>' +
+            (it.summary ? '<div class="summary">' + esc(it.summary) + '</div>' : '') +
+            '<div class="card-actions">' +
+            '<a href="' + escAttr(it.url) + '" target="_blank" rel="noopener noreferrer">Open source</a>' +
+            '<button type="button" class="btn btn-small add-task-btn" data-idx="' + idx + '" data-due="' + escAttr(due) + '">Add task</button>' +
+            '</div></div>'
+          );
+        }).join('');
+
+        document.querySelectorAll('.add-task-btn').forEach(function (btn) {
+          btn.addEventListener('click', async function () {
+            const idx = parseInt(btn.getAttribute('data-idx'), 10);
+            const it = lastRadarItems[idx];
+            if (!it) return;
+            const title = ('Go: ' + it.title).slice(0, 500);
+            const due_at = btn.getAttribute('data-due');
+            btn.disabled = true;
+            try {
+              const res = await fetch('/api/tasks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ title: title, due_at: due_at, priority: 'normal' }),
+              });
+              if (res.ok) btn.textContent = 'Added';
+              else btn.textContent = 'Failed';
+            } catch {
+              btn.textContent = 'Failed';
+            }
+          });
+        });
+      } catch (e) {
+        showErr(e.message);
+      } finally {
+        document.getElementById('btn-run').disabled = false;
+      }
+    };
+
+    function esc(s) {
+      return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function escAttr(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;');
+    }
+
+    (async function loadConfig() {
+      try {
+        const res = await fetch('/api/config', { credentials: 'same-origin' });
+        if (!res.ok) return;
+        const c = await res.json();
+        if (c.interest_radar_topics && !document.getElementById('interests').value.trim()) {
+          document.getElementById('interests').value = c.interest_radar_topics;
+        }
+      } catch { /* ignore */ }
+    })();
+  </script>
+  <script src="/nav.js?v=radar2" defer></script>
+</body>
+</html>

@@ -15,6 +15,7 @@ import { parse as parseCookies } from 'cookie';
 import { queryOne } from '../db/client.js';
 import { resumeChain, abortActiveChain } from '../lib/chain-engine.js';
 import { getDeviceActionLog } from '../lib/action-log.js';
+import { parseDebugFlag, debugLog } from '../lib/debug-log.js';
 
 export default async function handler(req, res) {
   // Route /api/chain-execute/log to the log handler
@@ -91,13 +92,14 @@ export async function actionLogHandler(req, res) {
   if (!session) return res.status(401).json({ error: 'Invalid or expired session' });
   if (session.is_shell) return res.status(403).json({ error: 'Not available in restricted mode' });
 
+  const debug = parseDebugFlag(req, {});
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
     const limit = parseInt(url.searchParams.get('limit') || '100', 10);
     const entries = await getDeviceActionLog(session.device_id, Math.min(limit, 500));
     return res.status(200).json({ log: entries });
   } catch (err) {
-    console.error('[chain-execute/log] Error:', err);
+    debugLog(debug, 'chain-execute/log', 'Error', err?.message || err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }

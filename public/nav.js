@@ -1,12 +1,12 @@
 // public/nav.js
-// Navigation drawer only. No injection.
-// Each page has the hamburger button hardcoded in its header.
-// This script just builds the drawer and exposes navOpen() / navClose() globally.
+// Navigation drawer only. Each page has the hamburger in the header.
+// Exposes navOpen() / navClose() on window.
 
 (function () {
   const NAV_ITEMS = [
     { label: 'EA',       path: '/ea' },
     { label: 'Tasks',    path: '/tasks' },
+    { label: 'Radar',    path: '/interest-radar' },
     { label: 'Routines', path: '/chains' },
     { label: 'Log',      path: '/action-log' },
     { label: 'Settings', path: '/config' },
@@ -19,18 +19,18 @@
     .nav-overlay {
       position: fixed; inset: 0;
       background: rgba(0,0,0,0.65);
-      z-index: 1000; opacity: 0; pointer-events: none;
+      z-index: 10040; opacity: 0; pointer-events: none;
       transition: opacity 0.22s ease;
       -webkit-backdrop-filter: blur(3px);
       backdrop-filter: blur(3px);
     }
-    .nav-overlay.open { opacity: 1; pointer-events: all; }
+    .nav-overlay.open { opacity: 1; pointer-events: auto; }
 
     .nav-drawer {
       position: fixed; top: 0; right: 0; bottom: 0;
       width: 68vw; max-width: 260px;
       background: #141414;
-      z-index: 1001;
+      z-index: 10050;
       transform: translateX(100%);
       transition: transform 0.26s cubic-bezier(0.4,0,0.2,1);
       display: flex; flex-direction: column;
@@ -52,9 +52,13 @@
     }
     .nav-x {
       background: none; border: none;
-      color: #666; font-size: 24px; line-height: 1;
-      cursor: pointer; padding: 0 2px;
+      color: #aaa; font-size: 28px; line-height: 1;
+      cursor: pointer;
+      padding: 8px 12px; margin: -8px -8px -8px 0;
+      min-width: 44px; min-height: 44px;
+      display: flex; align-items: center; justify-content: center;
       -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
     }
     .nav-x:active { color: #fff; }
@@ -84,14 +88,13 @@
 
   const overlay = document.createElement('div');
   overlay.className = 'nav-overlay';
-  overlay.addEventListener('click', navClose);
 
   const drawer = document.createElement('div');
   drawer.className = 'nav-drawer';
   drawer.innerHTML = `
     <div class="nav-drawer-top">
       <span class="nav-drawer-label">EA Watch</span>
-      <button class="nav-x" id="nav-x">×</button>
+      <button type="button" class="nav-x" aria-label="Close menu">×</button>
     </div>
     <div class="nav-list">
       ${NAV_ITEMS.map(item => {
@@ -102,23 +105,38 @@
     </div>
   `;
 
-  document.body.appendChild(overlay);
-  document.body.appendChild(drawer);
-  document.getElementById('nav-x').addEventListener('click', navClose);
-
-  window.navOpen = function () {
-    overlay.classList.add('open');
-    drawer.classList.add('open');
-    document.body.style.overflow = 'hidden';
-  };
-
-  window.navClose = function () {
+  function closeNav() {
     overlay.classList.remove('open');
     drawer.classList.remove('open');
     document.body.style.overflow = '';
-  };
+  }
 
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') navClose();
+  function openNav() {
+    overlay.classList.add('open');
+    drawer.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  overlay.addEventListener('click', closeNav);
+
+  drawer.addEventListener('click', function (e) {
+    e.stopPropagation();
+  });
+
+  const xBtn = drawer.querySelector('.nav-x');
+  xBtn.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    closeNav();
+  });
+
+  document.body.appendChild(overlay);
+  document.body.appendChild(drawer);
+
+  window.navOpen = openNav;
+  window.navClose = closeNav;
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeNav();
   });
 })();

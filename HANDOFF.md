@@ -38,7 +38,8 @@ A custom wristwatch with an NTAG213 anti-metal NFC chip in the case back. Anyone
 - **Briefing intents** in `api/ea.js` — weather, news, morning → `briefing_panels_fetch` or `morning_briefing`; **mindful** (random breathing vs stretching, Claude stream) with **panel** + icon via SSE `mindful_panel`; **quote** / “inspire me” short motivational stream.
 - **Quick chips** (under greeting): Briefing, News, Weather, Mindful, Inspire me, **Routines**.
 - **Routine picker** — phrases like `routines`, `what can you run?`, `which routines`, etc. (see `detectRoutinePickerIntent` in `api/ea.js`). Returns SSE `routine_chips: [{ label, trigger, subtitle? }]`. Chips show **Say: &lt;trigger&gt;** when name ≠ trigger. Tap sends trigger text → normal chain match.
-- **Config** — `briefing_interests`, `briefing_tickers` in `api/config.js` + `config.html`. Migration: `scripts/db-migrate-briefing-settings.js` (run on Turso if missing columns).
+- **Config** — `briefing_interests`, `briefing_tickers`, **`interest_radar_topics`** in `api/config.js` + `config.html`. Migrations: `scripts/db-migrate-briefing-settings.js`, **`scripts/db-migrate-interest-radar.js`** (`npm run db:migrate:interest-radar`).
+- **Interest radar** — `/interest-radar`: verify address (Nominatim) or use device location, radius + date window, interests; **`POST /api/interest-radar`** runs Claude **`web_search_20250305`**, requires URLs per hit, geocodes venues for **~mi** sort; add task with due date. **`ea_interest_radar`** in action log. Nav: **Radar**.
 - **Shell sessions** — no briefing routes / routine picker / personal chains as per existing `is_shell` checks.
 
 ---
@@ -46,6 +47,27 @@ A custom wristwatch with an NTAG213 anti-metal NFC chip in the case back. Anyone
 ## Next: productivity
 
 Prior handoff items like “chain suggestion from NL” and “feeling check-in” are still fair game, but **owner priority is productivity** next — interpret as tasks, focus blocks, calendar-adjacent flows, or lightweight planning surfaces integrated with EA (exact shape TBD in session).
+
+---
+
+## Ideas backlog (not scheduled — capture for later)
+
+### AI meal suggestions, recipes, and shopping lists
+
+- **Concept:** EA proposes meals (tonight / this week), short structured recipe (time, steps summary), and a **shopping list**; optional export (copy, Reminders, tasks).
+- **Config:** Diet prefs, dislikes, household size, max prep time in `owner_config` (similar pattern to `briefing_interests`).
+- **Delivery:** Prefer a **JSON panel** over SSE text (same lesson as morning briefing). One Claude call with strict JSON; stream optional for narrative only.
+- **Risks:** Hallucinated steps/temps; **allergies / medical diets** need disclaimers and “verify packaging / safe cooking” copy — never imply medical authority.
+- **Gmail:** Explicitly **out of scope** for now (OAuth, sensitivity).
+
+### Interest radar — finds things near you (from saved interests)
+
+- **Concept:** Working name **Interest radar.** User saves **hobbies / interests** in settings (reuse or extend **`briefing_interests`** or a dedicated field). Server + **AI** (ideally with **web search** so results are **finds**, not fabrications) suggests **things happening or worth doing nearby** for **tonight / tomorrow / this week**, grounded in **lat/lon** (or city) like weather.
+- **Why not only ticket APIs:** Same as before — interests span niche venues, clubs, markets, lectures; one API rarely covers it. Search-backed radar casts a wider net.
+- **Panel UX (JSON like other briefings):** Each row: **title, time window, place, source URL, one-line why it matches.** User can **drill through** — tap row or explicit “Open” → **external browser** to the listing (tickets, venue, Meetup, etc.). No substitute for verifying time/cost on the source.
+- **Add to todo:** Per row (or after drill-through): **“Add to tasks”** with **title prefilled** (e.g. “Go to: Jazz at …”) and **due date** suggested from the event date (user can edit). Reuse **`/api/tasks`** POST and/or EA task flows; optional `source_url` in task notes if you add a notes field later (otherwise encode short link in title).
+- **Fit:** Settings + briefing chip or EA intent (“what’s on my radar this weekend?”); **`logUserEvent`** when shipped (e.g. `ea_interest_radar` with interest count, result count, no PII).
+- **Risks:** Stale or wrong listings — keep **links mandatory**, **as-of** time, and “verify before you go” copy; empty/rural → suggested search links.
 
 ---
 
@@ -80,6 +102,7 @@ npm run dev            # → http://localhost:3000
 ```
 api/ea.js                 Claude + chains + briefing intents + routine picker SSE
 api/morning-briefing.js   JSON panels for EA client
+api/interest-radar.js     Address geocode + Claude web search + distances (/interest-radar)
 api/briefing.js           Authenticated GET test endpoint for weather/news
 api/chains.js             Chain CRUD
 api/chain-execute.js      Resume chain, action log API

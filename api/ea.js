@@ -9,6 +9,8 @@ import {
   abortActiveChain,
 } from '../lib/chain-engine.js';
 import { fetchWeatherSnapshot, fetchNewsStories } from '../lib/briefing-data.js';
+import { parseDebugFlag, debugLog } from '../lib/debug-log.js';
+import { logUserEvent } from '../lib/user-event-log.js';
 import { parseTaskIntent } from '../lib/task-intent.js';
 import {
   listTasks,
@@ -111,12 +113,13 @@ function detectRoutinePickerIntent(input) {
   return false;
 }
 
-async function sendRoutinePicker(res, deviceId) {
+async function sendRoutinePicker(res, deviceId, sessionId) {
   const rows = await query(
     `SELECT name, trigger_phrase FROM chains WHERE device_id = ? AND enabled = 1 ORDER BY name COLLATE NOCASE ASC`,
     [deviceId]
   );
   if (!rows.length) {
+    await logUserEvent(sessionId, 'ea_routine_menu', { routine_count: 0, note: 'empty' }, 'success');
     sendText(
       res,
       'You do not have any routines yet. Open the routine builder to create one — on the web app, go to /chains.'
@@ -125,6 +128,7 @@ async function sendRoutinePicker(res, deviceId) {
     res.end();
     return;
   }
+  await logUserEvent(sessionId, 'ea_routine_menu', { routine_count: rows.length }, 'success');
   sendText(
     res,
     'Here are your routines. Tap one to run it, or say its trigger phrase out loud (for example, start a workout).'
@@ -198,6 +202,7 @@ acknowledge it clearly and provide the relevant deeplink or instruction.`;
 
   // --- Parse request body ---
   const { messages, lat, lon, localHour } = req.body ?? {};
+  const debug = parseDebugFlag(req, req.body ?? {});
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'No messages provided' });
@@ -248,7 +253,7 @@ acknowledge it clearly and provide the relevant deeplink or instruction.`;
 
     // 2. "Routines" keyword — list chains as chips (before trigger matching so "routines" never starts a chain by accident)
     if (detectRoutinePickerIntent(lastUserMessage)) {
-      await sendRoutinePicker(res, deviceId);
+      await sendRoutinePicker(res, deviceId, sessionId);
       return;
     }
 
@@ -262,14 +267,26 @@ acknowledge it clearly and provide the relevant deeplink or instruction.`;
     // 4. Check for briefing intents
     const briefingIntent = detectBriefingIntent(lastUserMessage);
     if (briefingIntent) {
-      return streamBriefing(req, res, briefingIntent, lat, lon, localHour, req._displayName, systemPrompt, session.owner_id);
+      return streamBriefing(
+        req,
+        res,
+        briefingIntent,
+        lat,
+        lon,
+        localHour,
+        req._displayName,
+        systemPrompt,
+        session.owner_id,
+        sessionId,
+        debug
+      );
     }
   }
 
   if (!isShell) {
     const taskIntent = parseTaskIntent(lastUserMessage);
     if (taskIntent) {
-      await handleTaskIntent(res, taskIntent, session.owner_id);
+      await handleTaskIntent(res, taskIntent, session.owner_id, sessionId, debug);
       return;
     }
   }
@@ -294,7 +311,7 @@ acknowledge it clearly and provide the relevant deeplink or instruction.`;
     res.write('data: [DONE]\n\n');
     res.end();
   } catch (err) {
-    console.error('[ea] Claude API error:', err.message);
+    debugLog(debug, 'ea', 'Claude API error', err.message);
     res.write(`data: ${JSON.stringify({ error: 'EA unavailable' })}\n\n`);
     res.end();
   }
@@ -390,10 +407,12 @@ function sendText(res, text) {
   }
 }
 
-async function handleTaskIntent(res, intent, ownerId) {
+async function handleTaskIntent(res, intent, ownerId, sessionId, debug) {
   try {
     if (intent.action === 'list') {
       const rows = await listTasks(ownerId);
+      const openN = rows.filter((t) => t.status === 'open').length;
+      await logUserEvent(sessionId, 'ea_task_list', { filter: intent.filter || 'all', open_count: openN }, 'success');
       const payload = buildTaskPanelPayload(rows, { filter: intent.filter || 'all' });
       res.write(`data: ${JSON.stringify({ task_panel: payload })}\n\n`);
       res.write('data: [DONE]\n\n');
@@ -405,6 +424,17 @@ async function handleTaskIntent(res, intent, ownerId) {
         due_at: intent.dueDate || null,
         priority: intent.priority || 'normal',
       });
+      await logUserEvent(
+        sessionId,
+        'ea_task_add',
+        {
+          title: row.title.slice(0, 120),
+          due_at: row.due_at,
+          priority: row.priority,
+          source: 'ea_chat',
+        },
+        'success'
+      );
       sendText(
         res,
         `Added: ${row.title}${row.due_at ? ` (due ${row.due_at.slice(0, 10)})` : ''}. See everything at /tasks.`
@@ -423,6 +453,7 @@ async function handleTaskIntent(res, intent, ownerId) {
         );
       } else {
         await updateTask(ownerId, matches[0].id, { status: 'complete' });
+        await logUserEvent(sessionId, 'ea_task_complete', { title: matches[0].title.slice(0, 120), source: 'ea_chat' }, 'success');
         sendText(res, `Marked complete: ${matches[0].title}`);
       }
     } else if (intent.action === 'delete') {
@@ -439,11 +470,13 @@ async function handleTaskIntent(res, intent, ownerId) {
         );
       } else {
         await updateTask(ownerId, matches[0].id, { status: 'deleted' });
+        await logUserEvent(sessionId, 'ea_task_delete', { title: matches[0].title.slice(0, 120), source: 'ea_chat' }, 'success');
         sendText(res, `Removed: ${matches[0].title}`);
       }
     }
   } catch (err) {
-    console.error('[ea] task intent:', err.message);
+    debugLog(debug, 'ea', 'task intent', err.message);
+    await logUserEvent(sessionId, 'ea_task_error', { intent: intent.action }, 'failed', err.message);
     sendText(res, `Tasks: ${err.message}`);
   }
   res.write('data: [DONE]\n\n');
@@ -454,16 +487,18 @@ async function handleTaskIntent(res, intent, ownerId) {
 // Briefing — fetch data and stream Claude response
 // ---------------------------------------------------------------------------
 
-async function streamBriefing(req, res, type, lat, lon, localHour, displayName, systemPrompt, ownerId) {
+async function streamBriefing(req, res, type, lat, lon, localHour, displayName, systemPrompt, ownerId, sessionId, debug) {
   try {
     // Weather + news — client fetches panel JSON (no duplicate API fetch here)
     if (type === 'weather') {
+      await logUserEvent(sessionId, 'ea_weather', { source: 'ea_chat' }, 'success');
       res.write(`data: ${JSON.stringify({ briefing_panels_fetch: { sections: 'weather' } })}\n\n`);
       res.write('data: [DONE]\n\n');
       res.end();
       return;
     }
     if (type === 'news') {
+      await logUserEvent(sessionId, 'ea_news', { source: 'ea_chat' }, 'success');
       res.write(`data: ${JSON.stringify({ briefing_panels_fetch: { sections: 'news' } })}\n\n`);
       res.write('data: [DONE]\n\n');
       res.end();
@@ -485,12 +520,18 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
           res.write(`data: ${JSON.stringify({ delta: { text: event.delta.text } })}\n\n`);
         }
       }
+      await logUserEvent(
+        sessionId,
+        'ea_mindful',
+        { mode: session.title, icon: session.icon, source: 'ea_chat' },
+        'success'
+      );
       res.write('data: [DONE]\n\n');
       res.end();
       return;
     }
 
-    const briefingData = await fetchBriefingData(type, lat, lon);
+    const briefingData = await fetchBriefingData(type, lat, lon, debug);
 
     // Quote / "inspire me" — short motivational line
     if (type === 'quote') {
@@ -504,6 +545,7 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
           res.write(`data: ${JSON.stringify({ delta: { text: event.delta.text } })}\n\n`);
         }
       }
+      await logUserEvent(sessionId, 'ea_inspire', { source: 'ea_chat' }, 'success');
       res.write('data: [DONE]\n\n');
       res.end();
       return;
@@ -511,6 +553,7 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
 
     // Morning briefing — signal client to make three separate calls
     if (type === 'morning') {
+      await logUserEvent(sessionId, 'ea_morning_briefing', { source: 'ea_chat' }, 'success');
       res.write(`data: ${JSON.stringify({ morning_briefing: true })}\n\n`);
       res.write('data: [DONE]\n\n');
       res.end();
@@ -518,7 +561,8 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
     }
 
   } catch (err) {
-    console.error('[ea] Briefing error:', err.message);
+    debugLog(debug, 'ea', 'Briefing error', err.message);
+    await logUserEvent(sessionId, `ea_briefing_${String(type)}`, { mode: type }, 'failed', err.message);
     sendText(res, 'I had trouble fetching your briefing. Try again in a moment.');
     res.write('data: [DONE]\n\n');
     res.end();
@@ -529,7 +573,7 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
 // Briefing data fetching — inlined to avoid internal HTTP calls on Vercel
 // ---------------------------------------------------------------------------
 
-async function fetchBriefingData(type, lat, lon) {
+async function fetchBriefingData(type, lat, lon, debug) {
   const result = {};
   const useLat = lat && !isNaN(Number(lat)) ? Number(lat) : 39.5296;
   const useLon = lon && !isNaN(Number(lon)) ? Number(lon) : -119.8138;
@@ -537,18 +581,18 @@ async function fetchBriefingData(type, lat, lon) {
   if (type === 'all' || type === 'weather') {
     try {
       result.weather = await fetchWeatherSnapshot(useLat, useLon);
-      console.log('[briefing] Weather fetched:', result.weather?.temp, result.weather?.condition);
+      debugLog(debug, 'briefing', 'Weather fetched', { temp: result.weather?.temp, condition: result.weather?.condition });
     } catch (err) {
-      console.error('[briefing] Weather fetch failed:', err.message);
+      debugLog(debug, 'briefing', 'Weather fetch failed', err.message);
     }
   }
   if (type === 'all' || type === 'news') {
     try {
       const { items } = await fetchNewsStories({ page: 1, pageSize: 8, interests: [] });
       result.news = items;
-      console.log('[briefing] News fetched:', result.news?.length, 'stories');
+      debugLog(debug, 'briefing', 'News fetched', { count: result.news?.length });
     } catch (err) {
-      console.error('[briefing] News fetch failed:', err.message);
+      debugLog(debug, 'briefing', 'News fetch failed', err.message);
     }
   }
   return result;

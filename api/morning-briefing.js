@@ -11,6 +11,8 @@ import {
   parseBriefingTickers,
   googleNewsSearchUrl,
 } from '../lib/briefing-data.js';
+import { parseDebugFlag, debugLog } from '../lib/debug-log.js';
+import { logUserEvent } from '../lib/user-event-log.js';
 
 const client = new Anthropic();
 
@@ -37,6 +39,7 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Morning briefing is not available in restricted mode' });
   }
 
+  const debug = parseDebugFlag(req, {});
   const url = new URL(req.url, `http://${req.headers.host}`);
   const lat = parseFloat(url.searchParams.get('lat'));
   const lon = parseFloat(url.searchParams.get('lon'));
@@ -57,6 +60,12 @@ export default async function handler(req, res) {
       pageSize: 5,
       interests,
     });
+    await logUserEvent(
+      session.token,
+      'ea_news_more',
+      { page: newsPage, stories: newsResult.items?.length ?? 0, source: 'briefing_api' },
+      'success'
+    );
     res.setHeader('Cache-Control', 'private, no-store');
     return res.status(200).json({
       version: 1,
@@ -72,7 +81,7 @@ export default async function handler(req, res) {
     try {
       weatherOnly = await fetchWeatherSnapshot(lat, lon);
     } catch (err) {
-      console.error('[morning-briefing] weather:', err.message);
+      debugLog(debug, 'morning-briefing', 'weather error', err.message);
     }
     const panels = [];
     if (weatherOnly) {
@@ -83,6 +92,16 @@ export default async function handler(req, res) {
         data: weatherOnly,
       });
     }
+    await logUserEvent(
+      session.token,
+      'ea_weather',
+      {
+        source: 'briefing_api',
+        location: weatherOnly?.location_label || null,
+        temp: weatherOnly?.temp ?? null,
+      },
+      'success'
+    );
     res.setHeader('Cache-Control', 'private, no-store');
     return res.status(200).json({
       version: 1,
@@ -105,6 +124,16 @@ export default async function handler(req, res) {
       interests,
     });
     const exploreQuery = interests.length > 0 ? interests.join(' ') : 'Top US news today';
+    await logUserEvent(
+      session.token,
+      'ea_news',
+      {
+        source: 'briefing_api',
+        story_count: newsResult.items?.length ?? 0,
+        personalized: interests.length > 0,
+      },
+      'success'
+    );
     res.setHeader('Cache-Control', 'private, no-store');
     return res.status(200).json({
       version: 1,
@@ -155,7 +184,7 @@ Keep responses concise — mobile interface.`;
   try {
     weather = await fetchWeatherSnapshot(lat, lon);
   } catch (err) {
-    console.error('[morning-briefing] weather:', err.message);
+    debugLog(debug, 'morning-briefing', 'weather error (full)', err.message);
   }
 
   const newsResult = await fetchNewsStories({
@@ -172,7 +201,7 @@ Keep responses concise — mobile interface.`;
       systemPrompt,
     });
   } catch (err) {
-    console.error('[morning-briefing] quote:', err.message);
+    debugLog(debug, 'morning-briefing', 'quote error', err.message);
   }
 
   const exploreQuery = interests.length > 0 ? interests.join(' ') : 'Top US news today';
@@ -221,6 +250,20 @@ Keep responses concise — mobile interface.`;
       })),
     });
   }
+
+  await logUserEvent(
+    session.token,
+    'ea_morning_briefing',
+    {
+      source: 'briefing_api',
+      news_page: newsPage,
+      story_count: newsResult.items?.length ?? 0,
+      has_weather: !!weather,
+      panel_types: panels.map(p => p.type),
+      tickers_count: tickers.length,
+    },
+    'success'
+  );
 
   res.setHeader('Cache-Control', 'private, no-store');
   return res.status(200).json({

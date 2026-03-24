@@ -264,6 +264,28 @@
     padding: 20px;
     line-height: 2;
   }
+
+  .entry-debug-type {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .entry-debug-json {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-mid);
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 240px;
+    overflow: auto;
+  }
 </style>
 </head>
 <body>
@@ -289,6 +311,7 @@
     <button class="filter-btn"        data-filter="failed"   onclick="setFilter('failed',   this)">Failed</button>
     <button class="filter-btn"        data-filter="aborted"  onclick="setFilter('aborted',  this)">Aborted</button>
     <button class="filter-btn"        data-filter="chains"   onclick="setFilter('chains',   this)">Chains only</button>
+    <button class="filter-btn"        data-filter="ea"        onclick="setFilter('ea',        this)">Assistant</button>
   </div>
 
   <div id="statsBar" class="stats-bar" style="display:none">
@@ -296,6 +319,7 @@
     <div class="stat"><div class="stat-value" id="statSuccess" style="color:var(--green)">—</div><div class="stat-label">Success</div></div>
     <div class="stat"><div class="stat-value" id="statFailed" style="color:var(--red)">—</div><div class="stat-label">Failed</div></div>
     <div class="stat"><div class="stat-value" id="statChains">—</div><div class="stat-label">Chains</div></div>
+    <div class="stat"><div class="stat-value" id="statEa">—</div><div class="stat-label">Assistant</div></div>
   </div>
 
   <div id="logBody" class="log-body">
@@ -304,6 +328,9 @@
 </div>
 
 <script>
+const urlDebug = new URLSearchParams(location.search).get('debug') === '1' ||
+  new URLSearchParams(location.search).get('debug') === 'true';
+
 let allEntries = [];
 let activeFilter = 'all';
 
@@ -337,6 +364,7 @@ function renderStats() {
   document.getElementById('statSuccess').textContent = allEntries.filter(e => e.outcome === 'success').length;
   document.getElementById('statFailed').textContent  = allEntries.filter(e => e.outcome === 'failed').length;
   document.getElementById('statChains').textContent  = allEntries.filter(e => e.chain_state_id).length;
+  document.getElementById('statEa').textContent      = allEntries.filter(e => isEaEntry(e)).length;
 }
 
 // ---------------------------------------------------------------------------
@@ -349,9 +377,15 @@ function setFilter(filter, btn) {
   renderLog();
 }
 
+function isEaEntry(e) {
+  const t = String(e.action_type || '');
+  return t.startsWith('ea_');
+}
+
 function applyFilter(entries) {
   if (activeFilter === 'all')    return entries;
   if (activeFilter === 'chains') return entries.filter(e => e.chain_state_id);
+  if (activeFilter === 'ea')    return entries.filter(e => isEaEntry(e));
   return entries.filter(e => e.outcome === activeFilter);
 }
 
@@ -363,7 +397,7 @@ function renderLog() {
   const filtered = applyFilter(allEntries);
 
   if (filtered.length === 0) {
-    body.innerHTML = `<div class="state-msg">No entries${activeFilter !== 'all' ? ' matching this filter' : ''}.${allEntries.length === 0 ? '<br>Actions will appear here once you start using chains.' : ''}</div>`;
+    body.innerHTML = `<div class="state-msg">No entries${activeFilter !== 'all' ? ' matching this filter' : ''}.${allEntries.length === 0 ? '<br>Routine runs, shortcuts, and EA activity (tasks, briefings, menus) show up here as you use the app.' : ''}</div>`;
     return;
   }
 
@@ -387,22 +421,52 @@ function renderEntry(e) {
   const cfg = e.action_config || {};
   const detail = entryDetail(e, cfg);
   const chainLabel = e.chain_name ? `· ${esc(e.chain_name)}` : '';
+  const label = formatActionLabel(e.action_type);
+  const debugType = urlDebug ? `<div class="entry-debug-type">${esc(e.action_type)}</div>` : '';
+  const debugJson = urlDebug
+    ? `<div class="entry-debug-json">${esc(JSON.stringify(cfg, null, 2))}</div>`
+    : '';
 
   return `
     <div class="log-entry">
       <div class="outcome-dot dot-${e.outcome}"></div>
       <div class="entry-main">
         <div class="entry-top">
-          <span class="entry-action">${esc(e.action_type)}</span>
+          <span class="entry-action">${esc(label)}</span>
           <span class="outcome-badge badge-${e.outcome}">${e.outcome}</span>
           ${chainLabel ? `<span class="entry-chain">${esc(chainLabel)}</span>` : ''}
         </div>
+        ${debugType}
         ${detail ? `<div class="entry-detail">${esc(detail)}</div>` : ''}
         ${e.error_detail ? `<div class="entry-error">${esc(e.error_detail)}</div>` : ''}
+        ${debugJson}
       </div>
       <div class="entry-time">${formatTime(e.executed_at)}</div>
     </div>
   `;
+}
+
+function formatActionLabel(type) {
+  const t = String(type || '');
+  const map = {
+    ea_routine_menu: 'Routine menu',
+    ea_weather: 'Weather',
+    ea_news: 'News',
+    ea_news_more: 'More headlines',
+    ea_mindful: 'Mindful moment',
+    ea_inspire: 'Inspiration',
+    ea_morning_briefing: 'Morning briefing',
+    ea_task_list: 'Task list',
+    ea_task_add: 'Task added',
+    ea_task_complete: 'Task completed',
+    ea_task_delete: 'Task removed',
+    ea_task_edit: 'Task updated',
+    ea_task_error: 'Task error',
+    ea_interest_radar: 'Interest radar',
+  };
+  if (map[t]) return map[t];
+  if (t.startsWith('ea_briefing_')) return 'Briefing';
+  return t || 'Action';
 }
 
 function entryDetail(e, cfg) {
@@ -423,6 +487,51 @@ function entryDetail(e, cfg) {
   if (e.action_type === 'weather_check') return `Weather check — ${cfg.condition || ''}`;
   if (e.action_type === 'time_check')    return `Time check — ${cfg.after || '?'}–${cfg.before || '?'}`;
   if (e.action_type === 'calendar_check')return 'Calendar check';
+
+  if (e.action_type === 'ea_routine_menu') {
+    const n = cfg.routine_count;
+    return n != null ? `${n} routine${n === 1 ? '' : 's'}` : '';
+  }
+  if (e.action_type === 'ea_weather') {
+    const loc = cfg.location_label || cfg.location;
+    if (loc && cfg.temp != null) return `${loc} · ${cfg.temp}°F`;
+    if (cfg.source === 'ea_chat') return 'Opened from chat';
+    if (cfg.source === 'briefing_api') return 'Briefing panel';
+    return '';
+  }
+  if (e.action_type === 'ea_news' || e.action_type === 'ea_news_more') {
+    const parts = [];
+    if (cfg.story_count != null) parts.push(`${cfg.story_count} stor${cfg.story_count === 1 ? 'y' : 'ies'}`);
+    if (cfg.page != null && e.action_type === 'ea_news_more') parts.push(`page ${cfg.page}`);
+    if (cfg.personalized) parts.push('personalized');
+    return parts.join(' · ') || '';
+  }
+  if (e.action_type === 'ea_morning_briefing') {
+    const parts = [];
+    if (cfg.story_count != null) parts.push(`${cfg.story_count} headlines`);
+    if (cfg.has_weather) parts.push('weather');
+    if (cfg.panel_types && cfg.panel_types.length) parts.push(cfg.panel_types.join(', '));
+    return parts.join(' · ') || 'Full briefing';
+  }
+  if (e.action_type === 'ea_task_list') {
+    return cfg.filter ? `${cfg.filter} · ${cfg.open_count ?? 0} open` : `${cfg.open_count ?? 0} open`;
+  }
+  if (e.action_type === 'ea_task_add' && cfg.title) return truncate(cfg.title, 72);
+  if (e.action_type === 'ea_task_complete' && cfg.title) return truncate(cfg.title, 72);
+  if (e.action_type === 'ea_task_delete' && cfg.title) return truncate(cfg.title, 72);
+  if (e.action_type === 'ea_task_edit') return cfg.title ? truncate(cfg.title, 72) : 'Details updated';
+  if (e.action_type === 'ea_mindful' && cfg.title) return truncate(cfg.title, 56);
+  if (e.action_type === 'ea_inspire' && cfg.title) return truncate(cfg.title, 56);
+  if (String(e.action_type || '').startsWith('ea_briefing_')) return cfg.mode || '';
+
+  if (e.action_type === 'ea_interest_radar') {
+    const parts = [];
+    if (cfg.window) parts.push(cfg.window);
+    if (cfg.radius_miles != null) parts.push(cfg.radius_miles + ' mi');
+    if (cfg.item_count != null) parts.push(cfg.item_count + ' picks');
+    return parts.join(' · ') || '';
+  }
+
   return '';
 }
 
@@ -467,20 +576,26 @@ loadLog();
     // --- Nav drawer ---
     (function() {
       var style = document.createElement("style");
-      style.textContent = ".nav-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;opacity:0;pointer-events:none;transition:opacity 0.22s;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}.nav-overlay.open{opacity:1;pointer-events:all}.nav-drawer{position:fixed;top:0;right:0;bottom:0;width:68vw;max-width:260px;background:#141414;z-index:1001;transform:translateX(100%);transition:transform 0.26s cubic-bezier(0.4,0,0.2,1);display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,0.08)}.nav-drawer.open{transform:translateX(0)}.nav-drawer-top{padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between}.nav-drawer-label{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#555}.nav-x{background:none;border:none;color:#666;font-size:26px;line-height:1;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}.nav-list{padding:8px 0}.nav-link{display:block;padding:17px 22px;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:17px;font-weight:400;color:#aaa;border-left:3px solid transparent;-webkit-tap-highlight-color:transparent}.nav-link.active{color:#f0f0f0;font-weight:600;border-left-color:#f0f0f0}";
+      style.textContent = ".nav-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:10040;opacity:0;pointer-events:none;transition:opacity 0.22s;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}.nav-overlay.open{opacity:1;pointer-events:auto}.nav-drawer{position:fixed;top:0;right:0;bottom:0;width:68vw;max-width:260px;background:#141414;z-index:10050;transform:translateX(100%);transition:transform 0.26s cubic-bezier(0.4,0,0.2,1);display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,0.08);padding-top:env(safe-area-inset-top)}.nav-drawer.open{transform:translateX(0)}.nav-drawer-top{padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between}.nav-drawer-label{font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#555}.nav-x{background:none;border:none;color:#aaa;font-size:28px;line-height:1;cursor:pointer;padding:8px 12px;margin:-8px -8px -8px 0;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation}.nav-list{padding:8px 0}.nav-link{display:block;padding:17px 22px;text-decoration:none;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:17px;font-weight:400;color:#aaa;border-left:3px solid transparent;-webkit-tap-highlight-color:transparent}.nav-link.active{color:#f0f0f0;font-weight:600;border-left-color:#f0f0f0}";
       document.head.appendChild(style);
       var overlay = document.createElement("div");
       overlay.className = "nav-overlay";
-      overlay.addEventListener("click", function(){ navClose(); });
-      var items = [{label:"EA",path:"/ea"},{label:"Tasks",path:"/tasks"},{label:"Routines",path:"/chains"},{label:"Log",path:"/action-log"},{label:"Settings",path:"/config"}];
+      var items = [{label:"EA",path:"/ea"},{label:"Tasks",path:"/tasks"},{label:"Radar",path:"/interest-radar"},{label:"Routines",path:"/chains"},{label:"Log",path:"/action-log"},{label:"Settings",path:"/config"}];
       var cur = window.location.pathname;
+      var dbg = new URLSearchParams(location.search).get("debug");
+      var dq = (dbg === "1" || dbg === "true") ? "?debug=1" : "";
       var drawer = document.createElement("div");
       drawer.className = "nav-drawer";
-      drawer.innerHTML = "<div class=\"nav-drawer-top\"><span class=\"nav-drawer-label\">EA Watch</span><button class=\"nav-x\" onclick=\"navClose()\">×</button></div><div class=\"nav-list\">" + items.map(function(item){ var active = cur === item.path || (item.path !== "/ea" && cur.indexOf(item.path) === 0); return "<a class=\"nav-link" + (active ? " active" : "") + "\" href=\"" + item.path + "\">" + item.label + "</a>"; }).join("") + "</div>";
+      drawer.innerHTML = "<div class=\"nav-drawer-top\"><span class=\"nav-drawer-label\">EA Watch</span><button type=\"button\" class=\"nav-x\" aria-label=\"Close menu\">×</button></div><div class=\"nav-list\">" + items.map(function(item){ var active = cur === item.path || (item.path !== "/ea" && cur.indexOf(item.path) === 0); var href = item.path + dq; return "<a class=\"nav-link" + (active ? " active" : "") + "\" href=\"" + href + "\">" + item.label + "</a>"; }).join("") + "</div>";
+      function closeNav(){ overlay.classList.remove("open"); drawer.classList.remove("open"); document.body.style.overflow=""; }
+      function openNav(){ overlay.classList.add("open"); drawer.classList.add("open"); document.body.style.overflow="hidden"; }
+      overlay.addEventListener("click", closeNav);
+      drawer.addEventListener("click", function(e){ e.stopPropagation(); });
+      drawer.querySelector(".nav-x").addEventListener("click", function(e){ e.preventDefault(); e.stopPropagation(); closeNav(); });
       document.body.appendChild(overlay);
       document.body.appendChild(drawer);
-      window.navOpen  = function(){ overlay.classList.add("open"); drawer.classList.add("open"); document.body.style.overflow="hidden"; };
-      window.navClose = function(){ overlay.classList.remove("open"); drawer.classList.remove("open"); document.body.style.overflow=""; };
+      window.navOpen  = openNav;
+      window.navClose = closeNav;
     })();
 </script>
 </body>

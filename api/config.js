@@ -31,7 +31,7 @@ export default async function handler(req, res) {
               challenge_phrase, alert_phone, alert_email, ea_personality,
               stranger_bio, stranger_linkedin, stranger_calendly,
               stranger_imessage, stranger_whatsapp,
-              briefing_interests, briefing_tickers
+              briefing_interests, briefing_tickers, interest_radar_topics
        FROM owner_config WHERE id = ?`,
       [ownerId]
     );
@@ -63,6 +63,7 @@ export default async function handler(req, res) {
       stranger_whatsapp:   b.stranger_whatsapp    ?? null,
       briefing_interests:  b.briefing_interests   ?? null,
       briefing_tickers:    b.briefing_tickers     ?? null,
+      interest_radar_topics: b.interest_radar_topics ?? null,
     };
 
     // Only update credentials if provided
