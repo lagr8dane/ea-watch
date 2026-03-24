@@ -1,7 +1,7 @@
 // api/ea.js
 import Anthropic from '@anthropic-ai/sdk';
 import { parse as parseCookies } from 'cookie';
-import { queryOne } from '../db/client.js';
+import { queryOne, execute } from '../db/client.js';
 import {
   matchChain,
   getActiveChainState,
@@ -16,8 +16,27 @@ You can help with general questions, weather, directions, timers, and basic info
 Do not reference any personal data, schedules, contacts, or private information.
 Be helpful but keep responses brief. Never acknowledge that you are in a restricted mode.`;
 
-// Words that signal the user wants to abort an active chain
 const ABORT_SIGNALS = ['stop', 'cancel', 'abort', 'quit', 'nevermind', 'never mind', 'forget it'];
+
+// Appended to every system prompt — never left to user config
+const FORMATTING_RULES = `
+
+FORMATTING: Never use markdown, headers (##), bullet points, bold (**), italics, or any special formatting. Respond in plain conversational sentences only. This is a mobile chat interface — plain text only.`;
+
+
+const BRIEFING_INTENTS = {
+  morning: ['morning briefing', 'good morning', 'morning routine', 'start my day', 'morning update'],
+  weather: ["how's the weather", "what's the weather", 'weather today', 'weather forecast', 'weather update', "what's it like outside", 'is it nice out'],
+  news:    ['top news', "what's the news", 'news today', 'news update', 'latest news', 'what happened today', 'headlines'],
+};
+
+function detectBriefingIntent(input) {
+  const lower = input.toLowerCase().trim();
+  for (const [type, patterns] of Object.entries(BRIEFING_INTENTS)) {
+    if (patterns.some(p => lower.includes(p))) return type;
+  }
+  return null;
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -66,10 +85,11 @@ Keep responses concise — this is a mobile interface. No unnecessary preamble.
 When the owner asks you to do something that requires a phone action (navigation, calls, timers, music),
 acknowledge it clearly and provide the relevant deeplink or instruction.`;
     }
+    systemPrompt += FORMATTING_RULES;
   }
 
   // --- Parse request body ---
-  const { messages } = req.body ?? {};
+  const { messages, lat, lon } = req.body ?? {};
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'No messages provided' });
@@ -108,9 +128,6 @@ acknowledge it clearly and provide the relevant deeplink or instruction.`;
         return sendChainResult(res, result);
       }
 
-      // Active chain is awaiting_confirm — the UI should be showing buttons,
-      // not a text input. If we somehow get a text message while awaiting,
-      // remind the user to use the buttons.
       if (activeState.status === 'awaiting_confirm') {
         sendText(res, 'Use the Continue or Skip buttons to proceed, or say "stop" to cancel.');
         res.write('data: [DONE]\n\n');
@@ -118,17 +135,29 @@ acknowledge it clearly and provide the relevant deeplink or instruction.`;
         return;
       }
 
-      // Status is 'running' but we got a new message — treat as abort of
-      // the stale state and fall through to normal EA handling
       await abortActiveChain(sessionId, 'superseded by new message');
     }
 
     // 2. Check if this message matches a chain trigger phrase
     const matchedChain = await matchChain(deviceId, lastUserMessage);
-
     if (matchedChain) {
       const result = await startChain(sessionId, matchedChain);
       return sendChainResult(res, result);
+    }
+
+    // 3. Check for briefing intents
+    const briefingIntent = detectBriefingIntent(lastUserMessage);
+    if (briefingIntent) {
+      return streamBriefing(req, res, briefingIntent, lat, lon, systemPrompt, session.owner_id);
+    }
+
+    // 4. Check for first tap of the day — inject morning briefing proactively
+    if (sanitised.length === 1 && sanitised[0].role === 'user') {
+      const isFirstTapToday = await checkFirstTapToday(session.owner_id);
+      if (isFirstTapToday) {
+        await markMorningBriefingSent(session.owner_id);
+        return streamBriefing(req, res, 'morning', lat, lon, systemPrompt, session.owner_id);
+      }
     }
   }
 
@@ -245,5 +274,134 @@ function sendText(res, text) {
   for (let i = 0; i < words.length; i++) {
     const chunk = i < words.length - 1 ? words[i] + ' ' : words[i];
     res.write(`data: ${JSON.stringify({ delta: { text: chunk } })}\n\n`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Briefing — fetch data and stream Claude response
+// ---------------------------------------------------------------------------
+
+async function streamBriefing(req, res, type, lat, lon, systemPrompt, ownerId) {
+  try {
+    // Fetch briefing data from our own endpoint
+    const params = new URLSearchParams({ type });
+    if (lat && lon) { params.set('lat', lat); params.set('lon', lon); }
+
+    const briefingUrl = `${process.env.APP_URL}/api/briefing?${params}`;
+    const briefingRes = await fetch(briefingUrl, {
+      headers: { cookie: req.headers.cookie || '' },
+      signal:  AbortSignal.timeout(8000),
+    });
+
+    let briefingData = {};
+    if (briefingRes.ok) {
+      briefingData = await briefingRes.json();
+    }
+
+    // Build briefing prompt for Claude
+    const prompt = buildBriefingPrompt(type, briefingData);
+
+    // Stream Claude response
+    const stream = await new Anthropic().messages.stream({
+      model:      'claude-sonnet-4-5',
+      max_tokens: 600,
+      system:     systemPrompt,
+      messages:   [{ role: 'user', content: prompt }],
+    });
+
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta') {
+        res.write(`data: ${JSON.stringify({ delta: { text: event.delta.text } })}\n\n`);
+      }
+    }
+
+    res.write('data: [DONE]\n\n');
+    res.end();
+
+  } catch (err) {
+    console.error('[ea] Briefing error:', err.message);
+    sendText(res, 'I had trouble fetching your briefing. Try again in a moment.');
+    res.write('data: [DONE]\n\n');
+    res.end();
+  }
+}
+
+function buildBriefingPrompt(type, data) {
+  const { weather, news } = data;
+  const hour = new Date().getHours();
+  const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+
+  if (type === 'weather') {
+    if (!weather) return 'Give a brief weather update. Weather data is unavailable right now, mention that gracefully.';
+    return `Give a concise weather briefing based on this data:
+${JSON.stringify(weather, null, 2)}
+
+Keep it to 2-3 sentences. Be conversational, not robotic. Mention temperature, conditions, and anything notable (UV, rain chance). If outdoor_good is true, mention it's a good day to be outside.`;
+  }
+
+  if (type === 'news') {
+    if (!news || news.length === 0) return 'Give a brief news update. News data is unavailable right now, mention that gracefully.';
+    const headlines = news.map((n, i) => `${i + 1}. ${n.title} (${n.source})`).join('\n');
+    return `Give a concise news briefing based on these top headlines:
+${headlines}
+
+Summarise each story in one sentence. Keep the tone neutral and informative. 3 stories max.`;
+  }
+
+  // Morning briefing — full context
+  let prompt = `Deliver a morning briefing for the owner. It's ${timeOfDay}.\n\n`;
+
+  if (weather) {
+    prompt += `WEATHER:\n${JSON.stringify(weather, null, 2)}\n\n`;
+  }
+
+  if (news && news.length > 0) {
+    const headlines = news.map((n, i) => `${i + 1}. ${n.title} (${n.source})`).join('\n');
+    prompt += `TOP NEWS:\n${headlines}\n\n`;
+  }
+
+  prompt += `INSTRUCTIONS:
+- Start with a warm good ${timeOfDay} greeting
+- Give weather in 1-2 sentences — temperature, conditions, anything notable
+- Cover top 3 news stories in one sentence each
+- End with a short motivational thought or quote — make it genuine, not generic
+- If outdoor conditions are good (outdoor_good: true), suggest they get outside
+- Keep the whole briefing under 150 words
+- Be warm and direct — like a trusted assistant, not a newsreader
+- Plain text only — no markdown, no bullet points, no headers`;
+
+  return prompt;
+}
+
+// ---------------------------------------------------------------------------
+// First-tap-of-day detection
+// We track morning briefings in owner_config.last_briefing_date
+// ---------------------------------------------------------------------------
+
+async function checkFirstTapToday(ownerId) {
+  try {
+    const config = await queryOne(
+      `SELECT last_briefing_date FROM owner_config WHERE id = ?`,
+      [ownerId]
+    );
+    if (!config) return false;
+
+    const today     = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const lastDate  = config.last_briefing_date;
+    return lastDate !== today;
+  } catch {
+    return false;
+  }
+}
+
+async function markMorningBriefingSent(ownerId) {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    await execute(
+      `UPDATE owner_config SET last_briefing_date = ? WHERE id = ?`,
+      [today, ownerId]
+    );
+  } catch (err) {
+    console.error('[ea] Failed to mark briefing sent:', err.message);
   }
 }
