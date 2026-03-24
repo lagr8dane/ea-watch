@@ -124,7 +124,7 @@ export default async function handler(req, res) {
       interests,
       items,
       disclaimer:
-        'Distances are approximate (geocoded venue names). Verify times, tickets, and hours on the source site.',
+        'Distances are approximate (Photon/Open-Meteo geocoding). Shown for the first 8 results only. Verify times and tickets on the source site.',
     });
   } catch (err) {
     const msg = err?.message || String(err);
