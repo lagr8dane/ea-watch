@@ -294,8 +294,23 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
   try {
     const briefingData = await fetchBriefingData(type, lat, lon);
 
-    // Weather-only, news-only, quote-only — stream as text
+    // Weather-only, news-only, quote-only — stream as text (or card for news)
     if (type === 'weather' || type === 'news' || type === 'quote') {
+
+      // News — send as structured card data
+      if (type === 'news') {
+        const payload = {
+          news_card: {
+            stories:   briefingData.news || [],
+            timestamp: new Date().toISOString(),
+          }
+        };
+        res.write(`data: ${JSON.stringify(payload)}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+        return;
+      }
+
       const prompt = type === 'quote'
         ? buildQuotePrompt(briefingData, localHour, displayName)
         : buildBriefingPrompt(type, briefingData, localHour, displayName);

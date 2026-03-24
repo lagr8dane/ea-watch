@@ -175,7 +175,96 @@
       40%            { opacity: 1; }
     }
 
-    /* ── Briefing card ── */
+    /* ── News card ── */
+    .news-card {
+      align-self: stretch;
+      background: #0d0d14;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+      margin: 0;
+    }
+
+    .news-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: #0a0a12;
+    }
+
+    .news-card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #8888aa;
+    }
+
+    .news-card-time {
+      font-size: 11px;
+      color: #44444a;
+      font-family: -apple-system, BlinkMacSystemFont, monospace;
+    }
+
+    .news-story {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 13px 18px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      text-decoration: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.1s;
+      cursor: pointer;
+    }
+    .news-story:last-child { border-bottom: none; }
+    .news-story:active { background: rgba(255,255,255,0.03); }
+
+    .news-story-num {
+      font-size: 11px;
+      color: #33333a;
+      font-weight: 700;
+      width: 16px;
+      flex-shrink: 0;
+      text-align: center;
+    }
+
+    .news-story-content { flex: 1; min-width: 0; }
+
+    .news-story-title {
+      font-size: 14px;
+      color: #d0d0e0;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .news-story-source {
+      display: inline-block;
+      margin-top: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #444460;
+      background: rgba(255,255,255,0.04);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .news-story-arrow {
+      color: #2a2a36;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
     .briefing-card {
       align-self: stretch;
       background: #0d0d14;
@@ -719,7 +808,38 @@
 
     // --- Independent card renderers for morning briefing ---
 
-    function appendWeatherCard(w) {
+    function buildNewsCard(data) {
+      const { stories, timestamp } = data;
+      const time = timestamp ? new Date(timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
+
+      const card = document.createElement('div');
+      card.className = 'news-card';
+
+      card.innerHTML = `
+        <div class="news-card-header">
+          <div class="news-card-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 22h16a2 2 0 002-2V4a2 2 0 00-2-2H8a2 2 0 00-2 2v16a2 2 0 01-2 2zm0 0a2 2 0 01-2-2v-9c0-1.1.9-2 2-2h2"/>
+              <path d="M18 14h-8M15 18h-5M10 6h8v4h-8z"/>
+            </svg>
+            Top Stories
+          </div>
+          <div class="news-card-time">${esc(time)}</div>
+        </div>
+        ${(stories || []).map((s, i) => `
+          <a class="news-story" href="${esc(s.url || '#')}" target="_blank" rel="noopener noreferrer">
+            <div class="news-story-num">${i + 1}</div>
+            <div class="news-story-content">
+              <div class="news-story-title">${esc(s.title)}</div>
+              <span class="news-story-source">${esc(s.source)}</span>
+            </div>
+            <div class="news-story-arrow">›</div>
+          </a>
+        `).join('')}
+      `;
+
+      return card;
+    }
       if (!w) return;
       const card = document.createElement('div');
       card.className = 'briefing-card';
@@ -842,6 +962,7 @@
         let   full    = '';
         let   pendingActions  = [];
         let   chainControl    = null;
+        let   pendingNewsCard = null;
         let   sseBuffer       = '';
 
         setStatus('responding…');
@@ -881,6 +1002,7 @@
               // Actions and chain control
               if (parsed.actions) pendingActions = parsed.actions;
               if (parsed.chain_control) chainControl = parsed.chain_control;
+              if (parsed.news_card) pendingNewsCard = parsed.news_card;
 
               // Morning briefing — fire three separate requests sequentially
               if (parsed.morning_briefing) {
@@ -894,8 +1016,17 @@
           }
         }
 
+        // Render news card if received
+        if (pendingNewsCard) {
+          const row  = eaEl.closest('.msg-row');
+          const card = buildNewsCard(pendingNewsCard);
+          if (row) row.replaceWith(card);
+          else eaEl.replaceWith(card);
+          scrollBottom();
+        }
+
         // Remove empty EA bubble if nothing was streamed into it
-        if (eaEl && !full) {
+        if (eaEl && !full && !pendingNewsCard) {
           eaEl.closest('.msg-row')?.remove();
         }
 
@@ -948,9 +1079,10 @@
 
         const reader  = res.body.getReader();
         const decoder = new TextDecoder();
-        const eaEl    = appendMsg('ea', '');
+        let   eaEl    = appendMsg('ea', '');
         let   full    = '';
         let   buf     = '';
+        let   newsCard = null;
 
         setStatus('responding…');
 
@@ -971,12 +1103,20 @@
                 eaEl.textContent = full;
                 scrollBottom();
               }
+              if (parsed.news_card) newsCard = parsed.news_card;
             } catch {}
           }
         }
 
-        // Remove empty bubble if nothing came back
-        if (!full) eaEl.closest('.msg-row')?.remove();
+        if (newsCard) {
+          const row = eaEl.closest('.msg-row');
+          const card = buildNewsCard(newsCard);
+          if (row) row.replaceWith(card);
+          else eaEl.replaceWith(card);
+          scrollBottom();
+        } else if (!full) {
+          eaEl.closest('.msg-row')?.remove();
+        }
 
       } catch {}
 
