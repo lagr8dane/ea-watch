@@ -83,6 +83,23 @@
     }
     .card-actions a:hover { text-decoration: underline; }
 
+    .due-picker {
+      margin-top: 12px; margin-bottom: 10px;
+      padding-top: 10px; border-top: 1px solid var(--border);
+    }
+    .due-label {
+      display: block; font-size: 11px; color: var(--muted); text-transform: uppercase;
+      letter-spacing: 0.04em; margin-bottom: 6px;
+    }
+    .due-select {
+      width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--text); font-size: 14px; font-family: inherit;
+    }
+    .due-date-input {
+      width: 100%; margin-top: 8px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--text); font-size: 16px; font-family: inherit;
+    }
+
     .empty { text-align: center; color: var(--muted); padding: 28px 16px; font-size: 14px; }
     .err { color: #e88; font-size: 14px; margin-top: 12px; white-space: pre-wrap; }
 
@@ -332,6 +349,17 @@
       return 'The 7-day period from ' + longDate(today) + ' through ' + longDate(end) + ' inclusive (local dates).';
     }
 
+    function startOfToday() {
+      const now = new Date();
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    }
+
+    function parseLocalYmd(s) {
+      if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(String(s))) return null;
+      const p = String(s).split('-');
+      return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+    }
+
     function ymd(d) {
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -339,10 +367,30 @@
       return y + '-' + m + '-' + day;
     }
 
+    function upcomingWeekendDates() {
+      const today = startOfToday();
+      const day = today.getDay();
+      let dSat;
+      if (day === 6) dSat = 0;
+      else if (day === 0) dSat = 6;
+      else dSat = 6 - day;
+      const sat = new Date(today);
+      sat.setDate(sat.getDate() + dSat);
+      const sun = new Date(sat);
+      sun.setDate(sun.getDate() + 1);
+      return { sat: sat, sun: sun };
+    }
+
+    /** Listed YYYY-MM-DD only if today or future (local); else window-based default. */
     function defaultDueForItem(item) {
-      if (item.start_date && /^\d{4}-\d{2}-\d{2}$/.test(item.start_date)) return item.start_date;
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const today = startOfToday();
+      const listed = item.start_date && /^\d{4}-\d{2}-\d{2}$/.test(String(item.start_date))
+        ? String(item.start_date)
+        : null;
+      if (listed) {
+        const ld = parseLocalYmd(listed);
+        if (ld && ld >= today) return listed;
+      }
       if (windowKey === 'tonight' || windowKey === 'week') return ymd(today);
       if (windowKey === 'tomorrow') {
         const t = new Date(today);
@@ -350,16 +398,106 @@
         return ymd(t);
       }
       if (windowKey === 'weekend') {
-        const day = today.getDay();
-        let dSat;
-        if (day === 6) dSat = 0;
-        else if (day === 0) dSat = 6;
-        else dSat = 6 - day;
-        const sat = new Date(today);
-        sat.setDate(sat.getDate() + dSat);
-        return ymd(sat);
+        return ymd(upcomingWeekendDates().sat);
       }
       return ymd(today);
+    }
+
+    function duePresetChoices(item) {
+      const today = startOfToday();
+      const out = [];
+      const seen = new Set();
+      function push(v, label) {
+        if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v) || seen.has(v)) return;
+        seen.add(v);
+        out.push({ value: v, label: label });
+      }
+
+      const listed = item.start_date && /^\d{4}-\d{2}-\d{2}$/.test(String(item.start_date))
+        ? String(item.start_date)
+        : null;
+      if (listed) {
+        const ld = parseLocalYmd(listed);
+        if (ld && ld >= today) push(listed, 'Listed date — ' + longDate(ld));
+      }
+
+      if (windowKey === 'tonight') {
+        push(ymd(today), 'Tonight — ' + longDate(today));
+      } else if (windowKey === 'tomorrow') {
+        const tm = new Date(today);
+        tm.setDate(tm.getDate() + 1);
+        push(ymd(tm), 'Tomorrow — ' + longDate(tm));
+      } else if (windowKey === 'weekend') {
+        const w = upcomingWeekendDates();
+        push(ymd(w.sat), 'This Saturday — ' + longDate(w.sat));
+        push(ymd(w.sun), 'This Sunday — ' + longDate(w.sun));
+      } else {
+        const end = new Date(today);
+        end.setDate(end.getDate() + 6);
+        push(ymd(today), 'This week — start (' + longDate(today) + ')');
+        push(ymd(end), 'This week — end (' + longDate(end) + ')');
+      }
+
+      const def = defaultDueForItem(item);
+      if (!seen.has(def)) {
+        const d0 = parseLocalYmd(def);
+        push(def, d0 ? 'Suggested — ' + longDate(d0) : def);
+      }
+
+      if (!out.length) push(ymd(today), longDate(today));
+
+      return { choices: out, defaultV: def };
+    }
+
+    function buildDuePickerHtml(idx, item) {
+      const minYmd = ymd(startOfToday());
+      const pack = duePresetChoices(item);
+      const opts = pack.choices.map(function (c) {
+        const sel = c.value === pack.defaultV ? ' selected' : '';
+        return '<option value="' + escAttr(c.value) + '"' + sel + '>' + esc(c.label) + '</option>';
+      }).join('');
+      return (
+        '<div class="due-picker">' +
+        '<span class="due-label">Task due date</span>' +
+        '<select class="due-select" data-idx="' + idx + '" aria-label="Due date preset">' +
+        opts +
+        '<option value="__custom__">Custom date…</option>' +
+        '</select>' +
+        '<input type="date" class="due-date-input" min="' + escAttr(minYmd) + '" style="display:none" aria-label="Custom due date" />' +
+        '</div>'
+      );
+    }
+
+    function bindDuePickerListeners() {
+      document.querySelectorAll('.due-select').forEach(function (sel) {
+        sel.addEventListener('change', function () {
+          const picker = sel.closest('.due-picker');
+          if (!picker) return;
+          const inp = picker.querySelector('.due-date-input');
+          const idx = parseInt(sel.getAttribute('data-idx'), 10);
+          if (sel.value === '__custom__') {
+            inp.style.display = 'block';
+            if (!inp.value) {
+              const it = lastRadarItems[idx];
+              inp.value = it ? defaultDueForItem(it) : ymd(startOfToday());
+            }
+          } else {
+            inp.style.display = 'none';
+          }
+        });
+      });
+    }
+
+    function readDueFromCard(card, item) {
+      const sel = card.querySelector('.due-select');
+      const inp = card.querySelector('.due-date-input');
+      if (!sel) return defaultDueForItem(item);
+      if (sel.value === '__custom__') {
+        const v = inp && inp.value.trim();
+        if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
+        return v;
+      }
+      return sel.value;
     }
 
     let lastRadarItems = [];
@@ -395,28 +533,44 @@
       lastRadarItems = items;
       document.getElementById('results').innerHTML = items.map(function (it, idx) {
         const dist = it.distance_mi != null ? '~' + it.distance_mi + ' mi' : 'Distance unknown';
-        const due = defaultDueForItem(it);
+        const listedNote = (function () {
+          const listed = it.start_date && /^\d{4}-\d{2}-\d{2}$/.test(String(it.start_date)) ? String(it.start_date) : null;
+          if (!listed) return '';
+          const ld = parseLocalYmd(listed);
+          if (ld && ld >= startOfToday()) return '';
+          return ' · listed date in the past — pick a due date below';
+        })();
         return (
           '<div class="card" data-idx="' + idx + '">' +
           '<h3>' + esc(it.title) + '</h3>' +
           '<div class="meta">' + esc(dist) +
           (it.start_time_hint ? ' · ' + esc(it.start_time_hint) : '') +
-          (it.start_date ? ' · ' + esc(it.start_date) : '') + '</div>' +
+          (it.start_date ? ' · ' + esc(it.start_date) : '') +
+          esc(listedNote) + '</div>' +
           (it.summary ? '<div class="summary">' + esc(it.summary) + '</div>' : '') +
+          buildDuePickerHtml(idx, it) +
           '<div class="card-actions">' +
           '<a href="' + escAttr(it.url) + '" target="_blank" rel="noopener noreferrer">Open source</a>' +
-          '<button type="button" class="btn btn-small add-task-btn" data-idx="' + idx + '" data-due="' + escAttr(due) + '">Add task</button>' +
+          '<button type="button" class="btn btn-small add-task-btn" data-idx="' + idx + '">Add task</button>' +
           '</div></div>'
         );
       }).join('');
 
+      bindDuePickerListeners();
+
       document.querySelectorAll('.add-task-btn').forEach(function (btn) {
         btn.addEventListener('click', async function () {
+          const card = btn.closest('.card');
           const idx = parseInt(btn.getAttribute('data-idx'), 10);
           const it = lastRadarItems[idx];
-          if (!it) return;
+          if (!it || !card) return;
+          const due_at = readDueFromCard(card, it);
+          if (due_at == null) {
+            showErr('Choose a custom due date, or pick a preset from the list.');
+            return;
+          }
+          showErr('');
           const title = ('Go: ' + it.title).slice(0, 500);
-          const due_at = btn.getAttribute('data-due');
           btn.disabled = true;
           try {
             const res = await fetch('/api/tasks', {
@@ -582,6 +736,6 @@
       await maybeAutoRunFromChip();
     })();
   </script>
-  <script src="/nav.js?v=radar3" defer></script>
+  <script src="/nav.js?v=radar4" defer></script>
 </body>
 </html>
