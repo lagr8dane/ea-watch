@@ -399,6 +399,8 @@
     function appendMsg(role, text) {
       const el = document.createElement('div');
       el.className = `msg ${role}`;
+      // Render line breaks — briefings use \n for section separation
+      el.style.whiteSpace = 'pre-wrap';
       el.textContent = text;
       document.getElementById('messages').appendChild(el);
       scrollBottom();
@@ -467,7 +469,7 @@
         const res = await fetch('/api/ea', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages, shell: isShell, lat: userLat, lon: userLon }),
+          body: JSON.stringify({ messages, shell: isShell, lat: userLat, lon: userLon, localHour: new Date().getHours() }),
         });
 
         hideTyping();

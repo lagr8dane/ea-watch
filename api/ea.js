@@ -86,10 +86,12 @@ When the owner asks you to do something that requires a phone action (navigation
 acknowledge it clearly and provide the relevant deeplink or instruction.`;
     }
     systemPrompt += FORMATTING_RULES;
+    // Store display_name for briefing personalisation
+    req._displayName = config?.display_name ?? null;
   }
 
   // --- Parse request body ---
-  const { messages, lat, lon } = req.body ?? {};
+  const { messages, lat, lon, localHour } = req.body ?? {};
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'No messages provided' });
@@ -148,7 +150,7 @@ acknowledge it clearly and provide the relevant deeplink or instruction.`;
     // 3. Check for briefing intents
     const briefingIntent = detectBriefingIntent(lastUserMessage);
     if (briefingIntent) {
-      return streamBriefing(req, res, briefingIntent, lat, lon, systemPrompt, session.owner_id);
+      return streamBriefing(req, res, briefingIntent, lat, lon, localHour, req._displayName, systemPrompt, session.owner_id);
     }
 
     // 4. Check for first tap of the day — inject morning briefing proactively
@@ -156,7 +158,7 @@ acknowledge it clearly and provide the relevant deeplink or instruction.`;
       const isFirstTapToday = await checkFirstTapToday(session.owner_id);
       if (isFirstTapToday) {
         await markMorningBriefingSent(session.owner_id);
-        return streamBriefing(req, res, 'morning', lat, lon, systemPrompt, session.owner_id);
+        return streamBriefing(req, res, 'morning', lat, lon, localHour, req._displayName, systemPrompt, session.owner_id);
       }
     }
   }
@@ -281,9 +283,8 @@ function sendText(res, text) {
 // Briefing — fetch data and stream Claude response
 // ---------------------------------------------------------------------------
 
-async function streamBriefing(req, res, type, lat, lon, systemPrompt, ownerId) {
+async function streamBriefing(req, res, type, lat, lon, localHour, displayName, systemPrompt, ownerId) {
   try {
-    // Fetch briefing data from our own endpoint
     const params = new URLSearchParams({ type });
     if (lat && lon) { params.set('lat', lat); params.set('lon', lon); }
 
@@ -298,8 +299,7 @@ async function streamBriefing(req, res, type, lat, lon, systemPrompt, ownerId) {
       briefingData = await briefingRes.json();
     }
 
-    // Build briefing prompt for Claude
-    const prompt = buildBriefingPrompt(type, briefingData);
+    const prompt = buildBriefingPrompt(type, briefingData, localHour, displayName);
 
     // Stream Claude response
     const stream = await new Anthropic().messages.stream({
@@ -326,33 +326,37 @@ async function streamBriefing(req, res, type, lat, lon, systemPrompt, ownerId) {
   }
 }
 
-function buildBriefingPrompt(type, data) {
+function buildBriefingPrompt(type, data, localHour, displayName) {
   const { weather, news } = data;
-  const hour = new Date().getHours();
-  const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+
+  // Use client's local hour if provided, otherwise fall back to server UTC
+  const hour       = (localHour !== undefined && localHour !== null) ? Number(localHour) : new Date().getHours();
+  const timeOfDay  = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
+  const firstName  = displayName ? displayName.split(' ')[0] : null;
+  const greeting   = firstName ? `Good ${timeOfDay}, ${firstName}` : `Good ${timeOfDay}`;
 
   if (type === 'weather') {
-    if (!weather) return 'Give a brief weather update. Weather data is unavailable right now, mention that gracefully.';
-    return `Give a concise weather briefing based on this data:
+    if (!weather) return `${greeting}. Weather data is unavailable right now — try again in a moment.`;
+    return `Give a conversational weather update. Use this data:
 ${JSON.stringify(weather, null, 2)}
 
-Keep it to 2-3 sentences. Be conversational, not robotic. Mention temperature, conditions, and anything notable (UV, rain chance). If outdoor_good is true, mention it's a good day to be outside.`;
+Start with "${greeting}." then give 2-3 sentences about current conditions, temperature, and anything the person should know (UV, rain, wind). If outdoor_good is true, mention it's a good day outside. Plain text only, no markdown.`;
   }
 
   if (type === 'news') {
-    if (!news || news.length === 0) return 'Give a brief news update. News data is unavailable right now, mention that gracefully.';
+    if (!news || news.length === 0) return `${greeting}. No news headlines are available right now.`;
     const headlines = news.map((n, i) => `${i + 1}. ${n.title} (${n.source})`).join('\n');
-    return `Give a concise news briefing based on these top headlines:
+    return `Give a conversational news briefing. Headlines:
 ${headlines}
 
-Summarise each story in one sentence. Keep the tone neutral and informative. 3 stories max.`;
+Write each story as one clear sentence. Separate each story with a line break. No intro, no outro, just the three stories. Plain text only.`;
   }
 
   // Morning briefing — full context
-  let prompt = `Deliver a morning briefing for the owner. It's ${timeOfDay}.\n\n`;
+  let prompt = `Deliver a personal morning briefing. Greeting to use: "${greeting}."\n\n`;
 
   if (weather) {
-    prompt += `WEATHER:\n${JSON.stringify(weather, null, 2)}\n\n`;
+    prompt += `WEATHER DATA:\n${JSON.stringify(weather, null, 2)}\n\n`;
   }
 
   if (news && news.length > 0) {
@@ -360,15 +364,23 @@ Summarise each story in one sentence. Keep the tone neutral and informative. 3 s
     prompt += `TOP NEWS:\n${headlines}\n\n`;
   }
 
-  prompt += `INSTRUCTIONS:
-- Start with a warm good ${timeOfDay} greeting
-- Give weather in 1-2 sentences — temperature, conditions, anything notable
-- Cover top 3 news stories in one sentence each
-- End with a short motivational thought or quote — make it genuine, not generic
-- If outdoor conditions are good (outdoor_good: true), suggest they get outside
-- Keep the whole briefing under 150 words
-- Be warm and direct — like a trusted assistant, not a newsreader
-- Plain text only — no markdown, no bullet points, no headers`;
+  prompt += `FORMAT THE RESPONSE EXACTLY LIKE THIS (use actual line breaks between sections):
+
+[Greeting sentence — warm, personal, reference the weather conditions naturally]
+
+[Weather — 1-2 sentences on current temp, conditions, high/low, anything notable like UV or wind]
+
+[News story 1 — one sentence]
+[News story 2 — one sentence]
+[News story 3 — one sentence]
+
+[One genuine motivational thought to close — not generic, make it feel like something a trusted friend would say]
+
+RULES:
+- Plain text only — no markdown, no bullet points, no dashes, no headers
+- Under 160 words total
+- Warm and direct — trusted assistant voice, not a newsreader
+- If outdoor_good is true in weather data, weave in a suggestion to get outside`;
 
   return prompt;
 }
