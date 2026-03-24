@@ -291,10 +291,9 @@ function sendText(res, text) {
 
 async function streamBriefing(req, res, type, lat, lon, localHour, displayName, systemPrompt, ownerId) {
   try {
-    // Fetch briefing data directly — no internal HTTP call
     const briefingData = await fetchBriefingData(type, lat, lon);
 
-    // For weather-only or news-only, stream as text
+    // Weather-only and news-only — stream as text (already working)
     if (type === 'weather' || type === 'news') {
       const prompt = buildBriefingPrompt(type, briefingData, localHour, displayName);
       const stream = await new Anthropic().messages.stream({
@@ -313,12 +312,22 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
       return;
     }
 
-    // Morning briefing — get Claude to generate the closing quote,
-    // then send structured data for rich card rendering
+    // Morning briefing — send three cards sequentially
+    // 1. Weather card
+    if (briefingData.weather) {
+      res.write(`data: ${JSON.stringify({ card: 'weather', data: briefingData.weather })}\n\n`);
+    }
+
+    // 2. News card
+    if (briefingData.news && briefingData.news.length > 0) {
+      res.write(`data: ${JSON.stringify({ card: 'news', data: briefingData.news })}\n\n`);
+    }
+
+    // 3. Quote — generate with Claude
     const quotePrompt = buildQuotePrompt(briefingData, localHour, displayName);
     const quoteStream = await new Anthropic().messages.stream({
       model:      'claude-sonnet-4-5',
-      max_tokens: 100,
+      max_tokens: 80,
       system:     systemPrompt,
       messages:   [{ role: 'user', content: quotePrompt }],
     });
@@ -329,15 +338,7 @@ async function streamBriefing(req, res, type, lat, lon, localHour, displayName, 
         quote += event.delta.text;
       }
     }
-
-    // Send minimal briefing payload — keep it small to avoid chunk splits
-    const w = briefingData.weather;
-    const compact = {
-      bw: w ? { t: w.temp, f: w.feels_like, h: w.high, l: w.low, uv: w.uv_index, r: w.rain_chance, wi: w.wind, c: w.condition, ok: w.outdoor_good } : null,
-      bn: (briefingData.news || []).map(n => ({ t: n.title, s: n.source, u: n.url })),
-      bq: quote.trim(),
-    };
-    res.write(`data: ${JSON.stringify({ b: compact })}\n\n`);
+    res.write(`data: ${JSON.stringify({ card: 'quote', data: quote.trim() })}\n\n`);
     res.write('data: [DONE]\n\n');
     res.end();
 
