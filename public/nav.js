@@ -6,6 +6,7 @@
 (function () {
   const NAV_ITEMS = [
     { label: 'EA',       path: '/ea' },
+    { label: 'Tasks',    path: '/tasks' },
     { label: 'Routines', path: '/chains' },
     { label: 'Log',      path: '/action-log' },
     { label: 'Settings', path: '/config' },

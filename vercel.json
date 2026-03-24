@@ -12,6 +12,8 @@
     { "source": "/config",                        "destination": "/config.html" },
     { "source": "/chains",                        "destination": "/chain-builder.html" },
     { "source": "/action-log",                    "destination": "/action-log.html" },
+    { "source": "/tasks",                         "destination": "/tasks.html" },
+    { "source": "/api/tasks/:id",                 "destination": "/api/tasks" },
     { "source": "/api/chains/:id/steps/:stepId",  "destination": "/api/chains" },
     { "source": "/api/chains/:id/steps",          "destination": "/api/chains" },
     { "source": "/api/chains/:id",                "destination": "/api/chains" },

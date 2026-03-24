@@ -9,6 +9,14 @@ import {
   abortActiveChain,
 } from '../lib/chain-engine.js';
 import { fetchWeatherSnapshot, fetchNewsStories } from '../lib/briefing-data.js';
+import { parseTaskIntent } from '../lib/task-intent.js';
+import {
+  listTasks,
+  createTask,
+  updateTask,
+  findOpenTasksByTitle,
+  formatTasksForChat,
+} from '../lib/tasks.js';
 
 const client = new Anthropic();
 
@@ -258,6 +266,14 @@ acknowledge it clearly and provide the relevant deeplink or instruction.`;
     }
   }
 
+  if (!isShell) {
+    const taskIntent = parseTaskIntent(lastUserMessage);
+    if (taskIntent) {
+      await handleTaskIntent(res, taskIntent, session.owner_id);
+      return;
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Standard Claude streaming — no chain matched
   // -------------------------------------------------------------------------
@@ -372,6 +388,62 @@ function sendText(res, text) {
     const chunk = i < words.length - 1 ? words[i] + ' ' : words[i];
     res.write(`data: ${JSON.stringify({ delta: { text: chunk } })}\n\n`);
   }
+}
+
+async function handleTaskIntent(res, intent, ownerId) {
+  try {
+    if (intent.action === 'list') {
+      const rows = await listTasks(ownerId);
+      sendText(res, formatTasksForChat(rows, { filter: intent.filter || 'all' }));
+    } else if (intent.action === 'add') {
+      const row = await createTask(ownerId, {
+        title: intent.title,
+        due_at: intent.dueDate || null,
+        priority: intent.priority || 'normal',
+      });
+      sendText(
+        res,
+        `Added: ${row.title}${row.due_at ? ` (due ${row.due_at.slice(0, 10)})` : ''}. See everything at /tasks.`
+      );
+    } else if (intent.action === 'complete') {
+      const matches = await findOpenTasksByTitle(ownerId, intent.fragment);
+      if (!matches.length) {
+        sendText(res, `No open task matched "${intent.fragment}". Say "my tasks" to list them.`);
+      } else if (matches.length > 1) {
+        sendText(
+          res,
+          `Several tasks match — say more of the title:\n${matches
+            .slice(0, 5)
+            .map((t) => t.title)
+            .join('\n')}`
+        );
+      } else {
+        await updateTask(ownerId, matches[0].id, { status: 'complete' });
+        sendText(res, `Marked complete: ${matches[0].title}`);
+      }
+    } else if (intent.action === 'delete') {
+      const matches = await findOpenTasksByTitle(ownerId, intent.fragment);
+      if (!matches.length) {
+        sendText(res, `No open task matched "${intent.fragment}".`);
+      } else if (matches.length > 1) {
+        sendText(
+          res,
+          `Several tasks match — be more specific:\n${matches
+            .slice(0, 5)
+            .map((t) => t.title)
+            .join('\n')}`
+        );
+      } else {
+        await updateTask(ownerId, matches[0].id, { status: 'deleted' });
+        sendText(res, `Removed: ${matches[0].title}`);
+      }
+    }
+  } catch (err) {
+    console.error('[ea] task intent:', err.message);
+    sendText(res, `Tasks: ${err.message}`);
+  }
+  res.write('data: [DONE]\n\n');
+  res.end();
 }
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>EA — Tasks</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --border: rgba(255,255,255,0.1);
+      --text: #f0f0f0;
+      --muted: #777;
+      --hi: #8ab4ff;
+      --danger: #c75c5c;
+      --ok: #6c9;
+    }
+    html, body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, sans-serif; min-height: 100%; }
+    body { padding-bottom: 48px; }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 18px; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: var(--bg); z-index: 5;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    h1 { font-size: 17px; font-weight: 600; }
+    .nav-btn, .add-btn {
+      background: none; border: none; color: var(--text); font-size: 22px; cursor: pointer;
+      padding: 4px 8px; line-height: 1; -webkit-tap-highlight-color: transparent;
+    }
+    .add-btn { font-size: 14px; font-weight: 600; background: var(--text); color: var(--bg); border-radius: 20px; padding: 8px 16px; }
+
+    .tabs {
+      display: flex; gap: 0; padding: 0 18px; border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      flex: 1; padding: 14px; text-align: center; font-size: 14px; font-weight: 500;
+      color: var(--muted); background: none; border: none; border-bottom: 2px solid transparent;
+      cursor: pointer; font-family: inherit;
+    }
+    .tab.active { color: var(--text); border-bottom-color: var(--hi); }
+
+    .panel { display: none; padding: 16px 18px; }
+    .panel.active { display: block; }
+
+    .section-title {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--muted); margin: 20px 0 10px;
+    }
+    .section-title:first-child { margin-top: 0; }
+
+    .task-row {
+      display: flex; align-items: flex-start; gap: 12px; padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .task-row.done { opacity: 0.45; }
+    .task-row input[type="checkbox"] { margin-top: 3px; width: 20px; height: 20px; accent-color: var(--hi); }
+    .task-body { flex: 1; min-width: 0; }
+    .task-title { font-size: 15px; line-height: 1.35; word-break: break-word; }
+    .task-meta { font-size: 12px; color: var(--muted); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .pri { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.08); }
+    .pri.high { color: #f5a623; }
+    .pri.low { color: #888; }
+    .task-del { background: none; border: none; color: var(--danger); font-size: 13px; cursor: pointer; padding: 4px; }
+
+    .cal-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .cal-nav button {
+      background: var(--surface); border: 1px solid var(--border); color: var(--text);
+      padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit;
+    }
+    .cal-month { font-size: 15px; font-weight: 600; }
+    .cal-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center;
+      font-size: 12px;
+    }
+    .cal-dow { color: var(--muted); padding: 6px 0; font-size: 10px; text-transform: uppercase; }
+    .cal-cell {
+      aspect-ratio: 1; max-height: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      border-radius: 8px; cursor: pointer; border: 1px solid transparent; position: relative;
+    }
+    .cal-cell:hover { background: rgba(255,255,255,0.05); }
+    .cal-cell.out { color: #444; }
+    .cal-cell.today { border-color: var(--hi); }
+    .cal-cell.selected { background: rgba(138,180,255,0.15); }
+    .cal-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--hi); margin-top: 2px; }
+
+    .day-tasks { margin-top: 20px; }
+    .empty { color: var(--muted); text-align: center; padding: 40px 20px; font-size: 14px; }
+
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100;
+      display: none; align-items: flex-end; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); width: 100%; max-width: 480px; border-radius: 16px 16px 0 0;
+      padding: 20px; border: 1px solid var(--border);
+    }
+    .modal h2 { font-size: 17px; margin-bottom: 16px; }
+    .modal label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .modal input, .modal select {
+      width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--text); font-size: 16px; margin-bottom: 14px; font-family: inherit;
+    }
+    .modal-actions { display: flex; gap: 10px; margin-top: 8px; }
+    .modal-actions button {
+      flex: 1; padding: 14px; border-radius: 12px; border: none; font-size: 16px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+    .modal-actions .cancel { background: rgba(255,255,255,0.1); color: var(--text); }
+    .modal-actions .save { background: var(--text); color: var(--bg); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <button type="button" class="nav-btn" onclick="navOpen()" aria-label="Menu">☰</button>
+      <h1>Tasks</h1>
+    </div>
+    <button type="button" class="add-btn" onclick="openAddModal()">+ Add</button>
+  </header>
+
+  <div class="tabs">
+    <button type="button" class="tab active" data-tab="list" onclick="setTab('list')">List</button>
+    <button type="button" class="tab" data-tab="cal" onclick="setTab('cal')">Calendar</button>
+  </div>
+
+  <div id="panel-list" class="panel active">
+    <div id="list-root"></div>
+  </div>
+  <div id="panel-cal" class="panel">
+    <div class="cal-nav">
+      <button type="button" onclick="calShift(-1)">←</button>
+      <span class="cal-month" id="cal-month"></span>
+      <button type="button" onclick="calShift(1)">→</button>
+    </div>
+    <div class="cal-grid" id="cal-head"></div>
+    <div class="cal-grid" id="cal-body"></div>
+    <div class="day-tasks" id="cal-day-section"></div>
+  </div>
+
+  <div class="modal-overlay" id="modal">
+    <div class="modal">
+      <h2 id="modal-title">New task</h2>
+      <label for="f-title">Title</label>
+      <input id="f-title" type="text" placeholder="What do you need to do?" maxlength="500" />
+      <label for="f-due">Due date (optional)</label>
+      <input id="f-due" type="date" />
+      <label for="f-pri">Priority</label>
+      <select id="f-pri">
+        <option value="normal">Normal</option>
+        <option value="high">High</option>
+        <option value="low">Low</option>
+      </select>
+      <div class="modal-actions">
+        <button type="button" class="cancel" onclick="closeModal()">Cancel</button>
+        <button type="button" class="save" onclick="saveModal()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let allTasks = [];
+    let calYear, calMonth;
+    let selectedDay = null;
+
+    function todayKey() {
+      const d = new Date();
+      return d.toISOString().slice(0, 10);
+    }
+
+    function bucket(task) {
+      if (task.status === 'deleted') return 'deleted';
+      if (task.status === 'complete') return 'done';
+      const t = todayKey();
+      if (!task.due_at) return 'nodate';
+      const d = task.due_at.slice(0, 10);
+      if (d < t) return 'overdue';
+      if (d === t) return 'today';
+      return 'later';
+    }
+
+    async function loadTasks() {
+      const res = await fetch('/api/tasks', { credentials: 'same-origin' });
+      if (res.status === 401) { window.location.href = '/challenge'; return; }
+      if (!res.ok) { document.getElementById('list-root').innerHTML = '<p class="empty">Could not load tasks.</p>'; return; }
+      const j = await res.json();
+      allTasks = j.tasks || [];
+      renderList();
+      if (document.getElementById('panel-cal').classList.contains('active')) renderCalendar();
+    }
+
+    function renderList() {
+      const root = document.getElementById('list-root');
+      const open = allTasks.filter(function(t) { return t.status === 'open'; });
+      const done = allTasks.filter(function(t) { return t.status === 'complete'; });
+      if (!open.length && !done.length) {
+        root.innerHTML = '<p class="empty">No tasks yet. Tap + Add, or ask EA to add one. (Demo data: run scripts/db-seed-tasks-demo.js locally.)</p>';
+        return;
+      }
+      const order = ['overdue', 'today', 'later', 'nodate'];
+      const labels = { overdue: 'Overdue', today: 'Today', later: 'Coming up', nodate: 'No date', done: 'Done' };
+      let html = '';
+      for (let i = 0; i < order.length; i++) {
+        const b = order[i];
+        const group = open.filter(function(t) { return bucket(t) === b; });
+        if (!group.length) continue;
+        html += '<div class="section-title">' + labels[b] + '</div>';
+        for (let j = 0; j < group.length; j++) html += taskRowHtml(group[j]);
+      }
+      if (done.length) {
+        html += '<div class="section-title">' + labels.done + '</div>';
+        for (let k = 0; k < done.length; k++) html += taskRowHtml(done[k]);
+      }
+      root.innerHTML = html || '<p class="empty">Nothing to show.</p>';
+    }
+
+    function taskRowHtml(t) {
+      const done = t.status === 'complete';
+      const pri = t.priority === 'high' ? 'high' : t.priority === 'low' ? 'low' : '';
+      const due = t.due_at ? t.due_at.slice(0, 10) : '';
+      return '<div class="task-row' + (done ? ' done' : '') + '" data-id="' + esc(t.id) + '">' +
+        '<input type="checkbox" ' + (done ? 'checked' : '') + ' onchange="toggleDone(\'' + esc(t.id) + '\', this.checked)" />' +
+        '<div class="task-body">' +
+        '<div class="task-title">' + esc(t.title) + '</div>' +
+        '<div class="task-meta">' +
+        (due ? '<span>' + esc(due) + '</span>' : '') +
+        (pri ? '<span class="pri ' + pri + '">' + t.priority + '</span>' : '') +
+        '</div></div>' +
+        '<button type="button" class="task-del" onclick="removeTask(\'' + esc(t.id) + '\')">Remove</button></div>';
+    }
+
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    async function toggleDone(id, checked) {
+      await fetch('/api/tasks/' + id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ status: checked ? 'complete' : 'open' }),
+      });
+      loadTasks();
+    }
+
+    async function removeTask(id) {
+      if (!confirm('Remove this task?')) return;
+      await fetch('/api/tasks/' + id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ status: 'deleted' }),
+      });
+      selectedDay = null;
+      loadTasks();
+    }
+
+    function setTab(name) {
+      document.querySelectorAll('.tab').forEach(function(el) {
+        el.classList.toggle('active', el.getAttribute('data-tab') === name);
+      });
+      document.getElementById('panel-list').classList.toggle('active', name === 'list');
+      document.getElementById('panel-cal').classList.toggle('active', name === 'cal');
+      if (name === 'cal') {
+        if (calYear == null) {
+          const n = new Date();
+          calYear = n.getFullYear();
+          calMonth = n.getMonth();
+        }
+        renderCalendar();
+      }
+    }
+
+    function calShift(delta) {
+      calMonth += delta;
+      if (calMonth > 11) { calMonth = 0; calYear++; }
+      if (calMonth < 0) { calMonth = 11; calYear--; }
+      renderCalendar();
+    }
+
+    function renderCalendar() {
+      const open = allTasks.filter(function(t) { return t.status === 'open' && t.due_at; });
+      const counts = {};
+      for (let i = 0; i < open.length; i++) {
+        const k = open[i].due_at.slice(0, 10);
+        counts[k] = (counts[k] || 0) + 1;
+      }
+
+      const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+      document.getElementById('cal-month').textContent = monthNames[calMonth] + ' ' + calYear;
+
+      const head = document.getElementById('cal-head');
+      head.innerHTML = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(function(d) {
+        return '<div class="cal-dow">' + d + '</div>';
+      }).join('');
+
+      const first = new Date(calYear, calMonth, 1);
+      const startPad = first.getDay();
+      const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+      const body = document.getElementById('cal-body');
+      let cells = '';
+      const prevM = new Date(calYear, calMonth, 0).getDate();
+      for (let i = 0; i < startPad; i++) {
+        const d = prevM - startPad + i + 1;
+        cells += '<div class="cal-cell out"><span>' + d + '</span></div>';
+      }
+      const tkey = todayKey();
+      for (let d = 1; d <= daysInMonth; d++) {
+        const key = calYear + '-' + String(calMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+        const isToday = key === tkey;
+        const sel = key === selectedDay;
+        const cnt = counts[key] || 0;
+        cells += '<div class="cal-cell' + (isToday ? ' today' : '') + (sel ? ' selected' : '') + '" data-day="' + key + '" onclick="selectDay(\'' + key + '\')">' +
+          '<span>' + d + '</span>' + (cnt ? '<span class="cal-dot"></span>' : '') + '</div>';
+      }
+      const total = startPad + daysInMonth;
+      const endPad = (7 - (total % 7)) % 7;
+      for (let j = 1; j <= endPad; j++) {
+        cells += '<div class="cal-cell out"><span>' + j + '</span></div>';
+      }
+      body.innerHTML = cells;
+
+      const sec = document.getElementById('cal-day-section');
+      if (!selectedDay) {
+        sec.innerHTML = '<p class="empty">Tap a day to see tasks due then.</p>';
+        return;
+      }
+      const dayTasks = open.filter(function(t) { return t.due_at.slice(0, 10) === selectedDay; });
+      if (!dayTasks.length) {
+        sec.innerHTML = '<p class="empty">No open tasks due ' + selectedDay + '.</p>';
+        return;
+      }
+      let h = '<div class="section-title">Due ' + selectedDay + '</div>';
+      for (let k = 0; k < dayTasks.length; k++) h += taskRowHtml(dayTasks[k]);
+      sec.innerHTML = h;
+    }
+
+    function selectDay(key) {
+      selectedDay = key;
+      renderCalendar();
+    }
+
+    function openAddModal() {
+      document.getElementById('modal-title').textContent = 'New task';
+      document.getElementById('f-title').value = '';
+      document.getElementById('f-due').value = '';
+      document.getElementById('f-pri').value = 'normal';
+      document.getElementById('modal').classList.add('open');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('open');
+    }
+
+    async function saveModal() {
+      const title = document.getElementById('f-title').value.trim();
+      if (!title) return;
+      const due = document.getElementById('f-due').value || null;
+      const priority = document.getElementById('f-pri').value;
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ title: title, due_at: due, priority: priority }),
+      });
+      if (res.ok) { closeModal(); loadTasks(); }
+    }
+
+    document.getElementById('modal').addEventListener('click', function(e) {
+      if (e.target.id === 'modal') closeModal();
+    });
+
+    loadTasks();
+
+    (function() {
+      var style = document.createElement('style');
+      style.textContent = ".nav-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:1000;opacity:0;pointer-events:none;transition:opacity 0.22s;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}.nav-overlay.open{opacity:1;pointer-events:all}.nav-drawer{position:fixed;top:0;right:0;bottom:0;width:68vw;max-width:260px;background:#141414;z-index:1001;transform:translateX(100%);transition:transform 0.26s cubic-bezier(0.4,0,0.2,1);display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,0.08)}.nav-drawer.open{transform:translateX(0)}.nav-drawer-top{padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between}.nav-drawer-label{font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#555}.nav-x{background:none;border:none;color:#666;font-size:26px;line-height:1;cursor:pointer;padding:0;-webkit-tap-highlight-color:transparent}.nav-list{padding:8px 0}.nav-link{display:block;padding:17px 22px;text-decoration:none;font-size:17px;font-weight:400;color:#aaa;border-left:3px solid transparent;-webkit-tap-highlight-color:transparent}.nav-link.active{color:#f0f0f0;font-weight:600;border-left-color:#f0f0f0}";
+      document.head.appendChild(style);
+      var overlay = document.createElement('div');
+      overlay.className = 'nav-overlay';
+      overlay.addEventListener('click', function() { navClose(); });
+      var items = [
+        { label: 'EA', path: '/ea' },
+        { label: 'Tasks', path: '/tasks' },
+        { label: 'Routines', path: '/chains' },
+        { label: 'Log', path: '/action-log' },
+        { label: 'Settings', path: '/config' },
+      ];
+      var cur = window.location.pathname;
+      var drawer = document.createElement('div');
+      drawer.className = 'nav-drawer';
+      drawer.innerHTML = '<div class="nav-drawer-top"><span class="nav-drawer-label">EA Watch</span><button class="nav-x" onclick="navClose()">×</button></div><div class="nav-list">' +
+        items.map(function(item) {
+          var active = cur === item.path || (item.path !== '/ea' && cur.indexOf(item.path) === 0);
+          return '<a class="nav-link' + (active ? ' active' : '') + '" href="' + item.path + '">' + item.label + '</a>';
+        }).join('') + '</div>';
+      document.body.appendChild(overlay);
+      document.body.appendChild(drawer);
+      window.navOpen = function() { overlay.classList.add('open'); drawer.classList.add('open'); document.body.style.overflow = 'hidden'; };
+      window.navClose = function() { overlay.classList.remove('open'); drawer.classList.remove('open'); document.body.style.overflow = ''; };
+    })();
+  </script>
+</body>
+</html>

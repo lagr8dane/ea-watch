@@ -48,6 +48,8 @@ app.all('/api/upload',            async (req, res) => (await loadHandler('api/up
 // Phase 3 routes
 app.all('/api/briefing',          async (req, res) => (await loadHandler('api/briefing.js'))(req, res));
 app.all('/api/morning-briefing',  async (req, res) => (await loadHandler('api/morning-briefing.js'))(req, res));
+app.all('/api/tasks',            async (req, res) => (await loadHandler('api/tasks.js'))(req, res));
+app.all('/api/tasks/:id',        async (req, res) => (await loadHandler('api/tasks.js'))(req, res));
 
 // Page routes
 app.get('/',               (req, res) => res.redirect('/api/tap'));
@@ -58,6 +60,7 @@ app.get('/challenge',      (req, res) => res.sendFile(join(__dirname, 'public/ch
 app.get('/config',         (req, res) => res.sendFile(join(__dirname, 'public/config.html')));
 app.get('/chains',         (req, res) => res.sendFile(join(__dirname, 'public/chain-builder.html')));
 app.get('/action-log',     (req, res) => res.sendFile(join(__dirname, 'public/action-log.html')));
+app.get('/tasks',          (req, res) => res.sendFile(join(__dirname, 'public/tasks.html')));
 
 const PORT = process.env.PORT ?? 3000;
 app.listen(PORT, () => console.log(`> Ready at http://localhost:${PORT}`));

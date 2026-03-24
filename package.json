@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "node --env-file=.env server.js",
-    "db:init": "node scripts/db-init.js"
+    "db:init": "node scripts/db-init.js",
+    "db:migrate:tasks": "node --env-file=.env scripts/db-migrate-tasks.js",
+    "db:seed:tasks": "node --env-file=.env scripts/db-seed-tasks-demo.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
