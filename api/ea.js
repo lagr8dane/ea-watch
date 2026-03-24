@@ -369,6 +369,7 @@ One sentence only. No attribution, no quotes marks, just the thought. Plain text
 }
 
 
+function buildBriefingPrompt(type, data, localHour, displayName) {
   const { weather, news } = data;
 
   // Use client's local hour if provided, otherwise fall back to server UTC
