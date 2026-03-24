@@ -209,6 +209,45 @@
 
   <div class="toast" id="toast"></div>
 
+  <!-- Photo -->
+  <div class="section">
+    <div class="section-title">Profile photo</div>
+    <div class="section-body">
+      <div class="field" style="flex-direction:row;align-items:center;gap:16px;">
+        <div id="avatar-preview" style="width:56px;height:56px;border-radius:50%;background:#1c1c1c;border:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:18px;color:#666;flex-shrink:0;overflow:hidden;">
+          <span id="avatar-initials">—</span>
+        </div>
+        <div style="flex:1;">
+          <label for="avatar-input" style="display:inline-block;padding:8px 16px;background:#1c1c1c;border:1px solid rgba(255,255,255,0.1);border-radius:10px;font-size:14px;color:#f0f0f0;cursor:pointer;-webkit-tap-highlight-color:transparent;">
+            Choose photo
+          </label>
+          <input type="file" id="avatar-input" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="uploadAvatar(this)">
+          <div id="upload-status" style="font-size:12px;color:#666;margin-top:6px;"></div>
+        </div>
+      </div>
+      <div class="field-note">JPEG, PNG or WebP. Max 2MB. Shown on your contact card.</div>
+    </div>
+  </div>
+
+  <!-- Photo -->
+  <div class="section">
+    <div class="section-title">Profile photo</div>
+    <div class="section-body">
+      <div class="field" style="flex-direction:row;align-items:center;gap:16px;">
+        <div id="avatar-preview" style="width:56px;height:56px;border-radius:50%;background:#1c1c1c;border:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;font-size:18px;color:#666;overflow:hidden;flex-shrink:0;">
+          <span id="avatar-initials">?</span>
+        </div>
+        <div style="flex:1;">
+          <label for="avatar-input" style="display:inline-block;padding:8px 16px;background:#1c1c1c;border:1px solid rgba(255,255,255,0.12);border-radius:10px;font-size:14px;color:#f0f0f0;cursor:pointer;-webkit-tap-highlight-color:transparent;">
+            Choose photo
+          </label>
+          <input type="file" id="avatar-input" accept="image/jpeg,image/png,image/webp" style="display:none" onchange="uploadAvatar(this)">
+          <div id="avatar-status" style="font-size:12px;color:#666;margin-top:6px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Identity -->
   <div class="section">
     <div class="section-title">Identity</div>
@@ -358,6 +397,15 @@
             }
           }
         }
+
+        // Avatar preview
+        if (c.avatar_url) {
+          showAvatarPreview(c.avatar_url);
+        } else if (c.display_name) {
+          const parts = c.display_name.trim().split(' ');
+          const initials = parts.length >= 2 ? parts[0][0] + parts[parts.length-1][0] : parts[0].slice(0,2);
+          document.getElementById('avatar-initials').textContent = initials.toUpperCase();
+        }
       } catch (e) {
         // First run — no config yet, defaults are fine
       }
@@ -433,6 +481,43 @@
           .then(() => showToast('Ownership transfer initiated'))
           .catch(() => showToast('Transfer failed'));
       }
+    }
+
+    async function uploadAvatar(input) {
+      const file = input.files[0];
+      if (!file) return;
+
+      const status = document.getElementById('upload-status');
+      status.textContent = 'Uploading…';
+
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          showAvatarPreview(data.url);
+          status.textContent = 'Photo saved.';
+          setTimeout(() => { status.textContent = ''; }, 3000);
+        } else {
+          const err = await res.json();
+          status.textContent = err.error || 'Upload failed.';
+        }
+      } catch (e) {
+        status.textContent = 'Upload failed — check connection.';
+      }
+
+      input.value = '';
+    }
+
+    function showAvatarPreview(url) {
+      const wrap = document.getElementById('avatar-preview');
+      wrap.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.style.display='none'">`;
     }
 
     load();

@@ -10,7 +10,8 @@ export default async function handler(req, res) {
             stranger_linkedin as linkedin,
             stranger_calendly as calendly,
             stranger_whatsapp as whatsapp,
-            stranger_imessage as imessage
+            stranger_imessage as imessage,
+            avatar_url
      FROM owner_config LIMIT 1`
   );
 
@@ -18,7 +19,6 @@ export default async function handler(req, res) {
     return res.status(404).json({ error: 'Not configured' });
   }
 
-  // Only public-safe fields — no credentials, no EA config, no alert details
-  res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate');
+  res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=600');
   return res.status(200).json(config);
 }
