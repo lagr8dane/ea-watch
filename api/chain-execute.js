@@ -17,6 +17,12 @@ import { resumeChain, abortActiveChain } from '../lib/chain-engine.js';
 import { getDeviceActionLog } from '../lib/action-log.js';
 
 export default async function handler(req, res) {
+  // Route /api/chain-execute/log to the log handler
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  if (url.pathname.endsWith('/log')) {
+    return actionLogHandler(req, res);
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

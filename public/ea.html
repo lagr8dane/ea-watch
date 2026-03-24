@@ -354,13 +354,27 @@
     let   userLat = null;
     let   userLon = null;
 
-    // Request location silently on load — used for weather briefings
+    // Request location silently — used for weather briefings
+    // Cached in sessionStorage so we only ask once per session
     function requestLocation() {
       if (!navigator.geolocation) return;
+
+      // Use cached coords if available
+      const cached = sessionStorage.getItem('ea_location');
+      if (cached) {
+        try {
+          const { lat, lon } = JSON.parse(cached);
+          userLat = lat;
+          userLon = lon;
+          return;
+        } catch {}
+      }
+
       navigator.geolocation.getCurrentPosition(
         pos => {
           userLat = pos.coords.latitude;
           userLon = pos.coords.longitude;
+          sessionStorage.setItem('ea_location', JSON.stringify({ lat: userLat, lon: userLon }));
         },
         () => {} // Fail silently — server falls back to Reno coords
       );
