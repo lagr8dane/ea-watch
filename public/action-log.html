@@ -270,10 +270,16 @@
 <div class="app">
   <header>
     <div class="header-left">
-      <a href="/config" class="back-btn">← Config</a>
-      <h1>Action Log</h1>
+      <h1>Log</h1>
     </div>
-    <button class="refresh-btn" onclick="loadLog()">Refresh</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button class="refresh-btn" onclick="loadLog()">Refresh</button>
+      <button onclick="navOpen()" style="background:none;border:none;cursor:pointer;padding:6px;display:flex;flex-direction:column;gap:5px;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent;">
+        <span style="display:block;width:20px;height:1.5px;background:#888;border-radius:1px;"></span>
+        <span style="display:block;width:20px;height:1.5px;background:#888;border-radius:1px;"></span>
+        <span style="display:block;width:20px;height:1.5px;background:#888;border-radius:1px;"></span>
+      </button>
+    </div>
   </header>
 
   <div class="filter-bar">
