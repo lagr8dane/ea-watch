@@ -881,6 +881,15 @@
               // Actions and chain control
               if (parsed.actions) pendingActions = parsed.actions;
               if (parsed.chain_control) chainControl = parsed.chain_control;
+
+              // Morning briefing — fire three separate requests sequentially
+              if (parsed.morning_briefing) {
+                setTimeout(async () => {
+                  await sendBriefingPart('weather');
+                  await sendBriefingPart('top news');
+                  await sendBriefingPart('morning quote');
+                }, 100);
+              }
             } catch {}
           }
         }
@@ -916,6 +925,62 @@
 
     function setStatus(text) {
       document.getElementById('status-text').textContent = text;
+    }
+
+    // Sends a single briefing request and waits for it to complete
+    async function sendBriefingPart(text) {
+      setStatus('thinking…');
+      showTyping();
+
+      try {
+        const res = await fetch('/api/ea', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [{ role: 'user', content: text }],
+            shell: isShell, lat: userLat, lon: userLon,
+            localHour: new Date().getHours()
+          }),
+        });
+
+        hideTyping();
+        if (!res.ok) return;
+
+        const reader  = res.body.getReader();
+        const decoder = new TextDecoder();
+        const eaEl    = appendMsg('ea', '');
+        let   full    = '';
+        let   buf     = '';
+
+        setStatus('responding…');
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const lines = buf.split('\n');
+          buf = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') break;
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.delta?.text) {
+                full += parsed.delta.text;
+                eaEl.textContent = full;
+                scrollBottom();
+              }
+            } catch {}
+          }
+        }
+
+        // Remove empty bubble if nothing came back
+        if (!full) eaEl.closest('.msg-row')?.remove();
+
+      } catch {}
+
+      setStatus('ready');
     }
 
     // --- Voice input (Web Speech API) ---
