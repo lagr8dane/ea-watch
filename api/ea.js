@@ -26,12 +26,18 @@ FORMATTING: Never use markdown, headers (##), bullet points, bold (**), italics,
 
 const BRIEFING_INTENTS = {
   morning: ['morning briefing', 'good morning', 'morning routine', 'start my day', 'morning update'],
-  weather: ["how's the weather", "what's the weather", 'weather today', 'weather forecast', 'weather update', "what's it like outside", 'is it nice out'],
-  news:    ['top news', "what's the news", 'news today', 'news update', 'latest news', 'what happened today', 'headlines'],
+  weather: ["how's the weather", "what's the weather", 'weather today', 'weather forecast', 'weather update', "what's it like outside", 'is it nice out', 'how is the weather', 'what is the weather', 'the weather', 'weather report', 'weather briefing'],
+  news:    ['top news', "what's the news", 'news today', 'news update', 'latest news', 'what happened today', 'headlines', 'what is the news', 'the news', 'news briefing'],
 };
 
 function detectBriefingIntent(input) {
   const lower = input.toLowerCase().trim();
+
+  // Single word shortcuts
+  if (lower === 'weather') return 'weather';
+  if (lower === 'news')    return 'news';
+  if (lower === 'briefing' || lower === 'morning briefing') return 'morning';
+
   for (const [type, patterns] of Object.entries(BRIEFING_INTENTS)) {
     if (patterns.some(p => lower.includes(p))) return type;
   }
