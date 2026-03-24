@@ -1,5 +1,5 @@
 import { parse as parseCookies } from 'cookie';
-import { queryOne, execute } from '../db/client.js';
+import { query, queryOne, execute } from '../db/client.js';
 import { v4 as uuid } from 'uuid';
 
 async function getOwner(req) {
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
     const ownerId = await getOwner(req);
     if (!ownerId) return res.status(401).json({ error: 'Unauthorised' });
 
-    const devices = await queryOne(
+    const devices = await query(
       `SELECT id, uid, device_code, active, registered_at, notes
        FROM devices WHERE owner_id = ?`,
       [ownerId]

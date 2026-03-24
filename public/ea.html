@@ -175,136 +175,131 @@
       40%            { opacity: 1; }
     }
 
-    /* ── Briefing card ── */
-    .briefing-card {
+    /* ── Morning briefing panels (/api/morning-briefing JSON) ── */
+    .mb-wrap {
       align-self: stretch;
+      max-width: 92%;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+
+    .mb-panel {
       background: #0d0d14;
       border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 20px;
+      border-radius: 16px;
       overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.35);
     }
 
-    .briefing-weather {
-      padding: 20px 20px 16px;
+    .mb-panel-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-size: 13px;
+      font-weight: 600;
+      color: #c8c8d8;
+      letter-spacing: 0.02em;
+    }
+
+    .mb-panel-icon { font-size: 18px; line-height: 1; }
+
+    .mb-weather {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 16px 16px 14px;
       background: linear-gradient(135deg, #0d1117 0%, #0d1929 100%);
-      border-bottom: 1px solid rgba(255,255,255,0.07);
-      display: flex;
-      align-items: center;
-      gap: 16px;
     }
 
-    .briefing-weather-icon {
-      font-size: 44px;
-      line-height: 1;
-      flex-shrink: 0;
-    }
+    .mb-weather-icon { font-size: 40px; line-height: 1; flex-shrink: 0; }
 
-    .briefing-weather-main {
-      flex: 1;
-    }
-
-    .briefing-temp {
-      font-size: 36px;
-      font-weight: 300;
-      color: #f0f0f0;
-      letter-spacing: -1px;
-      line-height: 1;
-    }
-
-    .briefing-condition {
-      font-size: 14px;
-      color: #8888aa;
-      margin-top: 3px;
-    }
-
-    .briefing-weather-details {
-      display: flex;
-      gap: 12px;
+    .mb-weather-main { flex: 1; min-width: 0; }
+    .mb-temp { font-size: 32px; font-weight: 300; letter-spacing: -0.5px; line-height: 1; color: #eee; }
+    .mb-sub { font-size: 13px; color: #889; margin-top: 4px; }
+    .mb-stats { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 10px; font-size: 11px; color: #667; }
+    .mb-pill {
+      display: inline-block;
       margin-top: 8px;
-    }
-
-    .briefing-weather-detail {
-      font-size: 12px;
-      color: #666688;
-    }
-
-    .briefing-outdoor-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
       background: rgba(76, 175, 125, 0.15);
       border: 1px solid rgba(76, 175, 125, 0.3);
-      color: #4caf7d;
-      font-size: 11px;
-      font-weight: 500;
-      padding: 3px 8px;
-      border-radius: 20px;
-      margin-top: 8px;
+      color: #6c9;
     }
 
-    .briefing-news {
-      padding: 4px 0;
-    }
-
-    .briefing-news-item {
+    .mb-news-list { padding: 0; }
+    .mb-news-item {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 13px 20px;
+      gap: 10px;
+      padding: 12px 16px;
       border-bottom: 1px solid rgba(255,255,255,0.05);
       text-decoration: none;
+      color: inherit;
       -webkit-tap-highlight-color: transparent;
-      transition: background 0.1s;
     }
+    .mb-news-item:last-child { border-bottom: none; }
+    .mb-news-item:active { background: rgba(255,255,255,0.04); }
+    .mb-news-body { flex: 1; min-width: 0; }
+    .mb-news-title { font-size: 14px; line-height: 1.35; color: #dcdce8; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .mb-news-source { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #556; margin-top: 4px; }
+    .mb-news-more { font-size: 18px; color: #445; flex-shrink: 0; }
 
-    .briefing-news-item:last-child { border-bottom: none; }
-    .briefing-news-item:active { background: rgba(255,255,255,0.03); }
-
-    .briefing-news-content { flex: 1; min-width: 0; }
-
-    .briefing-news-title {
-      font-size: 14px;
-      color: #d0d0e0;
-      line-height: 1.4;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-
-    .briefing-news-source {
-      font-size: 11px;
-      color: #555570;
-      margin-top: 3px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .briefing-news-arrow {
-      color: #444460;
-      font-size: 16px;
-      flex-shrink: 0;
-    }
-
-    .briefing-quote {
-      padding: 14px 20px;
-      border-top: 1px solid rgba(255,255,255,0.05);
+    .mb-load-more {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.03);
+      color: #889;
       font-size: 13px;
-      color: #666688;
-      font-style: italic;
-      line-height: 1.5;
+      font-family: inherit;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mb-load-more:disabled { opacity: 0.5; }
+
+    .mb-quote { padding: 14px 16px 16px; font-size: 14px; line-height: 1.5; color: #aab; font-style: italic; }
+
+    .mb-tick-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      font-size: 14px;
+    }
+    .mb-tick-row:last-of-type { border-bottom: none; }
+    .mb-tick-sym { font-weight: 700; color: #dde; min-width: 56px; }
+    .mb-tick-links { display: flex; gap: 12px; margin-left: auto; }
+    .mb-tick-links a {
+      font-size: 12px;
+      color: #7ab8ff;
+      text-decoration: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .briefing-attribution {
-      padding: 10px 20px;
+    .mb-explore {
+      align-self: flex-start;
+      font-size: 13px;
+      color: #7ab8ff;
+      text-decoration: none;
+      padding: 2px 4px 8px;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .mb-foot {
       font-size: 10px;
-      color: #333350;
-      letter-spacing: 0.05em;
+      color: #444;
       text-transform: uppercase;
-      border-top: 1px solid rgba(255,255,255,0.04);
+      letter-spacing: 0.06em;
+      padding: 0 16px 10px;
     }
 
 
@@ -561,14 +556,19 @@
       } catch {}
     }
 
-    // Greeting on load + request location + load owner name
-    window.addEventListener('load', async () => {
+    // Greeting on load immediately; personalise when /api/config/public returns (non-blocking)
+    window.addEventListener('load', () => {
       requestLocation();
-      await loadOwnerName();
       const hour = new Date().getHours();
       const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-      const name = ownerFirstName ? `, ${ownerFirstName}` : '';
-      appendMsg('ea', `${greet}${name}! How can I help?`);
+      const el = appendMsg('ea', `${greet}! How can I help?`);
+      loadOwnerName()
+        .then(() => {
+          if (ownerFirstName && el) {
+            el.textContent = `${greet}, ${ownerFirstName}! How can I help?`;
+          }
+        })
+        .catch(() => {});
     });
 
     // --- Message rendering ---
@@ -623,80 +623,186 @@
       document.getElementById('typing')?.remove();
     }
 
-    // --- Briefing card ---
+    function googleNewsSearchUrl(q) {
+      return 'https://news.google.com/search?q=' + encodeURIComponent(q || 'Top stories') + '&hl=en&gl=US&ceid=US:en';
+    }
 
-    function renderBriefingCard(data) {
-      const card = document.createElement('div');
-      card.className = 'briefing-card';
+    function mbStoryHref(story) {
+      if (story.url) return story.url;
+      return googleNewsSearchUrl(story.title || 'news');
+    }
 
-      // Weather section
-      if (data.weather) {
-        const w = data.weather;
-        const section = document.createElement('div');
-        section.className = 'briefing-weather';
+    function mbAppendNewsItems(listEl, items) {
+      for (const story of items) {
+        const a = document.createElement('a');
+        a.className = 'mb-news-item';
+        a.href = mbStoryHref(story);
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.innerHTML =
+          '<div class="mb-news-body"><div class="mb-news-title">' + esc(story.title) +
+          '</div><div class="mb-news-source">' + esc(story.source) + '</div></div><span class="mb-news-more">›</span>';
+        listEl.appendChild(a);
+      }
+    }
 
-        const icon = document.createElement('div');
-        icon.className = 'briefing-weather-icon';
-        icon.textContent = weatherEmoji(w.condition);
+    async function mbLoadMoreNews(btn, panelEl) {
+      const listEl = panelEl.querySelector('.mb-news-list');
+      if (!listEl) return;
+      let page = parseInt(panelEl.dataset.newsPage || '1', 10) || 1;
+      page += 1;
+      btn.disabled = true;
+      try {
+        const qs = new URLSearchParams({ sections: 'news', news_page: String(page), localHour: String(new Date().getHours()) });
+        if (userLat != null && userLon != null) {
+          qs.set('lat', userLat);
+          qs.set('lon', userLon);
+        }
+        const res = await fetch('/api/morning-briefing?' + qs.toString(), { credentials: 'same-origin' });
+        if (!res.ok) throw new Error('bad');
+        const j = await res.json();
+        const batch = j.items || [];
+        mbAppendNewsItems(listEl, batch);
+        panelEl.dataset.newsPage = String(page);
+        if (!j.has_more || batch.length === 0) btn.remove();
+        else btn.disabled = false;
+      } catch {
+        btn.disabled = false;
+      }
+      scrollBottom();
+    }
 
-        const main = document.createElement('div');
-        main.className = 'briefing-weather-main';
-        main.innerHTML = `
-          <div class="briefing-temp">${w.temp}°F</div>
-          <div class="briefing-condition">${w.condition} · Feels like ${w.feels_like}°</div>
-          <div class="briefing-weather-details">
-            <span class="briefing-weather-detail">H: ${w.high}° L: ${w.low}°</span>
-            <span class="briefing-weather-detail">UV: ${w.uv_index}</span>
-            <span class="briefing-weather-detail">Rain: ${w.rain_chance}%</span>
-            <span class="briefing-weather-detail">Wind: ${w.wind} mph</span>
-          </div>
-          ${w.outdoor_good ? '<div class="briefing-outdoor-pill">✦ Good day outside</div>' : ''}
-        `;
+    function appendMorningBriefingUI(data) {
+      const wrap = document.createElement('div');
+      wrap.className = 'mb-wrap';
 
-        section.appendChild(icon);
-        section.appendChild(main);
-        card.appendChild(section);
+      const greetRow = document.createElement('div');
+      greetRow.className = 'msg-row';
+      greetRow.appendChild(eaAvatar());
+      const greetBubble = document.createElement('div');
+      greetBubble.className = 'msg ea';
+      greetBubble.style.whiteSpace = 'pre-wrap';
+      greetBubble.textContent = data.greeting || 'Good morning';
+      greetRow.appendChild(greetBubble);
+      wrap.appendChild(greetRow);
+
+      for (const p of data.panels || []) {
+        if (p.type === 'weather' && p.data) {
+          const w = p.data;
+          const panel = document.createElement('div');
+          panel.className = 'mb-panel';
+          panel.innerHTML =
+            '<div class="mb-panel-head"><span class="mb-panel-icon">' + esc(p.icon) + '</span> ' + esc(p.title) + '</div>' +
+            '<div class="mb-weather">' +
+            '<div class="mb-weather-icon">' + weatherEmoji(w.condition) + '</div>' +
+            '<div class="mb-weather-main">' +
+            '<div class="mb-temp">' + esc(String(w.temp)) + '°F</div>' +
+            '<div class="mb-sub">' + esc(w.condition) + ' · Feels like ' + esc(String(w.feels_like)) + '°</div>' +
+            '<div class="mb-stats">' +
+            '<span>H: ' + esc(String(w.high)) + '° L: ' + esc(String(w.low)) + '°</span>' +
+            '<span>UV: ' + esc(String(w.uv_index)) + '</span>' +
+            '<span>Rain: ' + esc(String(w.rain_chance)) + '%</span>' +
+            '<span>Wind: ' + esc(String(w.wind)) + ' mph</span></div>' +
+            (w.outdoor_good ? '<span class="mb-pill">✦ Good day outside</span>' : '') +
+            '</div></div><div class="mb-foot">Open-Meteo</div>';
+          wrap.appendChild(panel);
+        } else if (p.type === 'news') {
+          const panel = document.createElement('div');
+          panel.className = 'mb-panel';
+          panel.dataset.newsPage = String(p.news_page || 1);
+          const head = document.createElement('div');
+          head.className = 'mb-panel-head';
+          head.innerHTML = '<span class="mb-panel-icon">' + esc(p.icon) + '</span> ' + esc(p.title);
+          const list = document.createElement('div');
+          list.className = 'mb-news-list';
+          mbAppendNewsItems(list, p.items || []);
+          panel.appendChild(head);
+          panel.appendChild(list);
+          if (p.has_more) {
+            const more = document.createElement('button');
+            more.type = 'button';
+            more.className = 'mb-load-more';
+            more.textContent = 'Show more headlines';
+            more.addEventListener('click', () => mbLoadMoreNews(more, panel));
+            panel.appendChild(more);
+          }
+          const foot = document.createElement('div');
+          foot.className = 'mb-foot';
+          foot.textContent = p.feed === 'rss' ? 'AP News' : 'NewsAPI';
+          panel.appendChild(foot);
+          wrap.appendChild(panel);
+        } else if (p.type === 'quote' && p.text) {
+          const panel = document.createElement('div');
+          panel.className = 'mb-panel';
+          panel.innerHTML =
+            '<div class="mb-panel-head"><span class="mb-panel-icon">' + esc(p.icon) + '</span> ' + esc(p.title) + '</div>' +
+            '<div class="mb-quote">' + esc(p.text) + '</div>';
+          wrap.appendChild(panel);
+        } else if (p.type === 'stocks' && p.tickers && p.tickers.length) {
+          const panel = document.createElement('div');
+          panel.className = 'mb-panel';
+          const head = document.createElement('div');
+          head.className = 'mb-panel-head';
+          head.innerHTML = '<span class="mb-panel-icon">' + esc(p.icon) + '</span> ' + esc(p.title);
+          panel.appendChild(head);
+          for (const t of p.tickers) {
+            const row = document.createElement('div');
+            row.className = 'mb-tick-row';
+            row.innerHTML =
+              '<span class="mb-tick-sym">' + esc(t.symbol) + '</span>' +
+              '<span class="mb-tick-links">' +
+              '<a href=' + JSON.stringify(t.stocks_url) + '>Stocks</a>' +
+              '<a href=' + JSON.stringify(t.web_url) + ' target="_blank" rel="noopener noreferrer">Yahoo</a>' +
+              '</span>';
+            panel.appendChild(row);
+          }
+          wrap.appendChild(panel);
+        }
       }
 
-      // News section
-      if (data.news && data.news.length > 0) {
-        const newsSection = document.createElement('div');
-        newsSection.className = 'briefing-news';
-
-        data.news.forEach(story => {
-          const item = document.createElement('a');
-          item.className = 'briefing-news-item';
-          item.href = story.url || '#';
-          item.target = '_blank';
-          item.rel = 'noopener noreferrer';
-          item.innerHTML = `
-            <div class="briefing-news-content">
-              <div class="briefing-news-title">${esc(story.title)}</div>
-              <div class="briefing-news-source">${esc(story.source)}</div>
-            </div>
-            <div class="briefing-news-arrow">›</div>
-          `;
-          newsSection.appendChild(item);
-        });
-
-        card.appendChild(newsSection);
+      if (data.explore && data.explore.url) {
+        const ex = document.createElement('a');
+        ex.className = 'mb-explore';
+        ex.href = data.explore.url;
+        ex.target = '_blank';
+        ex.rel = 'noopener noreferrer';
+        ex.textContent = data.explore.label || 'Explore on Google News';
+        wrap.appendChild(ex);
       }
 
-      // Quote/closing
-      if (data.quote) {
-        const quote = document.createElement('div');
-        quote.className = 'briefing-quote';
-        quote.textContent = data.quote;
-        card.appendChild(quote);
+      document.getElementById('messages').appendChild(wrap);
+      scrollBottom();
+    }
+
+    async function runMorningBriefingUI() {
+      if (isShell) return;
+      setStatus('Loading briefing…');
+      showTyping();
+      try {
+        const qs = new URLSearchParams({ localHour: String(new Date().getHours()), news_page: '1' });
+        if (userLat != null && userLon != null) {
+          qs.set('lat', userLat);
+          qs.set('lon', userLon);
+        }
+        const res = await fetch('/api/morning-briefing?' + qs.toString(), { credentials: 'same-origin' });
+        hideTyping();
+        if (res.status === 403) {
+          appendMsg('ea', 'Morning briefing isn\'t available in restricted mode.');
+          setStatus('ready');
+          return;
+        }
+        if (!res.ok) {
+          appendMsg('ea', 'Couldn\'t load the morning briefing. Try again.');
+          setStatus('ready');
+          return;
+        }
+        const data = await res.json();
+        appendMorningBriefingUI(data);
+      } catch (e) {
+        hideTyping();
+        appendMsg('ea', 'Couldn\'t load the briefing.');
       }
-
-      // Attribution
-      const attr = document.createElement('div');
-      attr.className = 'briefing-attribution';
-      attr.textContent = 'Weather · Open-Meteo   ·   News · NewsAPI';
-      card.appendChild(attr);
-
-      return card;
+      setStatus('ready');
     }
 
     function weatherEmoji(condition) {
@@ -715,63 +821,6 @@
 
     function esc(str) {
       return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    }
-
-    // --- Independent card renderers for morning briefing ---
-
-    function appendWeatherCard(w) {
-      if (!w) return;
-      const card = document.createElement('div');
-      card.className = 'briefing-card';
-      card.innerHTML = `
-        <div class="briefing-weather">
-          <div class="briefing-weather-icon">${weatherEmoji(w.condition)}</div>
-          <div class="briefing-weather-main">
-            <div class="briefing-temp">${w.temp}°F</div>
-            <div class="briefing-condition">${esc(w.condition)} · Feels like ${w.feels_like}°</div>
-            <div class="briefing-weather-details">
-              <span class="briefing-weather-detail">H: ${w.high}° L: ${w.low}°</span>
-              <span class="briefing-weather-detail">UV: ${w.uv_index}</span>
-              <span class="briefing-weather-detail">Rain: ${w.rain_chance}%</span>
-              <span class="briefing-weather-detail">Wind: ${w.wind} mph</span>
-            </div>
-            ${w.outdoor_good ? '<div class="briefing-outdoor-pill">✦ Good day outside</div>' : ''}
-          </div>
-        </div>
-        <div class="briefing-attribution">Open-Meteo</div>
-      `;
-      document.getElementById('messages').appendChild(card);
-      scrollBottom();
-    }
-
-    function appendNewsCard(news) {
-      if (!news || news.length === 0) return;
-      const card = document.createElement('div');
-      card.className = 'briefing-card';
-      const newsHtml = news.map(story => `
-        <a class="briefing-news-item" href="${esc(story.url || '#')}" target="_blank" rel="noopener noreferrer">
-          <div class="briefing-news-content">
-            <div class="briefing-news-title">${esc(story.title)}</div>
-            <div class="briefing-news-source">${esc(story.source)}</div>
-          </div>
-          <div class="briefing-news-arrow">›</div>
-        </a>
-      `).join('');
-      card.innerHTML = `
-        <div class="briefing-news">${newsHtml}</div>
-        <div class="briefing-attribution">NewsAPI</div>
-      `;
-      document.getElementById('messages').appendChild(card);
-      scrollBottom();
-    }
-
-    function appendQuoteCard(quote) {
-      if (!quote) return;
-      const card = document.createElement('div');
-      card.className = 'briefing-card';
-      card.innerHTML = `<div class="briefing-quote">${esc(quote)}</div>`;
-      document.getElementById('messages').appendChild(card);
-      scrollBottom();
     }
 
     function scrollBottom() {
@@ -843,6 +892,7 @@
         let   pendingActions  = [];
         let   chainControl    = null;
         let   sseBuffer       = '';
+        let   hadMorningBriefing = false;
 
         setStatus('responding…');
 
@@ -882,13 +932,10 @@
               if (parsed.actions) pendingActions = parsed.actions;
               if (parsed.chain_control) chainControl = parsed.chain_control;
 
-              // Morning briefing — fire three separate requests sequentially
+              // Morning briefing — one JSON fetch, panel UI (no SSE layout)
               if (parsed.morning_briefing) {
-                setTimeout(async () => {
-                  await sendBriefingPart('weather');
-                  await sendBriefingPart('top news');
-                  await sendBriefingPart('morning quote');
-                }, 100);
+                hadMorningBriefing = true;
+                setTimeout(() => runMorningBriefingUI(), 0);
               }
             } catch {}
           }
@@ -911,7 +958,10 @@
           renderChainControls(eaEl, chainControl, full);
         }
 
-        messages.push({ role: 'assistant', content: full });
+        messages.push({
+          role: 'assistant',
+          content: hadMorningBriefing ? '(Morning briefing)' : full,
+        });
         setStatus('ready');
       } catch (e) {
         hideTyping();
@@ -925,62 +975,6 @@
 
     function setStatus(text) {
       document.getElementById('status-text').textContent = text;
-    }
-
-    // Sends a single briefing request and waits for it to complete
-    async function sendBriefingPart(text) {
-      setStatus('thinking…');
-      showTyping();
-
-      try {
-        const res = await fetch('/api/ea', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messages: [{ role: 'user', content: text }],
-            shell: isShell, lat: userLat, lon: userLon,
-            localHour: new Date().getHours()
-          }),
-        });
-
-        hideTyping();
-        if (!res.ok) return;
-
-        const reader  = res.body.getReader();
-        const decoder = new TextDecoder();
-        const eaEl    = appendMsg('ea', '');
-        let   full    = '';
-        let   buf     = '';
-
-        setStatus('responding…');
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          const lines = buf.split('\n');
-          buf = lines.pop();
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue;
-            const data = line.slice(6).trim();
-            if (data === '[DONE]') break;
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.delta?.text) {
-                full += parsed.delta.text;
-                eaEl.textContent = full;
-                scrollBottom();
-              }
-            } catch {}
-          }
-        }
-
-        // Remove empty bubble if nothing came back
-        if (!full) eaEl.closest('.msg-row')?.remove();
-
-      } catch {}
-
-      setStatus('ready');
     }
 
     // --- Voice input (Web Speech API) ---

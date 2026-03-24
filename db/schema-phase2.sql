@@ -49,7 +49,7 @@ CREATE INDEX IF NOT EXISTS idx_chain_steps_chain_id ON chain_steps(chain_id, pos
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS chain_state (
   id            TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
-  session_id    TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  session_id    TEXT NOT NULL REFERENCES sessions(token) ON DELETE CASCADE,
   chain_id      TEXT NOT NULL REFERENCES chains(id) ON DELETE CASCADE,
   current_step  INTEGER NOT NULL DEFAULT 0,  -- index of next step to execute
   status        TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'awaiting_confirm', 'completed', 'aborted', 'error')),
@@ -71,7 +71,7 @@ CREATE INDEX IF NOT EXISTS idx_chain_state_started_at ON chain_state(started_at)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS action_log (
   id            TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
-  session_id    TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  session_id    TEXT NOT NULL REFERENCES sessions(token) ON DELETE CASCADE,
   chain_state_id TEXT REFERENCES chain_state(id) ON DELETE SET NULL, -- null for standalone atomic actions
   action_type   TEXT NOT NULL,
   action_config TEXT NOT NULL DEFAULT '{}',  -- JSON snapshot of what was executed

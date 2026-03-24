@@ -77,7 +77,7 @@ export default async function handler(req, res) {
   if (isDanger) {
     // Authenticates normally — shell mode + silent alert
     await recordSuccess(device.id);
-    const token = await createSession(device, isShell = true);
+    const token = await createSession(device, true);
     setSessionCookie(res, token, device.session_window_mins);
 
     // Fire alert async — do not await (must not delay the response)
@@ -91,7 +91,7 @@ export default async function handler(req, res) {
 
   if (isValid) {
     await recordSuccess(device.id);
-    const token = await createSession(device, isShell = false);
+    const token = await createSession(device, false);
     setSessionCookie(res, token, device.session_window_mins);
     await logTap({ uid, deviceCode, outcome: 'ea_direct', ip });
     return res.redirect(302, `${APP_URL}/ea`);

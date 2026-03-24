@@ -47,6 +47,7 @@ app.all('/api/upload',            async (req, res) => (await loadHandler('api/up
 
 // Phase 3 routes
 app.all('/api/briefing',          async (req, res) => (await loadHandler('api/briefing.js'))(req, res));
+app.all('/api/morning-briefing',  async (req, res) => (await loadHandler('api/morning-briefing.js'))(req, res));
 
 // Page routes
 app.get('/',               (req, res) => res.redirect('/api/tap'));

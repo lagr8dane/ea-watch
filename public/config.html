@@ -319,6 +319,24 @@
     </div>
   </div>
 
+  <!-- Morning briefing -->
+  <div class="section">
+    <div class="section-title">Morning briefing</div>
+    <div class="section-body">
+      <div class="field">
+        <label>News topics (optional)</label>
+        <textarea id="briefing_interests" placeholder="e.g. Premier League, climate policy, Reno" style="min-height:72px"></textarea>
+      </div>
+      <div class="field">
+        <label>Stock tickers (optional)</label>
+        <input type="text" id="briefing_tickers" placeholder="AAPL, MSFT, VTI" autocomplete="off">
+      </div>
+      <div class="field-note">
+        Up to five topics (comma or newline) personalize NewsAPI search. Tickers open Apple Stocks and Yahoo Finance from the briefing panels. Owner-only — not shown on the stranger card.
+      </div>
+    </div>
+  </div>
+
   <!-- Stranger card -->
   <div class="section">
     <div class="section-title">Stranger card</div>
@@ -365,6 +383,7 @@
         const fields = [
           'display_name','title','session_window_mins','challenge_style',
           'challenge_phrase','alert_phone','alert_email','ea_personality',
+          'briefing_interests','briefing_tickers',
           'stranger_bio','stranger_linkedin','stranger_calendly',
           'stranger_imessage','stranger_whatsapp'
         ];
@@ -406,6 +425,8 @@
         alert_phone:         val('alert_phone'),
         alert_email:         val('alert_email'),
         ea_personality:      val('ea_personality'),
+        briefing_interests:  val('briefing_interests'),
+        briefing_tickers:    val('briefing_tickers'),
         stranger_bio:        val('stranger_bio'),
         stranger_linkedin:   val('stranger_linkedin'),
         stranger_calendly:   val('stranger_calendly'),
