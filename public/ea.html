@@ -285,14 +285,17 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    .mb-explore {
-      align-self: flex-start;
+    .mb-explore-inner {
+      display: block;
+      padding: 12px 16px 14px;
       font-size: 13px;
+      font-weight: 500;
       color: #7ab8ff;
       text-decoration: none;
-      padding: 2px 4px 8px;
+      border-top: 1px solid rgba(255,255,255,0.06);
       -webkit-tap-highlight-color: transparent;
     }
+    .mb-explore-inner:active { opacity: 0.85; }
 
     .mb-foot {
       font-size: 10px;
@@ -729,6 +732,15 @@
             more.addEventListener('click', () => mbLoadMoreNews(more, panel));
             panel.appendChild(more);
           }
+          if (data.explore && data.explore.url) {
+            const ex = document.createElement('a');
+            ex.className = 'mb-explore-inner';
+            ex.href = data.explore.url;
+            ex.target = '_blank';
+            ex.rel = 'noopener noreferrer';
+            ex.textContent = data.explore.label || 'Explore on Google News';
+            panel.appendChild(ex);
+          }
           const foot = document.createElement('div');
           foot.className = 'mb-foot';
           foot.textContent = p.feed === 'rss' ? 'AP News' : 'NewsAPI';
@@ -761,16 +773,6 @@
           }
           wrap.appendChild(panel);
         }
-      }
-
-      if (data.explore && data.explore.url) {
-        const ex = document.createElement('a');
-        ex.className = 'mb-explore';
-        ex.href = data.explore.url;
-        ex.target = '_blank';
-        ex.rel = 'noopener noreferrer';
-        ex.textContent = data.explore.label || 'Explore on Google News';
-        wrap.appendChild(ex);
       }
 
       document.getElementById('messages').appendChild(wrap);
