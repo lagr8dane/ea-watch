@@ -3,33 +3,35 @@
 A custom wristwatch with an NFC chip in the case back. Tap the watch with your phone and you get one of two experiences depending on who you are.
 
 **Owner** → Authenticated personal AI assistant. Voice and text. Chain automation. Personal operating surface.  
-**Stranger** → Polished contact gateway. LinkedIn, booking, iMessage/WhatsApp.
+**Stranger** → Polished contact gateway. LinkedIn, Instagram, booking, iMessage/WhatsApp, optional **Add to Contacts** (.vcf).
 
 The same physical object. Two entirely different experiences, determined by identity at the moment of tap.
 
 ---
 
-## Current status
+## V1 (production)
 
-**Phases 1–2 complete; owner EA experience (briefings, routines, mindful) is in production** at `https://ea-watch.vercel.app`.
+**V1 is the current shipping baseline** on `main` at `https://ea-watch.vercel.app`: identity, EA chat, briefings & chips, routines, tasks, interest radar (**Ideas** + **Find places** with Google Places when configured), contact card polish, and a reorganized settings app. Later work is **post‑V1** (productivity depth, richer automation, optional cloud STT, etc.) — see [HANDOFF.md](HANDOFF.md) for backlog.
+
+---
+
+## Current status
 
 | Area | Status |
 |---|---|
 | Identity, tap gateway, auth, sessions, shell mode | ✅ |
-| Stranger contact card + config | ✅ |
-| EA chat (Claude streaming, voice, plain-text formatting rules) | ✅ |
-| **Routines** — chain builder `/chains`, CRUD, engine, deeplinks/shortcuts/conditionals | ✅ |
-| **Routines picker** — say `routines` / `what can you run?` etc., or tap **Routines** chip | ✅ |
-| **Morning briefing** — JSON + panel UI (weather, news, quote, optional stocks); not auto-fired on open | ✅ |
-| **Quick chips** — Briefing, News, Weather, Mindful, Inspire me, Routines, **Tasks**, **Radar** (owner only; Radar opens interest radar with auto-run) | ✅ |
-| **Mindful** — random breathing vs stretching; panel + icon; separate from **Inspire me** (quote) | ✅ |
-| **Weather** — shows **where** (reverse geocode + coordinate fallback via `lib/briefing-data.js`) | ✅ |
-| **Interest radar** — `/interest-radar`: geocode + Claude web search for nearby things; due-date presets + custom picker; **Copy** per result; EA **Radar** chip (cached location + saved interests). See [HANDOFF.md](HANDOFF.md) for implementation detail. | ✅ |
-| **Copy to clipboard** — EA assistant bubbles/panels; radar result cards (plain text for Notes, etc.) | ✅ |
-| Config: `briefing_interests`, `briefing_tickers`, `interest_radar_topics` (+ migrations) | ✅ |
+| Stranger contact card (focus, accent, links, Instagram, optional .vcf) + `/contact` | ✅ |
+| Config app — grouped sections (You & card, Assistant, Access & safety, Device) | ✅ |
+| EA chat (Claude streaming, Web Speech input, plain-text formatting) | ✅ |
+| **Routines** — `/chains`, CRUD, engine, deeplinks/shortcuts/conditionals | ✅ |
+| **Routines picker** + **Tasks** chip | ✅ |
+| **Morning briefing** — JSON panels (weather, news, quote, stocks) | ✅ |
+| **Quick chips** — Briefing, News, Weather, Mindful, Inspire me, Routines, Tasks, **Radar** | ✅ |
+| **Interest radar** — **Ideas** (Claude + web, free-text prompt; Settings topics pre-fill once) + **Find places** (type chips + descriptor, `GOOGLE_PLACES_API_KEY`); form order **what → when → where**; Copy / tasks | ✅ |
+| **Copy to clipboard** — EA bubbles/panels; radar cards | ✅ |
 | Action log `/action-log` | ✅ |
 
-**Next focus:** productivity and richer discovery (see [Build phases](#build-phases) and [Future integrations](#future-integrations-yelp-style-poi-and-similar)).
+**Post‑V1 themes:** productivity (focus, calendar-adjacent), optional **POI enrichment** beyond Places text search, voice/TTS only where validated, no duplicate of Apple/Spotify for podcasts.
 
 ---
 
@@ -57,24 +59,24 @@ ea-watch/
 ├── api/
 │   ├── tap.js, auth.js, device.js
 │   ├── ea.js                   # Claude stream + chains + briefing intents + routine picker
-│   ├── morning-briefing.js     # JSON briefing panels (weather, news, quote, stocks)
-│   ├── interest-radar.js       # Geocode + Claude web search + distance hints
-│   ├── briefing.js             # Optional GET /api/briefing (auth) for testing
+│   ├── morning-briefing.js     # JSON briefing panels
+│   ├── interest-radar.js       # Geocode + Ideas (Claude web) + Places (Google Text Search)
+│   ├── briefing.js
 │   ├── chains.js, chain-execute.js
 │   ├── config.js, upload.js
 │   ├── config/public.js
 │   └── dev/tap.js
 ├── public/
-│   ├── ea.html, config.html, chain-builder.html, action-log.html, …
+│   ├── ea.html, config.html, interest-radar.html, contact.html, …
 ├── lib/
-│   ├── briefing-data.js        # Weather (Open-Meteo + location label), news helpers
-│   ├── geocode.js              # Photon + Open-Meteo (radar); Nominatim fallback
-│   ├── interest-radar.js       # Claude search + item normalization
+│   ├── briefing-data.js        # Weather, news, reverse geocode label
+│   ├── geocode.js              # Photon + Open-Meteo; Nominatim; radar distances
+│   ├── interest-radar.js       # Claude web search + JSON items (Ideas)
+│   ├── places-radar.js         # Google Places API (New) text search (Find places)
 │   ├── chain-engine.js, action-log.js
 │   └── actions/ (deeplinks, shortcuts, conditional)
 ├── db/
-├── scripts/
-│   ├── db-init.js, db-migrate-phase2.js, db-migrate-briefing-settings.js, …
+├── scripts/                    # db-init, phase migrations, stranger_instagram, …
 ├── server.js
 └── vercel.json
 ```
@@ -85,12 +87,13 @@ ea-watch/
 
 | Layer | Choice | Why |
 |---|---|---|
-| Hosting | Vercel | Serverless, deploys on push, free tier |
-| Database | Turso (SQLite edge) | Zero config, edge-hosted, free tier |
-| AI | Anthropic Claude API (claude-sonnet-4-5) | Powers EA chat, streaming |
-| Auth | bcryptjs + HttpOnly cookies | No native binaries, no JWTs in localStorage |
+| Hosting | Vercel | Serverless, deploys on push |
+| Database | Turso (SQLite edge) | Edge-hosted, low ops |
+| AI | Anthropic Claude | EA chat, Ideas radar, web search tool |
+| Places | Google Places API (New) | Optional **Find places** radar mode |
+| Auth | bcryptjs + HttpOnly cookies | No JWTs in localStorage |
 | Frontend | Vanilla HTML/CSS/JS | Mobile-first, no build step |
-| Voice input | Web Speech API | Browser-native, no backend dependency |
+| Voice input | Web Speech API | Browser-native on `/ea` |
 
 ---
 
@@ -110,7 +113,7 @@ npm install
 cp .env.example .env
 # Fill in .env with your values
 node --env-file=.env scripts/db-init.js
-# If upgrading an existing DB: node --env-file=.env scripts/db-migrate-briefing-settings.js
+# Existing DBs: run any pending scripts in scripts/ (e.g. db-migrate-stranger-instagram.js)
 npm run dev
 ```
 
@@ -124,7 +127,9 @@ Server runs at `http://localhost:3000` (`npm run dev` is `node --env-file=.env s
 TURSO_DATABASE_URL=libsql://your-db.turso.io
 TURSO_AUTH_TOKEN=your-token
 ANTHROPIC_API_KEY=your-key
-NEWSAPI_KEY=your-key (optional — richer news in briefings; AP RSS fallback without it)
+NEWSAPI_KEY=your-key (optional — richer news in briefings; RSS fallback without it)
+GOOGLE_PLACES_API_KEY=your-key (optional — Interest radar “Find places” mode)
+BLOB_READ_WRITE_TOKEN= (Vercel Blob — profile photo upload)
 RESEND_API_KEY=your-key (optional — danger word email alerts)
 ALERT_FROM_EMAIL=alerts@yourdomain.com (optional)
 ENABLE_STUB=true (local) / false (production)
@@ -148,7 +153,7 @@ curl -X POST http://localhost:3000/api/device \
 git push origin main
 ```
 
-Vercel auto-deploys on every push. Set all environment variables in Vercel dashboard → Settings → Environment Variables with `ENABLE_STUB=false` and `NODE_ENV=production`.
+Vercel auto-deploys on every push. Set environment variables in the Vercel dashboard (`ENABLE_STUB=false`, `NODE_ENV=production`, production Turso credentials, etc.).
 
 ---
 
@@ -185,49 +190,42 @@ Three non-negotiables enforced in code:
 
 1. **UID + device code dual validation** — both checked together on every tap, never either alone
 2. **HttpOnly cookies** — session tokens never in localStorage, not accessible to JavaScript
-3. **Server-side lockout** — 5 failed attempts → 30-min lockout stored in DB, cannot be cleared client-side
+3. **Server-side lockout** — 5 failed attempts → 30-min lockout stored in the DB, cannot be cleared client-side
 
-Additional: session expiry enforced on EA and config endpoints. Shell sessions cannot access config.
+Additional: session expiry on EA and config endpoints. Shell sessions cannot access config.
 
 ---
 
 ## NFC hardware
 
-**Chip:** NTAG213 anti-metal. 144 bytes. 13.56MHz. On order.  
+**Chip:** NTAG213 anti-metal. 144 bytes. 13.56MHz.  
 **NDEF format:** `https://tap.yourdomain.com?d=[device-code]`  
-**UID:** 7-byte hardware identifier, burned at manufacture, cannot be cloned.  
-**Write tool:** NFC Tools (wakdev) — iOS or Android. Free.
-
-All tap events are stubbed until chips arrive.
+**UID:** 7-byte hardware identifier, burned at manufacture.  
+**Write tool:** NFC Tools (wakdev) — iOS or Android.
 
 ---
 
-## Build phases
+## Build phases (historical)
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Identity + gateway, auth, EA chat, config app, NFC stub | ✅ Complete |
+| 1 | Identity + gateway, auth, EA chat, config, NFC stub | ✅ Complete |
 | 2 | Routines (chain builder), OS delegation, action log | ✅ Complete |
-| 3 | Briefing panels, mindful vs inspire, routine picker, chips, weather location | ✅ Substantially complete |
-| **Next** | **Productivity** — tasks, focus, calendar-adjacent flows, or owner-defined priorities | 🔲 In progress |
-| 4 | Pattern detection, proactive suggestions, autonomous execution (per-chain opt-in) | Not started |
+| 3 | Briefing panels, chips, mindful, weather, interest radar | ✅ Complete |
+| **V1** | **Radar Ideas/Places, contact + settings polish, Places env** | ✅ **Shipped** |
+| Post‑V1 | Productivity depth, automation, optional STT/TTS, POI polish | 🔲 |
 
 ---
 
-## Future integrations (Yelp-style POI and similar)
+## Future integrations (optional)
 
-Interest radar today finds **candidates via web search** and requires **source URLs**. That is strong for events, niche venues, and one-off listings, but **bars and restaurants** are often better served by a **structured place API** (hours, ratings, photos, canonical maps links).
-
-| Direction | Role | Tradeoffs |
-|---|---|---|
-| **Yelp Fusion** | Search businesses by term + lat/lon; ratings, review count, hours, `url` | API key, [usage limits](https://docs.developer.yelp.com/), **attribution** and storage/display rules in ToS |
-| **Google Places** (New) | Similar; very broad coverage | Billing after free tier; Google branding/attribution |
-| **Foursquare Places** | POI + categories | Key + plan limits |
-| **OpenStreetMap / Overpass** | No key; good for “what exists” | Weaker hours/reviews; you build UX yourself |
-
-**Likely shape if you add it:** keep radar search for **breadth**, then **optional enrichment** step: for rows that look like eateries, call Yelp/Places to attach **rating, open-now, deep link** — or a dedicated EA intent / chip **“dinner near me”** that hits the POI API first and skips generic web search. Server-side only (keys in env), merge results in `api/interest-radar.js` or a sibling route.
-
-**Other gaps worth tracking:** saved snippets or “EA → Notes” flow (copy is the zero-integration option); meal-planning JSON panel (see HANDOFF backlog); proactive push still out of scope without APNs/SMS.
+| Direction | Notes |
+|---|---|
+| **Google Places** | **In use** for radar **Find places** (`lib/places-radar.js`). Hours/open-now UX can deepen later. |
+| **Yelp / Foursquare** | Alternative or second source; attribution and limits per ToS. |
+| **Cloud STT** | If Web Speech API is insufficient after real-world use. |
+| **TTS / “spoken briefing”** | Typically text briefing → TTS API; not a separate “spoken news API.” |
+| **Podcasts** | Users already open Spotify/Apple; EA can deeplink or Shortcuts, not replace players. |
 
 ---
 
