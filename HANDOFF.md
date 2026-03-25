@@ -48,6 +48,7 @@ A custom wristwatch with an NTAG213 anti-metal NFC chip in the case back. Anyone
   - UI: working state, due presets + custom date, **Copy** right-aligned on cards, **Add task**.
 - **Copy to clipboard** — EA bubbles/panels; radar cards.
 - **Shell** — no radar, no full config, Radar chip hidden.
+- **Public contact card (`/contact`):** **`api/config/public.js`** serves one row with **`ORDER BY datetime(updated_at) DESC`** (correct row if multiple `owner_config`), **`Cache-Control: private, no-store`**, and duplicate keys where useful (**`instagram` + `stranger_instagram`**, **`calendly` + `stranger_calendly`**). **`public/contact.html`** uses **`fetch(..., { cache: 'no-store' })`**, **`cleanSocial()`** (ZWSP strip), and **`linkedinHref` / `instagramHref` / `calendlyHref`** so bare `linkedin.com/…`, `instagram.com` or `instagr.am/…`, and `calendly.com/…` become valid **`https://`** links (Calendly keeps **`?query`** when normalizing).
 
 ---
 
@@ -134,7 +135,7 @@ public/ea.html            Chat, chips, Copy, voice, panels
 public/chain-builder.html Routines UI (deeplink kinds incl. url; re-render on kind change)
 public/interest-radar.html
 public/config.html        Settings (grouped sections, tap-meet nested details)
-public/contact.html       Public card + optional .vcf
+public/contact.html       Public card + optional .vcf (`/api/config/public`, URL helpers, no-store fetch)
 public/privacy.html       Privacy policy (nav + footer links from app shell)
 public/terms.html         Terms of service
 public/legal-footer.js    Injects visible Privacy · Terms (strip above EA input bar, else page footer)
