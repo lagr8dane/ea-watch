@@ -162,6 +162,7 @@ GOOGLE_PLACES_API_KEY    # optional — radar Find places
 BLOB_READ_WRITE_TOKEN    # profile photo
 RESEND_API_KEY, ALERT_FROM_EMAIL  # optional alerts
 ENABLE_STUB, APP_URL, NODE_ENV
+SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET  # optional — OAuth callback must be HTTPS (production `APP_URL`); Spotify does not allow localhost redirect URIs
 ```
 
 ---
