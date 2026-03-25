@@ -225,7 +225,7 @@
   </header>
 
   <main>
-    <p class="hint" id="radar-hint">Pick a mode below, then set location. <strong>Ideas</strong> uses web search (events, activities, inspiration). <strong>Find places</strong> uses Google Places (bars, restaurants, museums, etc.) — needs <code style="font-size:12px;color:#aaa">GOOGLE_PLACES_API_KEY</code> on the server.</p>
+    <p class="hint" id="radar-hint">Start with what you want, then when, then where you are. <strong>Ideas</strong> uses web search. <strong>Find places</strong> uses Google Places — needs <code style="font-size:12px;color:#aaa">GOOGLE_PLACES_API_KEY</code> on the server.</p>
 
     <div class="mode-block">
       <label>Radar mode</label>
@@ -234,31 +234,6 @@
         <button type="button" data-k="places">Find places</button>
       </div>
     </div>
-
-    <label>Location</label>
-    <input type="text" id="address" placeholder="Street, city, or ZIP" autocomplete="street-address">
-    <div class="row">
-      <button type="button" class="btn btn-small" id="btn-verify">Verify address</button>
-      <button type="button" class="btn btn-small" id="btn-locate">Use my location</button>
-    </div>
-    <div id="loc-status" class="status-pill" style="display:none"></div>
-    <div id="pick-wrap" style="display:none"></div>
-
-    <label>Search radius</label>
-    <select id="radius">
-      <option value="10">10 miles</option>
-      <option value="25" selected>25 miles</option>
-      <option value="50">50 miles</option>
-    </select>
-
-    <label>When</label>
-    <div class="seg" id="when-seg">
-      <button type="button" data-w="tonight" class="on">Tonight</button>
-      <button type="button" data-w="tomorrow">Tomorrow</button>
-      <button type="button" data-w="weekend">This weekend</button>
-      <button type="button" data-w="week">This week</button>
-    </div>
-    <p class="when-note" id="when-note-places">For <strong>Find places</strong>, <em>Tonight</em> adds an “open now” filter. Other options don’t change the Places query yet.</p>
 
     <div class="ideas-prompt-wrap visible" id="ideas-prompt-wrap">
       <label>What you’re looking for</label>
@@ -285,6 +260,31 @@
       <input type="text" id="places_descriptor" maxlength="120" placeholder="e.g. Italian, rooftop, kid-friendly" autocomplete="off">
       <p class="field-hint">We combine checked types with this line for the Places search. Your choices persist if you switch to Ideas and back.</p>
     </div>
+
+    <label>When</label>
+    <div class="seg" id="when-seg">
+      <button type="button" data-w="tonight" class="on">Tonight</button>
+      <button type="button" data-w="tomorrow">Tomorrow</button>
+      <button type="button" data-w="weekend">This weekend</button>
+      <button type="button" data-w="week">This week</button>
+    </div>
+    <p class="when-note" id="when-note-places">For <strong>Find places</strong>, <em>Tonight</em> adds an “open now” filter. Other options don’t change the Places query yet.</p>
+
+    <label>Where are you?</label>
+    <input type="text" id="address" placeholder="Street, city, or ZIP" autocomplete="street-address">
+    <div class="row">
+      <button type="button" class="btn btn-small" id="btn-verify">Verify address</button>
+      <button type="button" class="btn btn-small" id="btn-locate">Use my location</button>
+    </div>
+    <div id="loc-status" class="status-pill" style="display:none"></div>
+    <div id="pick-wrap" style="display:none"></div>
+
+    <label>Search radius</label>
+    <select id="radius">
+      <option value="10">10 miles</option>
+      <option value="25" selected>25 miles</option>
+      <option value="50">50 miles</option>
+    </select>
 
     <div class="row" style="margin-top:18px">
       <button type="button" class="btn btn-primary" id="btn-run">Run radar</button>
@@ -988,6 +988,6 @@
       await maybeAutoRunFromChip();
     })();
   </script>
-  <script src="/nav.js?v=radar8" defer></script>
+  <script src="/nav.js?v=radar9" defer></script>
 </body>
 </html>
