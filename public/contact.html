@@ -297,13 +297,43 @@
   <script>
     let lastPublicCard = null;
 
+    /** Encode path segments for /user/name style URLs */
+    function encodePathSegments(path) {
+      return String(path || '')
+        .split('/')
+        .filter(Boolean)
+        .map((seg) => encodeURIComponent(seg))
+        .join('/');
+    }
+
     function instagramHref(raw) {
-      const s = (raw || '').trim();
+      let s = String(raw || '').trim();
       if (!s) return '';
-      if (/^https?:\/\//i.test(s)) return s;
-      const h = s.replace(/^@/, '').replace(/\/+$/, '');
-      if (!h) return '';
-      return `https://www.instagram.com/${encodeURIComponent(h)}/`;
+      if (/^https?:\/\//i.test(s)) return s.replace(/^http:\/\//i, 'https://');
+      s = s.replace(/^@+/, '');
+      s = s.replace(/^(https?:\/\/)?(www\.)?instagram\.com\/?/i, '');
+      s = s.replace(/^\/+/, '');
+      if (!s) return '';
+      const path = encodePathSegments(s);
+      return path ? `https://www.instagram.com/${path}/` : '';
+    }
+
+    function linkedinHref(raw) {
+      let s = String(raw || '').trim();
+      if (!s) return '';
+      if (/^https?:\/\//i.test(s)) return s.replace(/^http:\/\//i, 'https://');
+      s = s.replace(/^\/+/, '');
+      s = s.replace(/^(https?:\/\/)?(www\.)?linkedin\.com\/?/i, '');
+      s = s.replace(/^\/+/, '');
+      if (!s) return '';
+      const lower = s.toLowerCase();
+      const known = ['in/', 'company/', 'school/', 'showcase/'];
+      const hasPrefix = known.some((p) => lower.startsWith(p));
+      if (!hasPrefix && !s.includes('/')) {
+        s = 'in/' + s.replace(/^@+/, '');
+      }
+      const path = encodePathSegments(s);
+      return path ? `https://www.linkedin.com/${path}` : '';
     }
 
     function vcardEscape(s) {
@@ -339,7 +369,10 @@
       const lines = ['BEGIN:VCARD', 'VERSION:3.0', 'FN:' + vcardEscape(fn), 'N:' + vcardNFromFn(fn)];
       if (c.title) lines.push('TITLE:' + vcardEscape(String(c.title)));
       if (c.bio) lines.push('NOTE:' + vcardEscape(String(c.bio)));
-      if (c.linkedin) lines.push('URL;TYPE=LinkedIn:' + String(c.linkedin).trim());
+      if (c.linkedin) {
+        const li = linkedinHref(c.linkedin);
+        if (li) lines.push('URL;TYPE=LinkedIn:' + li);
+      }
       if (c.instagram) {
         const ig = instagramHref(c.instagram);
         if (ig) lines.push('URL;TYPE=Instagram:' + ig);
@@ -419,12 +452,15 @@
           bio.style.display = 'block';
         }
 
-        if (c.linkedin) {
-          const btn = document.getElementById('btn-linkedin');
-          btn.href = c.linkedin;
-          btn.style.display = 'flex';
+        if (String(c.linkedin || '').trim()) {
+          const href = linkedinHref(c.linkedin);
+          if (href) {
+            const btn = document.getElementById('btn-linkedin');
+            btn.href = href;
+            btn.style.display = 'flex';
+          }
         }
-        if (c.instagram) {
+        if (String(c.instagram || '').trim()) {
           const href = instagramHref(c.instagram);
           if (href) {
             const btn = document.getElementById('btn-instagram');
