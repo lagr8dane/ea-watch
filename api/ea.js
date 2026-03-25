@@ -429,6 +429,12 @@ function sendText(res, text) {
 /**
  * @returns {Promise<boolean>} true if the request was fully handled
  */
+/** Prefer native Spotify app on iOS (spotify:) over https://open.spotify.com in Safari. */
+function spotifyOpenUrl(found) {
+  if (found?.uri && String(found.uri).startsWith('spotify:')) return found.uri;
+  return found?.openUrl || null;
+}
+
 async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
   if (!spotifyConfigured()) {
     sendText(
@@ -468,7 +474,7 @@ async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
         'Spotify is not connected for this account yet. Tap below to connect, then say your play command again.'
       );
       res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url }] })}\n\n`);
-      await logUserEvent(sessionId, 'ea_spotify_play', { error: 'not_connected' }, 'error');
+      await logUserEvent(sessionId, 'ea_spotify_play', { error: 'not_connected' }, 'failed');
       res.write('data: [DONE]\n\n');
       res.end();
       return true;
@@ -486,7 +492,7 @@ async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
 
     if (!found?.uri) {
       sendText(res, `No track or playlist matched "${intent.query}". Try different words or an artist plus song title.`);
-      await logUserEvent(sessionId, 'ea_spotify_play', { query: intent.query.slice(0, 80), error: 'no_match' }, 'error');
+      await logUserEvent(sessionId, 'ea_spotify_play', { query: intent.query.slice(0, 80), error: 'no_match' }, 'failed');
       res.write('data: [DONE]\n\n');
       res.end();
       return true;
@@ -519,10 +525,11 @@ async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
         playResult.message ||
           'No Spotify device found. Open Spotify on your phone and try again, or use the link below.'
       );
-      if (found.openUrl) {
-        res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url: found.openUrl }] })}\n\n`);
+      const open = spotifyOpenUrl(found);
+      if (open) {
+        res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url: open }] })}\n\n`);
       }
-      await logUserEvent(sessionId, 'ea_spotify_play', { error: 'no_device' }, 'error');
+      await logUserEvent(sessionId, 'ea_spotify_play', { error: 'no_device' }, 'failed');
       res.write('data: [DONE]\n\n');
       res.end();
       return true;
@@ -533,20 +540,22 @@ async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
         res,
         'Spotify did not allow remote playback for this account — a Premium subscription is usually required to start playback from another app.'
       );
-      if (found.openUrl) {
-        res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url: found.openUrl }] })}\n\n`);
+      const open = spotifyOpenUrl(found);
+      if (open) {
+        res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url: open }] })}\n\n`);
       }
-      await logUserEvent(sessionId, 'ea_spotify_play', { error: 'premium' }, 'error');
+      await logUserEvent(sessionId, 'ea_spotify_play', { error: 'premium' }, 'failed');
       res.write('data: [DONE]\n\n');
       res.end();
       return true;
     }
 
     sendText(res, `Could not start playback: ${playResult.message || 'unknown error'}`);
-    if (found.openUrl) {
-      res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url: found.openUrl }] })}\n\n`);
+    const open = spotifyOpenUrl(found);
+    if (open) {
+      res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url: open }] })}\n\n`);
     }
-    await logUserEvent(sessionId, 'ea_spotify_play', { error: 'playback' }, 'error');
+    await logUserEvent(sessionId, 'ea_spotify_play', { error: 'playback' }, 'failed');
     res.write('data: [DONE]\n\n');
     res.end();
     return true;
