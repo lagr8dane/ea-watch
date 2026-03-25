@@ -70,25 +70,39 @@ export default async function handler(req, res) {
     const radius_miles = Math.min(100, Math.max(5, num(body.radius_miles, 25)));
     const range_description = String(body.range_description || '').trim();
     const radar_kind = body.radar_kind === 'places' ? 'places' : 'ideas';
+    const idea_prompt =
+      radar_kind === 'ideas'
+        ? String(body.idea_prompt ?? '')
+            .trim()
+            .slice(0, 600)
+        : '';
 
     if (radar_kind === 'ideas' && !range_description) {
       return res.status(400).json({ error: 'range_description required' });
     }
 
     let interests = parseRadarInterests(String(body.interests || ''));
-    if (interests.length === 0) {
+    // Ideas + idea_prompt: don’t merge Settings topics again (client pre-fills the prompt; avoids duplicate brief).
+    const skipSavedTopicsMerge =
+      radar_kind === 'ideas' && Boolean(idea_prompt);
+    if (interests.length === 0 && !skipSavedTopicsMerge) {
       const row = await queryOne(
         `SELECT interest_radar_topics FROM owner_config WHERE id = ?`,
         [session.owner_id]
       );
       interests = parseRadarInterests(row?.interest_radar_topics ?? '');
     }
-    if (interests.length === 0) {
-      const hint =
-        radar_kind === 'places'
-          ? 'Describe what to find (e.g. cocktail bar, sushi, museum) in the box or save defaults in Settings → Interest radar.'
-          : 'Add at least one interest (in the form or Settings → Interest radar topics).';
-      return res.status(400).json({ error: hint });
+    if (interests.length === 0 && radar_kind === 'places') {
+      return res.status(400).json({
+        error:
+          'Pick place types or add a description, or save defaults in Settings → Interest radar.',
+      });
+    }
+    if (interests.length === 0 && radar_kind === 'ideas' && !idea_prompt) {
+      return res.status(400).json({
+        error:
+          'Describe what you’re looking for (saved topics load into the box when you open this page), or add defaults in Settings → Interest radar.',
+      });
     }
 
     const windowKey = String(body.window || 'week').slice(0, 32);
@@ -151,6 +165,7 @@ export default async function handler(req, res) {
       radiusMiles: radius_miles,
       rangeDescription: range_description,
       interests,
+      ideaPrompt: idea_prompt || undefined,
     });
 
     const items = await enrichItemsWithDistance(rawItems, {
@@ -168,6 +183,7 @@ export default async function handler(req, res) {
         radius_miles,
         item_count: items.length,
         interest_count: interests.length,
+        idea_prompt: idea_prompt ? 1 : 0,
       },
       'success'
     );

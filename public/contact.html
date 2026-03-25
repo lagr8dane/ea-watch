@@ -174,6 +174,7 @@
     .icon-calendar  { background: #1a1a1a; border: 1px solid var(--border); }
     .icon-message   { background: #1a7f37; }
     .icon-whatsapp  { background: #25D366; }
+    .icon-vcard     { background: #2d2d2d; border: 1px solid var(--border); }
 
     /* Bio */
     .bio {
@@ -265,6 +266,19 @@
         <svg class="btn-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
       </a>
 
+      <!-- Optional: save to address book (not required to connect) -->
+      <button type="button" class="btn" id="btn-vcard" style="display:none" aria-label="Download contact card">
+        <div class="btn-icon icon-vcard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div class="btn-label">Add to Contacts<span>Download a .vcf card (optional)</span></div>
+        <svg class="btn-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+
     </div>
 
     <div class="footer">Shared via EA Watch</div>
@@ -272,6 +286,8 @@
   </div>
 
   <script>
+    let lastPublicCard = null;
+
     function instagramHref(raw) {
       const s = (raw || '').trim();
       if (!s) return '';
@@ -279,6 +295,83 @@
       const h = s.replace(/^@/, '').replace(/\/+$/, '');
       if (!h) return '';
       return `https://www.instagram.com/${encodeURIComponent(h)}/`;
+    }
+
+    function vcardEscape(s) {
+      return String(s ?? '')
+        .replace(/\\/g, '\\\\')
+        .replace(/\n/g, '\\n')
+        .replace(/;/g, '\\;')
+        .replace(/,/g, '\\,');
+    }
+
+    /** vCard 3.0 N: Family;Given;Middle;Prefix;Suffix */
+    function vcardNFromFn(fn) {
+      const t = String(fn || '').trim();
+      if (!t) return ';;;;';
+      const parts = t.split(/\s+/).filter(Boolean);
+      if (parts.length === 1) return `;${vcardEscape(parts[0])};;;`;
+      const family = parts[parts.length - 1];
+      const given = parts.slice(0, -1).join(' ');
+      return `${vcardEscape(family)};${vcardEscape(given)};;;`;
+    }
+
+    function normalizeTelDigits(s) {
+      const t = String(s || '').trim();
+      if (!t) return '';
+      if (t.startsWith('+')) return '+' + t.slice(1).replace(/\D/g, '');
+      const d = t.replace(/\D/g, '');
+      return d || '';
+    }
+
+    function buildVcard(c) {
+      const fn = String(c.display_name || '').trim();
+      if (!fn) return '';
+      const lines = ['BEGIN:VCARD', 'VERSION:3.0', 'FN:' + vcardEscape(fn), 'N:' + vcardNFromFn(fn)];
+      if (c.title) lines.push('TITLE:' + vcardEscape(String(c.title)));
+      if (c.bio) lines.push('NOTE:' + vcardEscape(String(c.bio)));
+      if (c.linkedin) lines.push('URL;TYPE=LinkedIn:' + String(c.linkedin).trim());
+      if (c.instagram) {
+        const ig = instagramHref(c.instagram);
+        if (ig) lines.push('URL;TYPE=Instagram:' + ig);
+      }
+      if (c.calendly) lines.push('URL;TYPE=Schedule:' + String(c.calendly).trim());
+      const tel =
+        normalizeTelDigits(c.imessage) || normalizeTelDigits(c.whatsapp);
+      if (tel) lines.push('TEL;TYPE=CELL:' + vcardEscape(tel));
+      if (c.avatar_url) lines.push('PHOTO;VALUE=URI:' + String(c.avatar_url).trim());
+      lines.push('END:VCARD');
+      return lines.join('\r\n');
+    }
+
+    function safeVcardFilename(name) {
+      const base = String(name || 'contact')
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .slice(0, 60) || 'contact';
+      return base + '.vcf';
+    }
+
+    function wireVcardButton() {
+      const btn = document.getElementById('btn-vcard');
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        const c = lastPublicCard;
+        if (!c || !String(c.display_name || '').trim()) return;
+        const body = buildVcard(c);
+        if (!body) return;
+        const blob = new Blob([body], { type: 'text/vcard;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = safeVcardFilename(c.display_name);
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
     }
 
     async function loadCard() {
@@ -345,11 +438,17 @@
           btn.href = `https://wa.me/${c.whatsapp.replace(/\D/g,'')}`;
           btn.style.display = 'flex';
         }
+
+        lastPublicCard = c;
+        if (String(c.display_name || '').trim()) {
+          document.getElementById('btn-vcard').style.display = 'flex';
+        }
       } catch (e) {
         // Fail silently — static fallback content is already visible
       }
     }
 
+    wireVcardButton();
     loadCard();
   </script>
 </body>

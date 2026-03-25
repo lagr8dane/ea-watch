@@ -77,13 +77,30 @@
     .card h3 { font-size: 15px; font-weight: 600; line-height: 1.35; margin-bottom: 6px; }
     .card .meta { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
     .card .summary { font-size: 14px; color: #ccc; line-height: 1.45; margin-bottom: 12px; }
-    .card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .card-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-actions-primary {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
+    .card-actions .radar-copy-btn {
+      margin-left: auto;
+      color: var(--muted);
+      border-color: var(--border);
+    }
+    .card-actions .radar-copy-btn:hover { color: var(--hi); border-color: rgba(138,180,255,0.35); }
     .card-actions a {
       color: var(--hi); font-size: 14px; text-decoration: none; font-weight: 500;
     }
     .card-actions a:hover { text-decoration: underline; }
-    .card-actions .radar-copy-btn { color: var(--muted); border-color: var(--border); }
-    .card-actions .radar-copy-btn:hover { color: var(--hi); border-color: rgba(138,180,255,0.35); }
 
     .due-picker {
       margin-top: 12px; margin-bottom: 10px;
@@ -117,6 +134,54 @@
     .mode-block { margin-bottom: 4px; }
     .when-note { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.4; display: none; }
     .when-note.visible { display: block; }
+
+    .ideas-prompt-wrap { display: none; margin-top: 4px; }
+    .ideas-prompt-wrap.visible { display: block; }
+    .ideas-prompt-wrap textarea {
+      min-height: 100px;
+      margin-top: 8px;
+    }
+    .field-hint {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+      margin-top: 8px;
+    }
+
+    .places-query-wrap { display: none; margin-top: 4px; }
+    .places-query-wrap.visible { display: block; }
+    .places-types {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .places-types .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+      margin: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .places-types .chip.chip-on {
+      border-color: var(--hi);
+      background: rgba(138,180,255,0.12);
+    }
+    .places-types .chip input {
+      accent-color: var(--hi);
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      cursor: pointer;
+    }
 
     .radar-working {
       display: none;
@@ -195,8 +260,31 @@
     </div>
     <p class="when-note" id="when-note-places">For <strong>Find places</strong>, <em>Tonight</em> adds an “open now” filter. Other options don’t change the Places query yet.</p>
 
-    <label id="interests-label">Interests (comma or line — saved in Settings too)</label>
-    <textarea id="interests" placeholder="mountain biking, photography, museums, art"></textarea>
+    <div class="ideas-prompt-wrap visible" id="ideas-prompt-wrap">
+      <label>What you’re looking for</label>
+      <textarea id="idea_prompt" placeholder="e.g. Low-key date night, kid-friendly if it rains, photography spots…" maxlength="600" autocomplete="off"></textarea>
+      <p class="field-hint">Saved <strong>Interest radar</strong> topics from Settings load here when you open the page (once). Edit freely for this run only — switching modes keeps your text.</p>
+    </div>
+
+    <div class="places-query-wrap" id="places-query-wrap">
+      <label>Place types</label>
+      <div class="places-types" role="group" aria-label="Place types">
+        <label class="chip"><input type="checkbox" class="places-type-cb" data-q="restaurant"> Restaurant</label>
+        <label class="chip"><input type="checkbox" class="places-type-cb" data-q="bar"> Bar</label>
+        <label class="chip"><input type="checkbox" class="places-type-cb" data-q="cafe"> Café</label>
+        <label class="chip"><input type="checkbox" class="places-type-cb" data-q="coffee shop"> Coffee</label>
+        <label class="chip"><input type="checkbox" class="places-type-cb" data-q="museum"> Museum</label>
+        <label class="chip"><input type="checkbox" class="places-type-cb" data-q="bakery"> Bakery</label>
+        <label class="chip"><input type="checkbox" class="places-type-cb" data-q="park"> Park</label>
+        <label class="chip"><input type="checkbox" class="places-type-cb" data-q="gym"> Gym</label>
+        <label class="chip"><input type="checkbox" class="places-type-cb" data-q="nightclub"> Nightlife</label>
+        <label class="chip"><input type="checkbox" class="places-type-cb" data-q="bookstore"> Bookstore</label>
+        <label class="chip"><input type="checkbox" class="places-type-cb" data-q="hotel"> Hotel</label>
+      </div>
+      <label style="margin-top:14px">More specific (optional)</label>
+      <input type="text" id="places_descriptor" maxlength="120" placeholder="e.g. Italian, rooftop, kid-friendly" autocomplete="off">
+      <p class="field-hint">We combine checked types with this line for the Places search. Your choices persist if you switch to Ideas and back.</p>
+    </div>
 
     <div class="row" style="margin-top:18px">
       <button type="button" class="btn btn-primary" id="btn-run">Run radar</button>
@@ -221,7 +309,7 @@
     let radarKind = 'ideas';
 
     const HINT_IDEAS = 'Ideas mode: exploratory things to do near a verified spot. Uses web search — verify times and tickets on each link.';
-    const HINT_PLACES = 'Find places: bars, restaurants, cafés, museums, etc. Describe what you want in the text box (e.g. “cocktail bar”, “ramen”, “modern art museum”). Uses Google Places on the server.';
+    const HINT_PLACES = 'Find places: pick types below, add an optional note (e.g. sushi, rooftop), then run. Uses Google Places on the server.';
 
     function syncModeUi() {
       document.querySelectorAll('#radar-kind-seg button').forEach(function (x) {
@@ -229,15 +317,20 @@
       });
       document.getElementById('radar-hint').textContent =
         radarKind === 'places' ? HINT_PLACES : HINT_IDEAS;
-      document.getElementById('interests-label').textContent =
-        radarKind === 'places'
-          ? 'What to find (comma or line — e.g. sushi, wine bar, science museum)'
-          : 'Interests (comma or line — saved in Settings too)';
-      document.getElementById('interests').placeholder =
-        radarKind === 'places'
-          ? 'cocktail bar, italian dinner, contemporary art museum'
-          : 'mountain biking, photography, museums, art';
       document.getElementById('when-note-places').classList.toggle('visible', radarKind === 'places');
+      document.getElementById('ideas-prompt-wrap').classList.toggle('visible', radarKind === 'ideas');
+      document.getElementById('places-query-wrap').classList.toggle('visible', radarKind === 'places');
+    }
+
+    function buildPlacesInterestsString() {
+      const parts = [];
+      document.querySelectorAll('.places-type-cb:checked').forEach(function (cb) {
+        const q = (cb.getAttribute('data-q') || '').trim();
+        if (q) parts.push(q);
+      });
+      const desc = (document.getElementById('places_descriptor')?.value || '').trim();
+      if (desc) parts.push(desc);
+      return parts.join(', ');
     }
 
     function showErr(t) {
@@ -359,6 +452,18 @@
         syncModeUi();
       });
     });
+
+    function syncPlacesChipStyles() {
+      document.querySelectorAll('.places-type-cb').forEach(function (cb) {
+        const chip = cb.closest('.chip');
+        if (chip) chip.classList.toggle('chip-on', cb.checked);
+      });
+    }
+    document.querySelectorAll('.places-type-cb').forEach(function (cb) {
+      cb.addEventListener('change', syncPlacesChipStyles);
+    });
+    syncPlacesChipStyles();
+
     syncModeUi();
 
     function longDate(d) {
@@ -603,7 +708,11 @@
       document.getElementById('btn-locate').disabled = busy;
       document.getElementById('address').disabled = busy;
       document.getElementById('radius').disabled = busy;
-      document.getElementById('interests').disabled = busy;
+      const ip = document.getElementById('idea_prompt');
+      if (ip) ip.disabled = busy;
+      document.querySelectorAll('.places-type-cb').forEach(function (cb) { cb.disabled = busy; });
+      const pd = document.getElementById('places_descriptor');
+      if (pd) pd.disabled = busy;
       document.querySelectorAll('#when-seg button').forEach(function (b) { b.disabled = busy; });
       document.querySelectorAll('#radar-kind-seg button').forEach(function (b) { b.disabled = busy; });
     }
@@ -619,7 +728,7 @@
         const emptyMsg =
           data.radar_kind === 'places'
             ? 'No places matched. Try different words (e.g. “tapas”, “brewery”), a wider radius, or turn off “open now” by picking Tomorrow instead of Tonight.'
-            : 'No results with solid links. Try a wider radius, different window, or broader interests.';
+            : 'No results with solid links. Try a wider radius, different window, or a different prompt.';
         document.getElementById('results').innerHTML = '<div class="empty">' + esc(emptyMsg) + '</div>';
         return;
       }
@@ -643,9 +752,11 @@
           (it.summary ? '<div class="summary">' + esc(it.summary) + '</div>' : '') +
           buildDuePickerHtml(idx, it) +
           '<div class="card-actions">' +
+          '<div class="card-actions-primary">' +
           '<a href="' + escAttr(it.url) + '" target="_blank" rel="noopener noreferrer">Open source</a>' +
-          '<button type="button" class="btn btn-small radar-copy-btn" data-idx="' + idx + '" data-copy-label="Copy" aria-label="Copy this result to clipboard">Copy</button>' +
           '<button type="button" class="btn btn-small add-task-btn" data-idx="' + idx + '">Add task</button>' +
+          '</div>' +
+          '<button type="button" class="btn btn-small radar-copy-btn" data-idx="' + idx + '" data-copy-label="Copy" aria-label="Copy this result to clipboard">Copy</button>' +
           '</div></div>'
         );
       }).join('');
@@ -693,8 +804,24 @@
 
     async function executeRadarSearchCore() {
       const radius = parseInt(document.getElementById('radius').value, 10) || 25;
-      const interests = document.getElementById('interests').value.trim();
       const range_description = describeWindow(windowKey);
+      let interests = '';
+      let idea_prompt = '';
+
+      if (radarKind === 'ideas') {
+        idea_prompt = (document.getElementById('idea_prompt')?.value || '').trim();
+        if (!idea_prompt) {
+          throw new Error(
+            'Describe what you’re looking for above. If Settings → Interest radar is empty, type your own prompt.'
+          );
+        }
+      } else {
+        interests = buildPlacesInterestsString();
+        if (!interests) {
+          throw new Error('Pick at least one place type or add a short note under “More specific”.');
+        }
+      }
+
       const data = await apiPost({
         lat: selLat,
         lon: selLon,
@@ -704,6 +831,7 @@
         interests: interests,
         window: windowKey,
         radar_kind: radarKind,
+        idea_prompt: idea_prompt,
       });
       renderRadarResponse(data);
     }
@@ -814,8 +942,9 @@
         const res = await fetch('/api/config', { credentials: 'same-origin' });
         if (!res.ok) return;
         const c = await res.json();
-        if (c.interest_radar_topics && !document.getElementById('interests').value.trim()) {
-          document.getElementById('interests').value = c.interest_radar_topics;
+        const ip = document.getElementById('idea_prompt');
+        if (c.interest_radar_topics && ip && !ip.value.trim()) {
+          ip.value = c.interest_radar_topics;
         }
       } catch { /* ignore */ }
     }
@@ -843,7 +972,7 @@
           radarKind === 'places' ? 'Finding places…' : 'Searching the web…',
           radarKind === 'places'
             ? 'Google Places near your location.'
-            : 'Matching your interests near you — often 30–60 seconds. Keep this tab open.'
+            : 'Searching from your prompt — often 30–60 seconds. Keep this tab open.'
         );
         await executeRadarSearchCore();
       } catch (e) {
@@ -859,6 +988,6 @@
       await maybeAutoRunFromChip();
     })();
   </script>
-  <script src="/nav.js?v=radar6" defer></script>
+  <script src="/nav.js?v=radar8" defer></script>
 </body>
 </html>
