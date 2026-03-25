@@ -91,6 +91,19 @@
       padding: 0 20px;
     }
 
+    .section-group-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 36px 20px 8px;
+      padding-left: 4px;
+    }
+    .section-group-title.first {
+      margin-top: 12px;
+    }
+
     .section-title {
       font-size: 11px;
       font-weight: 600;
@@ -289,6 +302,8 @@
 
   <div class="toast" id="toast"></div>
 
+  <p class="section-group-title first">You &amp; contact card</p>
+
   <!-- Photo -->
   <div class="section">
     <div class="section-title">Profile photo</div>
@@ -322,116 +337,6 @@
         <input type="text" id="title" placeholder="Technology Executive" autocomplete="organization-title">
       </div>
       <div class="field-note">Same name and title appear on your <a href="/contact" style="color:#8ab4ff">public contact card</a> when someone taps your watch.</div>
-    </div>
-  </div>
-
-  <!-- Session -->
-  <div class="section">
-    <div class="section-title">Session</div>
-    <div class="section-body">
-      <div class="field range-field">
-        <div class="range-left">
-          <label>Active window</label>
-          <div class="range-value"><span id="window-val">60</span> min</div>
-        </div>
-        <input type="range" id="session_window_mins" min="15" max="480" step="15" value="60"
-               oninput="document.getElementById('window-val').textContent = this.value">
-      </div>
-      <div class="field">
-        <label>Challenge style</label>
-        <select id="challenge_style">
-          <option value="word_then_pin">Passphrase, PIN as fallback (default)</option>
-          <option value="word">Passphrase only</option>
-          <option value="pin">PIN only</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Challenge phrase</label>
-        <input type="text" id="challenge_phrase" placeholder="Hey — it's been a while. What's the word?">
-      </div>
-    </div>
-  </div>
-
-  <!-- Credentials -->
-  <div class="section">
-    <div class="section-title">Credentials</div>
-    <div class="section-body">
-      <div class="field">
-        <label>PIN (4–6 digits)</label>
-        <input type="password" id="pin" inputmode="numeric" placeholder="leave blank to keep existing" autocomplete="new-password">
-      </div>
-      <div class="field">
-        <label>Access word</label>
-        <input type="password" id="access_word" placeholder="leave blank to keep existing" autocomplete="new-password">
-      </div>
-      <div class="field">
-        <label>Danger word</label>
-        <input type="password" id="danger_word" placeholder="leave blank to keep existing" autocomplete="new-password">
-      </div>
-      <div class="field-note">
-        Credentials are hashed before storage and never retrievable. Leave blank to keep existing values. The danger word authenticates normally but opens a restricted EA and alerts your trusted contact.
-      </div>
-    </div>
-  </div>
-
-  <!-- Alerts -->
-  <div class="section">
-    <div class="section-title">Danger word alert</div>
-    <div class="section-body">
-      <div class="field">
-        <label>Alert phone (iMessage)</label>
-        <input type="tel" id="alert_phone" placeholder="+1 555 000 0000" autocomplete="tel">
-      </div>
-      <div class="field">
-        <label>Alert email (fallback)</label>
-        <input type="email" id="alert_email" placeholder="trusted@example.com" autocomplete="email">
-      </div>
-    </div>
-  </div>
-
-  <!-- EA Personality -->
-  <div class="section">
-    <div class="section-title">EA Personality</div>
-    <div class="section-body">
-      <div class="field">
-        <label>System prompt</label>
-        <textarea id="ea_personality" placeholder="You are EA, a personal assistant for Marco. You are direct, efficient, and intelligent. Keep responses concise."></textarea>
-      </div>
-    </div>
-  </div>
-
-  <!-- Morning briefing -->
-  <div class="section">
-    <div class="section-title">Morning briefing</div>
-    <div class="section-body">
-      <div class="field">
-        <label>News topics (optional)</label>
-        <textarea id="briefing_interests" placeholder="e.g. Premier League, climate policy, Reno" style="min-height:72px"></textarea>
-      </div>
-      <div class="field">
-        <label>Stock tickers (optional)</label>
-        <input type="text" id="briefing_tickers" placeholder="AAPL, MSFT, VTI" autocomplete="off">
-      </div>
-      <div class="field-note">
-        Up to five topics (comma or newline) personalize NewsAPI search. Tickers open Apple Stocks and Yahoo Finance from the briefing panels. Owner-only — not shown on the stranger card.
-      </div>
-    </div>
-  </div>
-
-  <!-- Interest radar (separate from news topics) -->
-  <div class="section">
-    <div class="section-title">Interest radar</div>
-    <div class="section-body">
-      <div class="field-note" style="margin-bottom:14px">
-        Find things to do near you (events, venues, trails, museums). Open <a href="/interest-radar" style="color:#8ab4ff">Interest radar</a> after saving.
-      </div>
-      <div class="field">
-        <label>Hobbies &amp; activities</label>
-        <textarea id="interest_radar_topics" placeholder="e.g. mountain biking, photography, museums, art, live music" style="min-height:88px"></textarea>
-      </div>
-      <div class="field-note">
-        Comma or newline, up to eight interests. Used only for Interest radar — not the same as <strong>News topics</strong> above.
-      </div>
     </div>
   </div>
 
@@ -505,9 +410,124 @@
     </div>
   </div>
 
-  <!-- Danger zone -->
+  <p class="section-group-title">Assistant</p>
+
+  <!-- EA Personality -->
   <div class="section">
-    <div class="section-title">Device</div>
+    <div class="section-title">EA Personality</div>
+    <div class="section-body">
+      <div class="field">
+        <label>System prompt</label>
+        <textarea id="ea_personality" placeholder="You are EA, a personal assistant for Marco. You are direct, efficient, and intelligent. Keep responses concise."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Morning briefing -->
+  <div class="section">
+    <div class="section-title">Morning briefing</div>
+    <div class="section-body">
+      <div class="field">
+        <label>News topics (optional)</label>
+        <textarea id="briefing_interests" placeholder="e.g. Premier League, climate policy, Reno" style="min-height:72px"></textarea>
+      </div>
+      <div class="field">
+        <label>Stock tickers (optional)</label>
+        <input type="text" id="briefing_tickers" placeholder="AAPL, MSFT, VTI" autocomplete="off">
+      </div>
+      <div class="field-note">
+        Up to five topics (comma or newline) personalize NewsAPI search. Tickers open Apple Stocks and Yahoo Finance from the briefing panels. Owner-only — not shown on the stranger card.
+      </div>
+    </div>
+  </div>
+
+  <!-- Interest radar (separate from news topics) -->
+  <div class="section">
+    <div class="section-title">Interest radar</div>
+    <div class="section-body">
+      <div class="field-note" style="margin-bottom:14px">
+        Find things to do near you (events, venues, trails, museums). Open <a href="/interest-radar" style="color:#8ab4ff">Interest radar</a> after saving.
+      </div>
+      <div class="field">
+        <label>Hobbies &amp; activities</label>
+        <textarea id="interest_radar_topics" placeholder="e.g. mountain biking, photography, museums, art, live music" style="min-height:88px"></textarea>
+      </div>
+      <div class="field-note">
+        Comma or newline, up to eight interests. Used only for Interest radar — not the same as <strong>News topics</strong> above.
+      </div>
+    </div>
+  </div>
+
+  <p class="section-group-title">Access &amp; safety</p>
+
+  <!-- Session -->
+  <div class="section">
+    <div class="section-title">Session</div>
+    <div class="section-body">
+      <div class="field range-field">
+        <div class="range-left">
+          <label>Active window</label>
+          <div class="range-value"><span id="window-val">60</span> min</div>
+        </div>
+        <input type="range" id="session_window_mins" min="15" max="480" step="15" value="60"
+               oninput="document.getElementById('window-val').textContent = this.value">
+      </div>
+      <div class="field">
+        <label>Challenge style</label>
+        <select id="challenge_style">
+          <option value="word_then_pin">Passphrase, PIN as fallback (default)</option>
+          <option value="word">Passphrase only</option>
+          <option value="pin">PIN only</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Challenge phrase</label>
+        <input type="text" id="challenge_phrase" placeholder="Hey — it's been a while. What's the word?">
+      </div>
+    </div>
+  </div>
+
+  <!-- Credentials -->
+  <div class="section">
+    <div class="section-title">Credentials</div>
+    <div class="section-body">
+      <div class="field">
+        <label>PIN (4–6 digits)</label>
+        <input type="password" id="pin" inputmode="numeric" placeholder="leave blank to keep existing" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label>Access word</label>
+        <input type="password" id="access_word" placeholder="leave blank to keep existing" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label>Danger word</label>
+        <input type="password" id="danger_word" placeholder="leave blank to keep existing" autocomplete="new-password">
+      </div>
+      <div class="field-note">
+        Credentials are hashed before storage and never retrievable. Leave blank to keep existing values. The danger word authenticates normally but opens a restricted EA and alerts your trusted contact.
+      </div>
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  <div class="section">
+    <div class="section-title">Danger word alert</div>
+    <div class="section-body">
+      <div class="field">
+        <label>Alert phone (iMessage)</label>
+        <input type="tel" id="alert_phone" placeholder="+1 555 000 0000" autocomplete="tel">
+      </div>
+      <div class="field">
+        <label>Alert email (fallback)</label>
+        <input type="email" id="alert_email" placeholder="trusted@example.com" autocomplete="email">
+      </div>
+    </div>
+  </div>
+
+  <p class="section-group-title">Device</p>
+
+  <div class="section">
+    <div class="section-title">Ownership</div>
     <div class="section-body">
       <button class="danger-btn" onclick="confirmTransfer()">Transfer ownership…</button>
     </div>
