@@ -132,6 +132,7 @@ TURSO_AUTH_TOKEN=your-token
 ANTHROPIC_API_KEY=your-key
 NEWSAPI_KEY=your-key (optional — richer news in briefings; RSS fallback without it)
 GOOGLE_PLACES_API_KEY=your-key (optional — Interest radar “Find places” mode)
+SPOTIFY_CLIENT_ID= / SPOTIFY_CLIENT_SECRET= (optional — EA “Play …” + Settings → Spotify)
 BLOB_READ_WRITE_TOKEN= (Vercel Blob — profile photo upload)
 RESEND_API_KEY=your-key (optional — danger word email alerts)
 ALERT_FROM_EMAIL=alerts@yourdomain.com (optional)

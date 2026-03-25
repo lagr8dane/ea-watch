@@ -32,6 +32,9 @@ function migrationHintFromSqlError(message) {
     avatar_url: 'node --env-file=.env scripts/db-migrate-avatar.js',
     stranger_focus: 'node --env-file=.env scripts/db-migrate-contact-presence.js',
     stranger_accent_hex: 'node --env-file=.env scripts/db-migrate-contact-presence.js',
+    spotify_refresh_token: 'node --env-file=.env scripts/db-migrate-spotify.js',
+    spotify_access_token: 'node --env-file=.env scripts/db-migrate-spotify.js',
+    spotify_token_expires_at: 'node --env-file=.env scripts/db-migrate-spotify.js',
   };
   const cmd = map[col] || map[col.split('.').pop()];
   if (cmd) {

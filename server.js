@@ -52,6 +52,11 @@ app.all('/api/tasks',            async (req, res) => (await loadHandler('api/tas
 app.all('/api/tasks/:id',        async (req, res) => (await loadHandler('api/tasks.js'))(req, res));
 app.all('/api/interest-radar',   async (req, res) => (await loadHandler('api/interest-radar.js'))(req, res));
 
+app.all('/api/spotify/login',      async (req, res) => (await loadHandler('api/spotify/login.js'))(req, res));
+app.all('/api/spotify/callback',   async (req, res) => (await loadHandler('api/spotify/callback.js'))(req, res));
+app.all('/api/spotify/status',     async (req, res) => (await loadHandler('api/spotify/status.js'))(req, res));
+app.all('/api/spotify/disconnect', async (req, res) => (await loadHandler('api/spotify/disconnect.js'))(req, res));
+
 // Page routes
 app.get('/',               (req, res) => res.redirect('/api/tap'));
 app.get('/stub',           (req, res) => res.sendFile(join(__dirname, 'public/stub.html')));

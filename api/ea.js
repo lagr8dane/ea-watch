@@ -12,6 +12,14 @@ import { fetchWeatherSnapshot, fetchNewsStories } from '../lib/briefing-data.js'
 import { parseDebugFlag, debugLog } from '../lib/debug-log.js';
 import { logUserEvent } from '../lib/user-event-log.js';
 import { parseTaskIntent } from '../lib/task-intent.js';
+import { parseSpotifyIntent } from '../lib/spotify-intent.js';
+import {
+  spotifyConfigured,
+  getAppBaseUrl,
+  getValidAccessToken,
+  searchPlayable,
+  startPlayback,
+} from '../lib/spotify.js';
 import {
   listTasks,
   createTask,
@@ -223,6 +231,17 @@ acknowledge it clearly and provide the relevant deeplink or instruction.`;
   res.setHeader('Connection', 'keep-alive');
 
   // -------------------------------------------------------------------------
+  // Spotify (play / connect) — regex intent, no Claude; before chains
+  // -------------------------------------------------------------------------
+  if (!isShell) {
+    const spIntent = parseSpotifyIntent(lastUserMessage);
+    if (spIntent) {
+      const handled = await handleSpotifyIntent(res, spIntent, session.owner_id, sessionId, debug);
+      if (handled) return;
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Chain handling — runs before Claude for owner sessions only
   // -------------------------------------------------------------------------
   if (!isShell && deviceId) {
@@ -405,6 +424,134 @@ function sendText(res, text) {
     const chunk = i < words.length - 1 ? words[i] + ' ' : words[i];
     res.write(`data: ${JSON.stringify({ delta: { text: chunk } })}\n\n`);
   }
+}
+
+/**
+ * @returns {Promise<boolean>} true if the request was fully handled
+ */
+async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
+  if (!spotifyConfigured()) {
+    sendText(
+      res,
+      'Spotify is not set up on this server yet. Add SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET to the deployment environment.'
+    );
+    res.write('data: [DONE]\n\n');
+    res.end();
+    return true;
+  }
+
+  if (intent.type === 'connect') {
+    const url = `${getAppBaseUrl()}/api/spotify/login`;
+    sendText(
+      res,
+      'Connect Spotify once so I can search and start playback on your active device. Tap below — you will sign in on Spotify, then return here.'
+    );
+    res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url }] })}\n\n`);
+    await logUserEvent(sessionId, 'ea_spotify_connect_prompt', {}, 'success');
+    res.write('data: [DONE]\n\n');
+    res.end();
+    return true;
+  }
+
+  if (intent.type === 'play') {
+    let access;
+    try {
+      access = await getValidAccessToken(ownerId);
+    } catch (e) {
+      debugLog(debug, 'ea', 'Spotify token refresh failed', e?.message);
+      access = null;
+    }
+    if (!access) {
+      const url = `${getAppBaseUrl()}/api/spotify/login`;
+      sendText(
+        res,
+        'Spotify is not connected for this account yet. Tap below to connect, then say your play command again.'
+      );
+      res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url }] })}\n\n`);
+      await logUserEvent(sessionId, 'ea_spotify_play', { error: 'not_connected' }, 'error');
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return true;
+    }
+
+    let found;
+    try {
+      found = await searchPlayable(access, intent.query);
+    } catch (e) {
+      sendText(res, `Spotify search failed: ${e.message || 'unknown error'}`);
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return true;
+    }
+
+    if (!found?.uri) {
+      sendText(res, `No track or playlist matched "${intent.query}". Try different words or an artist plus song title.`);
+      await logUserEvent(sessionId, 'ea_spotify_play', { query: intent.query.slice(0, 80), error: 'no_match' }, 'error');
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return true;
+    }
+
+    const playResult = await startPlayback(access, {
+      trackUri: found.kind === 'track' ? found.uri : undefined,
+      playlistUri: found.kind === 'playlist' ? found.uri : undefined,
+    });
+
+    if (playResult.ok) {
+      sendText(
+        res,
+        `Playing "${found.name}" on your active Spotify device. If nothing starts, open Spotify on your phone or speaker first.`
+      );
+      await logUserEvent(
+        sessionId,
+        'ea_spotify_play',
+        { query: intent.query.slice(0, 80), kind: found.kind, name: found.name?.slice(0, 120) },
+        'success'
+      );
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return true;
+    }
+
+    if (playResult.code === 'NO_DEVICE') {
+      sendText(
+        res,
+        'No active Spotify device found. Open Spotify on your phone, desktop, or web player, then try again. You can also open this in Spotify directly.'
+      );
+      if (found.openUrl) {
+        res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url: found.openUrl }] })}\n\n`);
+      }
+      await logUserEvent(sessionId, 'ea_spotify_play', { error: 'no_device' }, 'error');
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return true;
+    }
+
+    if (playResult.code === 'PREMIUM') {
+      sendText(
+        res,
+        'Spotify did not allow remote playback for this account — a Premium subscription is usually required to start playback from another app.'
+      );
+      if (found.openUrl) {
+        res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url: found.openUrl }] })}\n\n`);
+      }
+      await logUserEvent(sessionId, 'ea_spotify_play', { error: 'premium' }, 'error');
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return true;
+    }
+
+    sendText(res, `Could not start playback: ${playResult.message || 'unknown error'}`);
+    if (found.openUrl) {
+      res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url: found.openUrl }] })}\n\n`);
+    }
+    await logUserEvent(sessionId, 'ea_spotify_play', { error: 'playback' }, 'error');
+    res.write('data: [DONE]\n\n');
+    res.end();
+    return true;
+  }
+
+  return false;
 }
 
 async function handleTaskIntent(res, intent, ownerId, sessionId, debug) {

@@ -461,6 +461,26 @@
     </div>
   </div>
 
+  <!-- Spotify (EA chat — search & remote play) -->
+  <div class="section" id="spotify">
+    <div class="section-title">Spotify</div>
+    <div class="section-body">
+      <p class="field-note" style="margin-bottom:12px">
+        Connect once, then in EA say things like <strong>Play Rapper’s Delight</strong> or <strong>Put on Discover Weekly</strong>.
+        Playback starts on your <strong>active Spotify device</strong> (phone app, desktop, or web player). Premium is usually required for remote control.
+      </p>
+      <p id="spotify-status-line" class="field-note" style="margin-bottom:12px;color:#aaa"></p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+        <a id="spotify-connect-btn" href="/api/spotify/login" style="display:inline-block;text-decoration:none;text-align:center;padding:10px 16px;border-radius:10px;background:#1ed760;color:#111;font-weight:600;font-size:14px">
+          Connect Spotify
+        </a>
+        <button type="button" id="spotify-disconnect-btn" style="display:none;padding:10px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:transparent;color:#aaa;font-size:14px;cursor:pointer">
+          Disconnect
+        </button>
+      </div>
+    </div>
+  </div>
+
   <p class="section-group-title">Access &amp; safety</p>
 
   <!-- Session -->
@@ -793,6 +813,58 @@
     }
 
     load();
+
+    async function refreshSpotifyStatus() {
+      const line = document.getElementById('spotify-status-line');
+      const disc = document.getElementById('spotify-disconnect-btn');
+      const conn = document.getElementById('spotify-connect-btn');
+      if (!line || !disc || !conn) return;
+      try {
+        const res = await fetch('/api/spotify/status', { credentials: 'same-origin' });
+        if (res.status === 401) {
+          line.textContent = 'Sign in from your watch flow to connect Spotify.';
+          disc.style.display = 'none';
+          conn.style.display = 'inline-block';
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data.spotify_connected) {
+          line.textContent = 'Spotify is connected. Say e.g. Play followed by a song or playlist name in EA.';
+          disc.style.display = 'inline-block';
+          conn.style.display = 'none';
+        } else {
+          line.textContent = 'Not connected yet.';
+          disc.style.display = 'none';
+          conn.style.display = 'inline-block';
+        }
+      } catch {
+        line.textContent = '';
+      }
+    }
+
+    function initSpotifyPanel() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('spotify') === 'connected') {
+        showToast('Spotify connected', 3000);
+        history.replaceState(null, '', window.location.pathname + window.location.hash);
+      } else if (params.get('spotify') === 'error') {
+        showToast('Spotify: ' + (params.get('reason') || 'something went wrong'), 6000);
+        history.replaceState(null, '', window.location.pathname + window.location.hash);
+      }
+      refreshSpotifyStatus();
+      document.getElementById('spotify-disconnect-btn')?.addEventListener('click', async function () {
+        try {
+          const res = await fetch('/api/spotify/disconnect', { method: 'POST', credentials: 'same-origin' });
+          if (res.ok) showToast('Spotify disconnected', 2500);
+          else showToast('Could not disconnect', 4000);
+        } catch {
+          showToast('Connection error', 4000);
+        }
+        refreshSpotifyStatus();
+      });
+    }
+
+    initSpotifyPanel();
 
     // --- Nav drawer ---
     (function() {

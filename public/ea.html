@@ -1648,6 +1648,8 @@
       if (url.startsWith('facetime'))     return 'FaceTime';
       if (url.startsWith('sms:'))         return 'Messages';
       if (url.startsWith('spotify:'))     return 'Spotify';
+      if (url.includes('/api/spotify/login')) return 'Connect Spotify';
+      if (url.startsWith('https://open.spotify.com')) return 'Spotify';
       if (url.startsWith('shortcuts://')) return 'Shortcut';
       if (url.startsWith('clock-timer:'))  return 'Timer';
       if (url.startsWith('App-Prefs:'))   return 'Settings';
