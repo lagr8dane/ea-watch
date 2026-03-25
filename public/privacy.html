@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>Privacy — EA Watch</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a;
+      --text: #f0f0f0;
+      --muted: #888;
+      --border: rgba(255,255,255,0.08);
+    }
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
+      min-height: 100%;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    header h1 { font-size: 17px; font-weight: 600; }
+    .nav-btn {
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 22px;
+      padding: 8px 10px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    main { padding: 20px 20px 48px; max-width: 40rem; margin: 0 auto; }
+    main h2 { font-size: 15px; font-weight: 600; margin: 28px 0 10px; }
+    main h2:first-of-type { margin-top: 8px; }
+    main p, main li { font-size: 15px; color: #ccc; margin-bottom: 12px; }
+    main ul { padding-left: 1.25rem; margin-bottom: 12px; }
+    main a { color: #8ab4ff; }
+    .meta { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <header>
+    <button type="button" class="nav-btn" onclick="navOpen()" aria-label="Menu">☰</button>
+    <h1>Privacy</h1>
+    <span style="width:36px" aria-hidden="true"></span>
+  </header>
+  <main>
+    <p class="meta">EA Watch — personal assistant and contact experience. This page summarizes how the app handles data in the current implementation.</p>
+
+    <h2>EA chat</h2>
+    <p>Ordinary conversation with EA is <strong>not</strong> saved as a full transcript in our database. The browser keeps a short in-memory history for the current tab so follow-up messages can include recent context; reloading the page clears that history.</p>
+
+    <h2>What we store (database)</h2>
+    <p>We use a SQLite database (Turso) for accounts, devices, sessions, settings, tasks, routines, and logs. Examples include:</p>
+    <ul>
+      <li><strong>action_log</strong> — structured events for some flows (e.g. routine picker, task actions from chat, weather/news/briefing chips, routine steps). Entries include metadata, not a dump of every chat message.</li>
+      <li><strong>owner_config</strong> — your settings, briefing preferences, contact-card fields, etc.</li>
+      <li><strong>sessions</strong> — session tokens (cookie-based auth), tied to your device.</li>
+    </ul>
+
+    <h2>Third-party services</h2>
+    <p>Message content is sent to <strong>Anthropic</strong> (Claude) when you use EA chat and related features. How Anthropic processes and retains data is governed by their policies. Other optional services (e.g. news, geocoding, Google Places for Interest radar) receive only what is needed for that request.</p>
+
+    <h2>Contact changes</h2>
+    <p>This app may evolve. Check this page and the repo README from time to time. For questions, contact the operator of your deployment.</p>
+
+    <p><a href="/ea">Back to EA</a> · <a href="/terms">Terms of service</a></p>
+  </main>
+  <script src="/nav.js?v=legal1" defer></script>
+  <script src="/legal-footer.js?v=1" defer></script>
+</body>
+</html>

@@ -64,6 +64,8 @@ app.get('/chains',         (req, res) => res.sendFile(join(__dirname, 'public/ch
 app.get('/action-log',     (req, res) => res.sendFile(join(__dirname, 'public/action-log.html')));
 app.get('/tasks',          (req, res) => res.sendFile(join(__dirname, 'public/tasks.html')));
 app.get('/interest-radar', (req, res) => res.sendFile(join(__dirname, 'public/interest-radar.html')));
+app.get('/privacy',        (req, res) => res.sendFile(join(__dirname, 'public/privacy.html')));
+app.get('/terms',          (req, res) => res.sendFile(join(__dirname, 'public/terms.html')));
 
 const PORT = process.env.PORT ?? 3000;
 app.listen(PORT, () => console.log(`> Ready at http://localhost:${PORT}`));

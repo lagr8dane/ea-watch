@@ -18,6 +18,8 @@
     { "source": "/action-log",                    "destination": "/action-log.html" },
     { "source": "/tasks",                         "destination": "/tasks.html" },
     { "source": "/interest-radar",                "destination": "/interest-radar.html" },
+    { "source": "/privacy",                       "destination": "/privacy.html" },
+    { "source": "/terms",                         "destination": "/terms.html" },
     { "source": "/api/tasks/:id",                 "destination": "/api/tasks" },
     { "source": "/api/chains/:id/steps/:stepId",  "destination": "/api/chains" },
     { "source": "/api/chains/:id/steps",          "destination": "/api/chains" },

@@ -24,6 +24,7 @@ The same physical object. Two entirely different experiences, determined by iden
 | Config app — grouped sections (You & card, Assistant, Access & safety, Device) | ✅ |
 | EA chat (Claude streaming, Web Speech input, plain-text formatting) | ✅ |
 | **Routines** — `/chains`, CRUD, engine, deeplinks/shortcuts/conditionals | ✅ |
+| **Media in routines** — Deeplink **`url`** for **Apple Podcasts** / **Apple Music** share links (`podcasts.apple.com`, `music.apple.com`); **`spotify`** kind for Spotify URIs/URLs | ✅ |
 | **Routines picker** + **Tasks** chip | ✅ |
 | **Morning briefing** — JSON panels (weather, news, quote, stocks) | ✅ |
 | **Quick chips** — Briefing, News, Weather, Mindful, Inspire me, Routines, Tasks, **Radar** | ✅ |
@@ -31,7 +32,7 @@ The same physical object. Two entirely different experiences, determined by iden
 | **Copy to clipboard** — EA bubbles/panels; radar cards | ✅ |
 | Action log `/action-log` | ✅ |
 
-**Post‑V1 themes:** productivity (focus, calendar-adjacent), optional **POI enrichment** beyond Places text search, voice/TTS only where validated, no duplicate of Apple/Spotify for podcasts.
+**Post‑V1 themes:** productivity (focus, calendar-adjacent), optional **POI enrichment** beyond Places text search, voice/TTS only where validated. **Podcasts:** open in Apple Podcasts / Spotify via routine deeplinks — EA does not embed a player (see [HANDOFF.md](HANDOFF.md) for defaults discussion).
 
 ---
 
@@ -48,6 +49,8 @@ The same physical object. Two entirely different experiences, determined by iden
 | Contact card | `https://ea-watch.vercel.app/contact` |
 | Challenge | `https://ea-watch.vercel.app/challenge` |
 | Config app | `https://ea-watch.vercel.app/config` |
+| Privacy | `https://ea-watch.vercel.app/privacy` |
+| Terms of service | `https://ea-watch.vercel.app/terms` |
 | NFC stub (dev only) | `https://ea-watch.vercel.app/stub` |
 
 ---
@@ -67,7 +70,7 @@ ea-watch/
 │   ├── config/public.js
 │   └── dev/tap.js
 ├── public/
-│   ├── ea.html, config.html, interest-radar.html, contact.html, …
+│   ├── ea.html, config.html, interest-radar.html, contact.html, privacy.html, terms.html, nav.js, legal-footer.js, …
 ├── lib/
 │   ├── briefing-data.js        # Weather, news, reverse geocode label
 │   ├── geocode.js              # Photon + Open-Meteo; Nominatim; radar distances
@@ -196,6 +199,14 @@ Additional: session expiry on EA and config endpoints. Shell sessions cannot acc
 
 ---
 
+## Privacy & EA chat data
+
+- **No server-side chat transcript:** Ordinary EA conversation (questions and replies) is **not** written to the database. The browser keeps a **short in-memory history** for the current `/ea` tab so the next request can include recent turns; **reloading the page clears it**.
+- **`action_log`:** The DB records **structured events** for some flows (e.g. routine picker, task actions from chat, weather/news/briefing chips, chain steps, interest radar) — **metadata and action types**, not a full copy of every message. See `/action-log` in the app.
+- **Claude (Anthropic):** Message content is sent to Anthropic’s API per request. **Retention and processing** there follow [Anthropic’s policies](https://www.anthropic.com/legal/privacy), not this repo.
+
+---
+
 ## NFC hardware
 
 **Chip:** NTAG213 anti-metal. 144 bytes. 13.56MHz.  
@@ -225,7 +236,7 @@ Additional: session expiry on EA and config endpoints. Shell sessions cannot acc
 | **Yelp / Foursquare** | Alternative or second source; attribution and limits per ToS. |
 | **Cloud STT** | If Web Speech API is insufficient after real-world use. |
 | **TTS / “spoken briefing”** | Typically text briefing → TTS API; not a separate “spoken news API.” |
-| **Podcasts** | Users already open Spotify/Apple; EA can deeplink or Shortcuts, not replace players. |
+| **Podcasts / Apple Music** | **Routines → Deeplink → kind `url`:** paste show/episode links from **Share** in Apple Podcasts (`podcasts.apple.com`) or Apple Music (`music.apple.com`); iOS hands off to the native app. **Spotify:** use deeplink kind **`spotify`** with a URI or open.spotify URL. Optional: Siri Shortcut for “resume my show.” No in-app player planned. |
 
 ---
 

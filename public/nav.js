@@ -12,6 +12,11 @@
     { label: 'Settings', path: '/config' },
   ];
 
+  const LEGAL_NAV = [
+    { label: 'Privacy', path: '/privacy' },
+    { label: 'Terms',   path: '/terms' },
+  ];
+
   const current = window.location.pathname;
 
   const style = document.createElement('style');
@@ -65,6 +70,29 @@
 
     .nav-list { padding: 6px 0; flex: 1; }
 
+    .nav-drawer-legal {
+      border-top: 1px solid rgba(255,255,255,0.07);
+      padding: 6px 0 calc(12px + env(safe-area-inset-bottom));
+      flex-shrink: 0;
+    }
+    .nav-link-legal {
+      display: block;
+      padding: 12px 22px;
+      text-decoration: none;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+      font-size: 14px;
+      font-weight: 400;
+      color: #666;
+      border-left: 3px solid transparent;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .nav-link-legal:active { background: rgba(255,255,255,0.04); }
+    .nav-link-legal.active {
+      color: #aaa;
+      font-weight: 600;
+      border-left-color: #555;
+    }
+
     .nav-link {
       display: block;
       padding: 16px 22px;
@@ -101,6 +129,12 @@
         const active = current === item.path ||
           (item.path !== '/ea' && current.startsWith(item.path));
         return `<a class="nav-link${active ? ' active' : ''}" href="${item.path}">${item.label}</a>`;
+      }).join('')}
+    </div>
+    <div class="nav-drawer-legal" role="navigation" aria-label="Legal">
+      ${LEGAL_NAV.map(item => {
+        const active = current === item.path;
+        return `<a class="nav-link-legal${active ? ' active' : ''}" href="${item.path}">${item.label}</a>`;
       }).join('')}
     </div>
   `;

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>Terms of service — EA Watch</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a;
+      --text: #f0f0f0;
+      --muted: #888;
+      --border: rgba(255,255,255,0.08);
+    }
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.5;
+      min-height: 100%;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    header h1 { font-size: 17px; font-weight: 600; }
+    .nav-btn {
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 22px;
+      padding: 8px 10px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    main { padding: 20px 20px 48px; max-width: 40rem; margin: 0 auto; }
+    main h2 { font-size: 15px; font-weight: 600; margin: 28px 0 10px; }
+    main h2:first-of-type { margin-top: 8px; }
+    main p, main li { font-size: 15px; color: #ccc; margin-bottom: 12px; }
+    main ul { padding-left: 1.25rem; margin-bottom: 12px; }
+    main a { color: #8ab4ff; }
+    .meta { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <header>
+    <button type="button" class="nav-btn" onclick="navOpen()" aria-label="Menu">☰</button>
+    <h1>Terms of service</h1>
+    <span style="width:36px" aria-hidden="true"></span>
+  </header>
+  <main>
+    <p class="meta">EA Watch — informal terms for the deployed service. If you use someone else’s instance, they may publish different terms.</p>
+
+    <h2>Acceptance</h2>
+    <p>By using EA Watch, you agree to these terms. If you do not agree, do not use the service.</p>
+
+    <h2>Service</h2>
+    <p>The app is provided <strong>as is</strong>, for personal use unless otherwise agreed with the operator. Features (AI, maps, third-party APIs) may change, break, or be withdrawn without notice.</p>
+
+    <h2>Your responsibilities</h2>
+    <ul>
+      <li>You are responsible for content you submit and for complying with laws that apply to you.</li>
+      <li>Credentials (PIN, access word) and device security are your responsibility.</li>
+      <li>Do not use the service in a way that harms others, violates third-party terms, or overloads infrastructure.</li>
+    </ul>
+
+    <h2>Disclaimer</h2>
+    <p>EA uses AI and external data sources. Outputs may be wrong or incomplete. Do not rely on the app for safety-critical, medical, legal, or financial decisions.</p>
+
+    <h2>Limitation of liability</h2>
+    <p>To the maximum extent permitted by law, the operators and contributors are not liable for indirect or consequential damages arising from use of the service.</p>
+
+    <h2>Changes</h2>
+    <p>These terms may be updated by posting a revised page. Continued use after changes constitutes acceptance.</p>
+
+    <p><a href="/ea">Back to EA</a> · <a href="/privacy">Privacy</a></p>
+  </main>
+  <script src="/nav.js?v=legal1" defer></script>
+  <script src="/legal-footer.js?v=1" defer></script>
+</body>
+</html>

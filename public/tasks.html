@@ -378,7 +378,7 @@
 
     (function() {
       var style = document.createElement('style');
-      style.textContent = ".nav-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:10040;opacity:0;pointer-events:none;transition:opacity 0.22s;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}.nav-overlay.open{opacity:1;pointer-events:auto}.nav-drawer{position:fixed;top:0;right:0;bottom:0;width:68vw;max-width:260px;background:#141414;z-index:10050;transform:translateX(100%);transition:transform 0.26s cubic-bezier(0.4,0,0.2,1);display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,0.08);padding-top:env(safe-area-inset-top)}.nav-drawer.open{transform:translateX(0)}.nav-drawer-top{padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between}.nav-drawer-label{font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#555}.nav-x{background:none;border:none;color:#aaa;font-size:28px;line-height:1;cursor:pointer;padding:8px 12px;margin:-8px -8px -8px 0;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation}.nav-list{padding:8px 0}.nav-link{display:block;padding:17px 22px;text-decoration:none;font-size:17px;font-weight:400;color:#aaa;border-left:3px solid transparent;-webkit-tap-highlight-color:transparent}.nav-link.active{color:#f0f0f0;font-weight:600;border-left-color:#f0f0f0}";
+      style.textContent = ".nav-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:10040;opacity:0;pointer-events:none;transition:opacity 0.22s;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}.nav-overlay.open{opacity:1;pointer-events:auto}.nav-drawer{position:fixed;top:0;right:0;bottom:0;width:68vw;max-width:260px;background:#141414;z-index:10050;transform:translateX(100%);transition:transform 0.26s cubic-bezier(0.4,0,0.2,1);display:flex;flex-direction:column;border-left:1px solid rgba(255,255,255,0.08);padding-top:env(safe-area-inset-top)}.nav-drawer.open{transform:translateX(0)}.nav-drawer-top{padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;justify-content:space-between}.nav-drawer-label{font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:#555}.nav-x{background:none;border:none;color:#aaa;font-size:28px;line-height:1;cursor:pointer;padding:8px 12px;margin:-8px -8px -8px 0;min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation}.nav-list{padding:8px 0;flex:1}.nav-drawer-legal{border-top:1px solid rgba(255,255,255,0.07);padding:6px 0 calc(12px + env(safe-area-inset-bottom));flex-shrink:0}.nav-link-legal{display:block;padding:12px 22px;text-decoration:none;font-size:14px;font-weight:400;color:#666;border-left:3px solid transparent;-webkit-tap-highlight-color:transparent}.nav-link-legal.active{color:#aaa;font-weight:600;border-left-color:#555}.nav-link{display:block;padding:17px 22px;text-decoration:none;font-size:17px;font-weight:400;color:#aaa;border-left:3px solid transparent;-webkit-tap-highlight-color:transparent}.nav-link.active{color:#f0f0f0;font-weight:600;border-left-color:#f0f0f0}";
       document.head.appendChild(style);
       var overlay = document.createElement('div');
       overlay.className = 'nav-overlay';
@@ -390,6 +390,10 @@
         { label: 'Log', path: '/action-log' },
         { label: 'Settings', path: '/config' },
       ];
+      var legal = [
+        { label: 'Privacy', path: '/privacy' },
+        { label: 'Terms', path: '/terms' },
+      ];
       var cur = window.location.pathname;
       var drawer = document.createElement('div');
       drawer.className = 'nav-drawer';
@@ -397,6 +401,10 @@
         items.map(function(item) {
           var active = cur === item.path || (item.path !== '/ea' && cur.indexOf(item.path) === 0);
           return '<a class="nav-link' + (active ? ' active' : '') + '" href="' + item.path + '">' + item.label + '</a>';
+        }).join('') + '</div><div class="nav-drawer-legal" role="navigation" aria-label="Legal">' +
+        legal.map(function(item) {
+          var la = cur === item.path;
+          return '<a class="nav-link-legal' + (la ? ' active' : '') + '" href="' + item.path + '">' + item.label + '</a>';
         }).join('') + '</div>';
       function closeNav() {
         overlay.classList.remove('open');
@@ -421,5 +429,6 @@
       window.navClose = closeNav;
     })();
   </script>
+  <script src="/legal-footer.js?v=1" defer></script>
 </body>
 </html>
