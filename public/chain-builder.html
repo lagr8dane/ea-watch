@@ -964,13 +964,30 @@ function renderDeeplinkFields(cfg, i) {
 // Step field update helpers
 // ---------------------------------------------------------------------------
 function updateStepType(i, value) {
+  const open = stepBodyWasOpen(i);
   steps[i].step_type = value;
   renderSteps();
-  toggleStep(i);
+  reopenStepBodyIfNeeded(i, open);
+}
+
+function stepBodyWasOpen(i) {
+  return document.getElementById(`step-body-${i}`)?.classList.contains('open') ?? false;
+}
+
+function reopenStepBodyIfNeeded(i, wasOpen) {
+  if (!wasOpen) return;
+  document.getElementById(`step-body-${i}`)?.classList.add('open');
+  document.getElementById(`expand-${i}`)?.classList.add('open');
 }
 
 function updateStepField(i, field, value) {
   steps[i][field] = value;
+  if (field === 'action_type') {
+    const open = stepBodyWasOpen(i);
+    renderSteps();
+    reopenStepBodyIfNeeded(i, open);
+    return;
+  }
   // Re-render badge/summary without full re-render
   const item = document.querySelectorAll('.step-item')[i];
   if (item) {
@@ -984,7 +1001,13 @@ function updateStepField(i, field, value) {
 function updateConfigField(i, field, value) {
   if (!steps[i].action_config) steps[i].action_config = {};
   steps[i].action_config[field] = value;
-  // Update summary
+  // Deeplink "kind" swaps which fields exist (maps vs url vs …) — must re-render body
+  if (steps[i].action_type === 'deeplink' && field === 'kind') {
+    const open = stepBodyWasOpen(i);
+    renderSteps();
+    reopenStepBodyIfNeeded(i, open);
+    return;
+  }
   const item = document.querySelectorAll('.step-item')[i];
   if (item) {
     const summary = item.querySelector('.step-summary');
