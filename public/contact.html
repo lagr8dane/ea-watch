@@ -297,6 +297,13 @@
   <script>
     let lastPublicCard = null;
 
+    /** Trim + strip zero-width chars from pasted handles */
+    function cleanSocial(raw) {
+      return String(raw || '')
+        .replace(/[\u200B-\u200D\uFEFF]/g, '')
+        .trim();
+    }
+
     /** Encode path segments for /user/name style URLs */
     function encodePathSegments(path) {
       return String(path || '')
@@ -307,11 +314,11 @@
     }
 
     function instagramHref(raw) {
-      let s = String(raw || '').trim();
+      let s = cleanSocial(raw);
       if (!s) return '';
       if (/^https?:\/\//i.test(s)) return s.replace(/^http:\/\//i, 'https://');
       s = s.replace(/^@+/, '');
-      s = s.replace(/^(https?:\/\/)?(www\.)?instagram\.com\/?/i, '');
+      s = s.replace(/^(https?:\/\/)?(www\.)?(instagram\.com|instagr\.am)\/?/i, '');
       s = s.replace(/^\/+/, '');
       if (!s) return '';
       const path = encodePathSegments(s);
@@ -373,9 +380,12 @@
         const li = linkedinHref(c.linkedin);
         if (li) lines.push('URL;TYPE=LinkedIn:' + li);
       }
-      if (c.instagram) {
-        const ig = instagramHref(c.instagram);
-        if (ig) lines.push('URL;TYPE=Instagram:' + ig);
+      {
+        const igRaw = cleanSocial(c.instagram || c.stranger_instagram);
+        if (igRaw) {
+          const ig = instagramHref(igRaw);
+          if (ig) lines.push('URL;TYPE=Instagram:' + ig);
+        }
       }
       if (c.calendly) lines.push('URL;TYPE=Schedule:' + String(c.calendly).trim());
       const tel =
@@ -418,7 +428,7 @@
 
     async function loadCard() {
       try {
-        const res = await fetch('/api/config/public');
+        const res = await fetch('/api/config/public', { cache: 'no-store' });
         if (!res.ok) return;
         const c = await res.json();
 
@@ -460,12 +470,15 @@
             btn.style.display = 'flex';
           }
         }
-        if (String(c.instagram || '').trim()) {
-          const href = instagramHref(c.instagram);
-          if (href) {
-            const btn = document.getElementById('btn-instagram');
-            btn.href = href;
-            btn.style.display = 'flex';
+        {
+          const igRaw = cleanSocial(c.instagram || c.stranger_instagram);
+          if (igRaw) {
+            const href = instagramHref(igRaw);
+            if (href) {
+              const btn = document.getElementById('btn-instagram');
+              btn.href = href;
+              btn.style.display = 'flex';
+            }
           }
         }
         if (c.calendly) {
