@@ -506,7 +506,7 @@ async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
     if (playResult.ok) {
       sendText(
         res,
-        `Playing "${found.name}" on your active Spotify device. If nothing starts, open Spotify on your phone or speaker first.`
+        `Playing "${found.name}" in Spotify. If you do not hear it, open the Spotify app and try again.`
       );
       await logUserEvent(
         sessionId,

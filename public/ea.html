@@ -1304,6 +1304,7 @@
       try {
         const res = await fetch('/api/ea', {
           method: 'POST',
+          credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages,
@@ -1318,7 +1319,11 @@
         hideTyping();
 
         if (!res.ok) {
-          appendMsg('ea', 'Something went wrong. Try again.');
+          const errMsg =
+            res.status === 401
+              ? 'Your session expired. Tap your watch again to sign in, then come back to EA.'
+              : 'Something went wrong. Try again.';
+          appendMsg('ea', errMsg);
           isTyping = false;
           setStatus('ready');
           return;
