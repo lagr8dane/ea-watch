@@ -75,6 +75,11 @@
       background: var(--surface);
     }
     .card h3 { font-size: 15px; font-weight: 600; line-height: 1.35; margin-bottom: 6px; }
+    .card h3 a {
+      color: var(--text);
+      text-decoration: none;
+    }
+    .card h3 a:hover { color: var(--hi); text-decoration: underline; }
     .card .meta { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
     .card .summary { font-size: 14px; color: #ccc; line-height: 1.45; margin-bottom: 12px; }
     .card-actions {
@@ -742,9 +747,12 @@
           if (ld && ld >= startOfToday()) return '';
           return ' · listed date in the past — pick a due date below';
         })();
+        const titleHtml = it.url
+          ? '<h3><a href="' + escAttr(it.url) + '" target="_blank" rel="noopener noreferrer">' + esc(it.title) + '</a></h3>'
+          : '<h3>' + esc(it.title) + '</h3>';
         return (
           '<div class="card" data-idx="' + idx + '">' +
-          '<h3>' + esc(it.title) + '</h3>' +
+          titleHtml +
           '<div class="meta">' + esc(dist) +
           (it.start_time_hint ? ' · ' + esc(it.start_time_hint) : '') +
           (it.start_date ? ' · ' + esc(it.start_date) : '') +
@@ -753,7 +761,6 @@
           buildDuePickerHtml(idx, it) +
           '<div class="card-actions">' +
           '<div class="card-actions-primary">' +
-          '<a href="' + escAttr(it.url) + '" target="_blank" rel="noopener noreferrer">Open source</a>' +
           '<button type="button" class="btn btn-small add-task-btn" data-idx="' + idx + '">Add task</button>' +
           '</div>' +
           '<button type="button" class="btn btn-small radar-copy-btn" data-idx="' + idx + '" data-copy-label="Copy" aria-label="Copy this result to clipboard">Copy</button>' +
