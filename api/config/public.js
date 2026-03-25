@@ -13,6 +13,7 @@ export default async function handler(req, res) {
             stranger_instagram as instagram,
             stranger_instagram as stranger_instagram,
             stranger_calendly as calendly,
+            stranger_calendly as stranger_calendly,
             stranger_whatsapp as whatsapp,
             stranger_imessage as imessage,
             avatar_url

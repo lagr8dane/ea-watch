@@ -325,6 +325,25 @@
       return path ? `https://www.instagram.com/${path}/` : '';
     }
 
+    function calendlyHref(raw) {
+      let s = cleanSocial(raw);
+      if (!s) return '';
+      if (/^https?:\/\//i.test(s)) return s.replace(/^http:\/\//i, 'https://');
+      s = s.replace(/^\/+/, '');
+      s = s.replace(/^(https?:\/\/)?(www\.)?calendly\.com\/?/i, '');
+      s = s.replace(/^\/+/, '');
+      if (!s) return '';
+      let pathPart = s;
+      let query = '';
+      const qi = s.indexOf('?');
+      if (qi >= 0) {
+        pathPart = s.slice(0, qi);
+        query = s.slice(qi);
+      }
+      const path = encodePathSegments(pathPart);
+      return path ? `https://calendly.com/${path}${query}` : '';
+    }
+
     function linkedinHref(raw) {
       let s = String(raw || '').trim();
       if (!s) return '';
@@ -387,7 +406,13 @@
           if (ig) lines.push('URL;TYPE=Instagram:' + ig);
         }
       }
-      if (c.calendly) lines.push('URL;TYPE=Schedule:' + String(c.calendly).trim());
+      {
+        const calRaw = cleanSocial(c.calendly || c.stranger_calendly);
+        if (calRaw) {
+          const cal = calendlyHref(calRaw);
+          if (cal) lines.push('URL;TYPE=Schedule:' + cal);
+        }
+      }
       const tel =
         normalizeTelDigits(c.imessage) || normalizeTelDigits(c.whatsapp);
       if (tel) lines.push('TEL;TYPE=CELL:' + vcardEscape(tel));
@@ -481,10 +506,16 @@
             }
           }
         }
-        if (c.calendly) {
-          const btn = document.getElementById('btn-calendly');
-          btn.href = c.calendly;
-          btn.style.display = 'flex';
+        {
+          const calRaw = cleanSocial(c.calendly || c.stranger_calendly);
+          if (calRaw) {
+            const href = calendlyHref(calRaw);
+            if (href) {
+              const btn = document.getElementById('btn-calendly');
+              btn.href = href;
+              btn.style.display = 'flex';
+            }
+          }
         }
         if (c.imessage) {
           const btn = document.getElementById('btn-imessage');
