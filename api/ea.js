@@ -519,43 +519,27 @@ async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
       return true;
     }
 
-    if (playResult.code === 'NO_DEVICE') {
-      sendText(
-        res,
-        playResult.message ||
-          'No Spotify device found. Open Spotify on your phone and try again, or use the link below.'
-      );
-      const open = spotifyOpenUrl(found);
-      if (open) {
-        res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url: open }] })}\n\n`);
-      }
-      await logUserEvent(sessionId, 'ea_spotify_play', { error: 'no_device' }, 'failed');
-      res.write('data: [DONE]\n\n');
-      res.end();
-      return true;
-    }
-
-    if (playResult.code === 'PREMIUM') {
-      sendText(
-        res,
-        'Spotify did not allow remote playback for this account — a Premium subscription is usually required to start playback from another app.'
-      );
-      const open = spotifyOpenUrl(found);
-      if (open) {
-        res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url: open }] })}\n\n`);
-      }
-      await logUserEvent(sessionId, 'ea_spotify_play', { error: 'premium' }, 'failed');
-      res.write('data: [DONE]\n\n');
-      res.end();
-      return true;
-    }
-
-    sendText(res, `Could not start playback: ${playResult.message || 'unknown error'}`);
     const open = spotifyOpenUrl(found);
+    sendText(
+      res,
+      `Found "${found.name}". EA could not start it automatically — tap below to open Spotify and press Play there if needed.`
+    );
     if (open) {
       res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url: open }] })}\n\n`);
     }
-    await logUserEvent(sessionId, 'ea_spotify_play', { error: 'playback' }, 'failed');
+    await logUserEvent(
+      sessionId,
+      'ea_spotify_play',
+      {
+        query: intent.query.slice(0, 80),
+        kind: found.kind,
+        name: found.name?.slice(0, 120),
+        remote_play: 'failed',
+        reason: playResult.code || 'unknown',
+      },
+      'failed',
+      playResult.detail || null
+    );
     res.write('data: [DONE]\n\n');
     res.end();
     return true;
