@@ -78,9 +78,12 @@
       padding: 12px 20px;
       border-radius: 12px;
       font-size: 14px;
+      line-height: 1.45;
       transition: transform 0.3s ease;
       z-index: 100;
-      white-space: nowrap;
+      max-width: min(92vw, 380px);
+      white-space: pre-line;
+      text-align: center;
     }
 
     .toast.show { transform: translateX(-50%) translateY(0); }
@@ -605,6 +608,9 @@
       try {
         const res = await fetch('/api/config');
         if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          if (err.hint) showToast(err.hint, 12000);
+          else if (res.status === 401) showToast('Sign in again from your watch flow.', 5000);
           setupTapMeetPanel();
           openTapMeetFromHash();
           return;
@@ -688,17 +694,23 @@
           body: JSON.stringify(body),
         });
 
+        const data = await res.json().catch(() => ({}));
         if (res.ok) {
           // Clear credential fields after save
           ['pin','access_word','danger_word'].forEach(id => {
             document.getElementById(id).value = '';
           });
-          showToast('Saved');
+          showToast('Saved', 2500);
         } else {
-          showToast('Save failed — try again');
+          const msg =
+            data.hint ||
+            data.error ||
+            (data.detail && String(data.detail).slice(0, 160)) ||
+            'Save failed — try again';
+          showToast(msg, data.hint ? 12000 : 4000);
         }
       } catch (e) {
-        showToast('Connection error');
+        showToast('Connection error', 4000);
       }
 
       btn.disabled = false;
@@ -709,11 +721,17 @@
       return document.getElementById(id)?.value?.trim() ?? '';
     }
 
-    function showToast(msg) {
+    let toastTimer = null;
+    function showToast(msg, ms) {
       const t = document.getElementById('toast');
+      if (toastTimer) clearTimeout(toastTimer);
       t.textContent = msg;
       t.classList.add('show');
-      setTimeout(() => t.classList.remove('show'), 2500);
+      const dur = typeof ms === 'number' ? ms : 2500;
+      toastTimer = setTimeout(function () {
+        t.classList.remove('show');
+        toastTimer = null;
+      }, dur);
     }
 
     function confirmTransfer() {
