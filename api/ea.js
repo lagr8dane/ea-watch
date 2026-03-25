@@ -516,7 +516,8 @@ async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
     if (playResult.code === 'NO_DEVICE') {
       sendText(
         res,
-        'No active Spotify device found. Open Spotify on your phone, desktop, or web player, then try again. You can also open this in Spotify directly.'
+        playResult.message ||
+          'No Spotify device found. Open Spotify on your phone and try again, or use the link below.'
       );
       if (found.openUrl) {
         res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url: found.openUrl }] })}\n\n`);
