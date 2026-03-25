@@ -606,16 +606,28 @@
     // Load existing config on mount
     async function load() {
       try {
-        const res = await fetch('/api/config');
+        const res = await fetch('/api/config', { credentials: 'same-origin' });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
           if (err.hint) showToast(err.hint, 12000);
           else if (res.status === 401) showToast('Sign in again from your watch flow.', 5000);
+          else if (res.status === 404) {
+            showToast(
+              'No settings row for this signed-in account. If you edited another row in the DB, the device owner id may not match. Save once here to create settings.',
+              10000
+            );
+          } else if (err.error) showToast(err.error, 6000);
           setupTapMeetPanel();
           openTapMeetFromHash();
           return;
         }
-        const c = await res.json();
+        const c = await res.json().catch(() => null);
+        if (!c || typeof c !== 'object') {
+          showToast('Could not read settings from the server.', 6000);
+          setupTapMeetPanel();
+          openTapMeetFromHash();
+          return;
+        }
 
         const fields = [
           'display_name','title','session_window_mins','challenge_style',
@@ -645,7 +657,7 @@
           document.getElementById('avatar-initials').textContent = initials.toUpperCase();
         }
       } catch (e) {
-        // First run — no config yet, defaults are fine
+        showToast('Could not load settings. Check your connection and try again.', 6000);
       }
 
       setupTapMeetPanel();
@@ -690,6 +702,7 @@
       try {
         const res = await fetch('/api/config', {
           method: 'POST',
+          credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });

@@ -17,11 +17,26 @@ export function getDb() {
   return _client;
 }
 
+/** LibSQL rows can be array-like or driver-specific objects; JSON and app code expect plain column-keyed objects. */
+function rowToPlainObject(row, columns) {
+  if (row == null) return null;
+  const o = {};
+  for (let i = 0; i < columns.length; i++) {
+    const col = columns[i];
+    if (!col) continue;
+    let v = row[col];
+    if (v === undefined) v = row[i];
+    o[col] = typeof v === 'bigint' ? Number(v) : v;
+  }
+  return o;
+}
+
 // Convenience: run a query and return all rows
 export async function query(sql, args = []) {
   const db = getDb();
   const result = await db.execute({ sql, args });
-  return result.rows;
+  const columns = result.columns ?? [];
+  return (result.rows ?? []).map((row) => rowToPlainObject(row, columns));
 }
 
 // Convenience: run a query and return first row or null
