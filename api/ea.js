@@ -17,7 +17,8 @@ import {
   spotifyConfigured,
   getAppBaseUrl,
   getValidAccessToken,
-  searchPlayable,
+  resolvePlayable,
+  spotifyOpenUrl,
   startPlayback,
 } from '../lib/spotify.js';
 import {
@@ -429,12 +430,6 @@ function sendText(res, text) {
 /**
  * @returns {Promise<boolean>} true if the request was fully handled
  */
-/** Prefer native Spotify app on iOS (spotify:) over https://open.spotify.com in Safari. */
-function spotifyOpenUrl(found) {
-  if (found?.uri && String(found.uri).startsWith('spotify:')) return found.uri;
-  return found?.openUrl || null;
-}
-
 async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
   if (!spotifyConfigured()) {
     sendText(
@@ -452,7 +447,11 @@ async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
       res,
       'Connect Spotify once so I can search and start playback on your active device. Tap below — you will sign in on Spotify, then return here.'
     );
-    res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url }] })}\n\n`);
+    res.write(
+      `data: ${JSON.stringify({
+        actions: [{ type: 'deeplink', url, pillClass: 'action-pill-spotify' }],
+      })}\n\n`
+    );
     await logUserEvent(sessionId, 'ea_spotify_connect_prompt', {}, 'success');
     res.write('data: [DONE]\n\n');
     res.end();
@@ -473,7 +472,11 @@ async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
         res,
         'Spotify is not connected for this account yet. Tap below to connect, then say your play command again.'
       );
-      res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url }] })}\n\n`);
+      res.write(
+        `data: ${JSON.stringify({
+          actions: [{ type: 'deeplink', url, pillClass: 'action-pill-spotify' }],
+        })}\n\n`
+      );
       await logUserEvent(sessionId, 'ea_spotify_play', { error: 'not_connected' }, 'failed');
       res.write('data: [DONE]\n\n');
       res.end();
@@ -482,7 +485,7 @@ async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
 
     let found;
     try {
-      found = await searchPlayable(access, intent.query);
+      found = await resolvePlayable(access, intent.query);
     } catch (e) {
       sendText(res, `Spotify search failed: ${e.message || 'unknown error'}`);
       res.write('data: [DONE]\n\n');
@@ -491,7 +494,10 @@ async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
     }
 
     if (!found?.uri) {
-      sendText(res, `No track or playlist matched "${intent.query}". Try different words or an artist plus song title.`);
+      sendText(
+        res,
+        `No track or playlist matched "${intent.query}". Try a style Spotify knows (e.g. jazz, classical, chill), a playlist name, or artist plus song title.`
+      );
       await logUserEvent(sessionId, 'ea_spotify_play', { query: intent.query.slice(0, 80), error: 'no_match' }, 'failed');
       res.write('data: [DONE]\n\n');
       res.end();
@@ -500,7 +506,7 @@ async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
 
     const playResult = await startPlayback(access, {
       trackUri: found.kind === 'track' ? found.uri : undefined,
-      playlistUri: found.kind === 'playlist' ? found.uri : undefined,
+      contextUri: found.kind === 'playlist' || found.kind === 'album' ? found.uri : undefined,
     });
 
     if (playResult.ok) {
@@ -508,10 +514,31 @@ async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
         res,
         `Playing "${found.name}" in Spotify. If you do not hear it, open the Spotify app and try again.`
       );
+      const openOk = spotifyOpenUrl(found);
+      if (openOk) {
+        res.write(
+          `data: ${JSON.stringify({
+            actions: [
+              {
+                type: 'deeplink',
+                url: openOk,
+                embed: true,
+                pillClass: 'action-pill-spotify',
+                label: 'Open in Spotify',
+              },
+            ],
+          })}\n\n`
+        );
+      }
       await logUserEvent(
         sessionId,
         'ea_spotify_play',
-        { query: intent.query.slice(0, 80), kind: found.kind, name: found.name?.slice(0, 120) },
+        {
+          query: intent.query.slice(0, 80),
+          kind: found.kind,
+          name: found.name?.slice(0, 120),
+          ...(found.genreSeed ? { genre_seed: found.genreSeed } : {}),
+        },
         'success'
       );
       res.write('data: [DONE]\n\n');
@@ -525,7 +552,18 @@ async function handleSpotifyIntent(res, intent, ownerId, sessionId, debug) {
       `Found "${found.name}". EA could not start it automatically — tap below to open Spotify and press Play there if needed.`
     );
     if (open) {
-      res.write(`data: ${JSON.stringify({ actions: [{ type: 'deeplink', url: open }] })}\n\n`);
+      res.write(
+        `data: ${JSON.stringify({
+          actions: [
+            {
+              type: 'deeplink',
+              url: open,
+              pillClass: 'action-pill-spotify',
+              label: 'Open in Spotify',
+            },
+          ],
+        })}\n\n`
+      );
     }
     await logUserEvent(
       sessionId,

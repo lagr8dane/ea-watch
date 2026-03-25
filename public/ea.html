@@ -188,6 +188,7 @@
 
     .msg.ea.typing {
       display: flex;
+      flex-direction: row;
       gap: 5px;
       align-items: center;
       padding: 14px 18px;
@@ -587,6 +588,18 @@
       font-weight: 400;
     }
 
+    /* EA assistant bubble: text slot + embedded chips (deeplinks) */
+    .msg.ea:has(> .ea-stream-text) {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .ea-stream-text {
+      white-space: pre-wrap;
+      width: 100%;
+    }
+
     /* Action pill — shown when a deeplink/shortcut fires */
     .action-pill {
       display: inline-flex;
@@ -595,16 +608,28 @@
       background: var(--surface2);
       border: 1px solid var(--border);
       border-radius: 20px;
-      padding: 4px 10px;
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 6px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
-      transition: color 0.15s;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
       text-decoration: none;
+      flex-shrink: 0;
     }
-    .action-pill:active { color: var(--text); }
+    .action-pill:active {
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .action-pill.action-pill-spotify {
+      border-color: rgba(29, 185, 84, 0.45);
+      background: rgba(29, 185, 84, 0.12);
+      color: #b4f0c8;
+    }
+    .action-pill.action-pill-spotify:active {
+      background: rgba(29, 185, 84, 0.2);
+    }
   </style>
 </head>
 <body>
@@ -958,8 +983,10 @@
         stack.className = 'ea-msg-stack';
         const el = document.createElement('div');
         el.className = 'msg ea';
-        el.style.whiteSpace = 'pre-wrap';
-        el.textContent = text;
+        const textSlot = document.createElement('div');
+        textSlot.className = 'ea-stream-text';
+        textSlot.textContent = text;
+        el.appendChild(textSlot);
         stack.appendChild(el);
         const copyWrap = document.createElement('div');
         copyWrap.className = 'ea-copy-wrap';
@@ -1333,7 +1360,7 @@
         const reader  = res.body.getReader();
         const decoder = new TextDecoder();
         let   eaEl    = appendMsg('ea', '');
-        let   streamTextEl = eaEl;
+        let   streamTextEl = eaEl.querySelector('.ea-stream-text') || eaEl;
         let   full    = '';
         let   pendingActions  = [];
         let   chainControl    = null;
@@ -1366,13 +1393,15 @@
 
               if (parsed.mindful_panel) {
                 hadMindfulPanel = true;
-                streamTextEl = mountMindfulPanel(streamTextEl, parsed.mindful_panel);
+                const bubble = streamTextEl.closest('.msg.ea') || streamTextEl;
+                streamTextEl = mountMindfulPanel(bubble, parsed.mindful_panel);
                 eaEl = streamTextEl;
               }
 
               if (parsed.task_panel) {
                 hadTaskPanel = true;
-                const panel = mountTaskPanel(streamTextEl, parsed.task_panel);
+                const bubble = streamTextEl.closest('.msg.ea') || streamTextEl;
+                const panel = mountTaskPanel(bubble, parsed.task_panel);
                 streamTextEl = panel;
                 eaEl = panel;
               }
@@ -1389,6 +1418,7 @@
                 messages.push({ role: 'assistant', content: full });
                 full = '';
                 eaEl = appendMsg('ea', '');
+                streamTextEl = eaEl.querySelector('.ea-stream-text') || eaEl;
               }
 
               // Actions and chain control
@@ -1423,7 +1453,7 @@
         // Fire any pending OS actions (deeplinks / Siri Shortcuts)
         for (const action of pendingActions) {
           if (action.url) {
-            fireAction(action, eaEl);
+            fireAction(action, streamTextEl || eaEl);
           }
         }
 
@@ -1541,7 +1571,8 @@
       stopBtn.onclick = () => resolveChain(chainStateId, 'abort', eaEl, wrap);
       wrap.appendChild(stopBtn);
 
-      eaEl.appendChild(wrap);
+      const mount = deeplinkMessageMount(eaEl);
+      (mount || eaEl).appendChild(wrap);
       scrollBottom();
     }
 
@@ -1617,33 +1648,44 @@
       }
     }
 
+    /** Bubble or panel root to attach deeplink chips (keeps chip inside the same message as streamed text). */
+    function deeplinkMessageMount(anchorEl) {
+      if (!anchorEl) return null;
+      const msg = anchorEl.closest?.('.msg.ea');
+      if (msg) return msg;
+      return anchorEl.closest?.('.mb-panel') || anchorEl;
+    }
+
     /**
      * Fire a deeplink or Siri Shortcut URL.
-     * Opens via window.location to trigger iOS URL scheme handling.
-     * Also renders a small action pill in the EA message for visibility.
+     * Renders a chip inside the EA message. Optional `action.embed`: show chip only, do not auto-navigate.
      */
-    function fireAction(action, eaEl) {
-      const label = action.type === 'shortcut'
-        ? `▷ ${action.name || 'Shortcut'}`
-        : `↗ ${friendlyActionLabel(action.url)}`;
+    function fireAction(action, anchorEl) {
+      const mount = deeplinkMessageMount(anchorEl);
+      const label = action.label
+        ? action.label
+        : action.type === 'shortcut'
+          ? `▷ ${action.name || 'Shortcut'}`
+          : friendlyActionLabel(action.url);
 
       const pill = document.createElement('a');
-      pill.className    = 'action-pill';
-      pill.textContent  = label;
-      pill.href         = action.url;
-      // On iOS, setting location.href triggers the URL scheme
+      pill.className = 'action-pill';
+      if (action.pillClass) pill.classList.add(action.pillClass);
+      pill.textContent = label;
+      pill.href = action.url;
       pill.onclick = (e) => {
         e.preventDefault();
         window.location.href = action.url;
       };
 
-      eaEl.appendChild(pill);
+      if (mount) mount.appendChild(pill);
       scrollBottom();
 
-      // Auto-fire after a short delay to let the message render first
-      setTimeout(() => {
-        window.location.href = action.url;
-      }, 300);
+      if (!action.embed) {
+        setTimeout(() => {
+          window.location.href = action.url;
+        }, 300);
+      }
     }
 
     function friendlyActionLabel(url) {
@@ -1652,9 +1694,9 @@
       if (url.startsWith('tel:'))         return 'Call';
       if (url.startsWith('facetime'))     return 'FaceTime';
       if (url.startsWith('sms:'))         return 'Messages';
-      if (url.startsWith('spotify:'))     return 'Spotify';
+      if (url.startsWith('spotify:')) return 'Open in Spotify';
       if (url.includes('/api/spotify/login')) return 'Connect Spotify';
-      if (url.startsWith('https://open.spotify.com')) return 'Spotify';
+      if (url.startsWith('https://open.spotify.com')) return 'Open in Spotify';
       if (url.startsWith('shortcuts://')) return 'Shortcut';
       if (url.startsWith('clock-timer:'))  return 'Timer';
       if (url.startsWith('App-Prefs:'))   return 'Settings';

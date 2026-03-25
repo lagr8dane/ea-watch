@@ -96,12 +96,48 @@
       flex: 1;
       min-width: 0;
     }
-    .card-actions .radar-copy-btn {
-      margin-left: auto;
+    .radar-chip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      text-decoration: none;
+      font-family: inherit;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      line-height: 1.2;
+    }
+    .radar-chip:active { opacity: 0.88; }
+    .radar-chip-ride {
+      border-color: rgba(29, 185, 84, 0.45);
+      background: rgba(29, 185, 84, 0.12);
+      color: #b4f0c8;
+    }
+    .radar-chip-icon {
+      padding: 8px 10px;
+      min-width: 42px;
       color: var(--muted);
       border-color: var(--border);
+      background: var(--surface);
     }
-    .card-actions .radar-copy-btn:hover { color: var(--hi); border-color: rgba(138,180,255,0.35); }
+    .radar-chip-icon:hover { color: var(--hi); border-color: rgba(138, 180, 255, 0.35); }
+    .radar-chip-icon svg { display: block; }
+    .radar-chip[disabled],
+    .radar-chip[aria-disabled="true"] {
+      opacity: 0.4;
+      pointer-events: none;
+    }
+    .radar-share-btn.radar-share-flash {
+      color: var(--ok);
+      border-color: rgba(108, 153, 136, 0.5);
+    }
     .card-actions a {
       color: var(--hi); font-size: 14px; text-decoration: none; font-weight: 500;
     }
@@ -654,9 +690,35 @@
       return sel.value;
     }
 
+    function formatRadarAddressLine(it) {
+      const g = it.geocode_label != null && String(it.geocode_label).trim();
+      const h = it.address_hint != null && String(it.address_hint).trim();
+      const t = it.title != null && String(it.title).trim();
+      if (g) return g;
+      if (h) return h;
+      return t || '';
+    }
+
+    function buildUberRideUrl(lat, lon, formattedAddress) {
+      const latN = Number(lat);
+      const lonN = Number(lon);
+      if (!Number.isFinite(latN) || !Number.isFinite(lonN)) return '';
+      const addr = String(formattedAddress || '').trim().slice(0, 240);
+      var q = 'action=setPickup&pickup=my_location';
+      q += '&dropoff[latitude]=' + encodeURIComponent(String(latN));
+      q += '&dropoff[longitude]=' + encodeURIComponent(String(lonN));
+      if (addr) q += '&dropoff[formatted_address]=' + encodeURIComponent(addr);
+      return 'https://m.uber.com/ul/?' + q;
+    }
+
+    var RADAR_SHARE_SVG =
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
+
     function formatRadarItemForClipboard(it) {
       const lines = [];
       if (it.title) lines.push(String(it.title));
+      const addrLine = formatRadarAddressLine(it);
+      if (addrLine && addrLine !== String(it.title || '').trim()) lines.push(addrLine);
       const metaParts = [];
       metaParts.push(it.distance_mi != null ? '~' + it.distance_mi + ' mi' : 'Distance unknown');
       if (it.start_time_hint) metaParts.push(String(it.start_time_hint));
@@ -668,12 +730,17 @@
       return lines.join('\n').trim();
     }
 
-    async function copyRadarPlainText(text, btn) {
+    async function copyRadarPlainText(text, btn, iconButton) {
       const t = (text || '').trim();
-      const label = btn.getAttribute('data-copy-label') || 'Copy';
       if (!t) {
-        btn.textContent = 'Nothing to copy';
-        setTimeout(function () { btn.textContent = label; }, 1400);
+        if (iconButton) {
+          btn.classList.add('radar-share-flash');
+          setTimeout(function () { btn.classList.remove('radar-share-flash'); }, 1400);
+        } else {
+          var label = btn.getAttribute('data-copy-label') || 'Copy';
+          btn.textContent = 'Nothing to copy';
+          setTimeout(function () { btn.textContent = label; }, 1400);
+        }
         return;
       }
       try {
@@ -690,12 +757,41 @@
           document.execCommand('copy');
           document.body.removeChild(ta);
         }
-        btn.textContent = 'Copied';
-        setTimeout(function () { btn.textContent = label; }, 1600);
+        if (iconButton) {
+          btn.classList.add('radar-share-flash');
+          setTimeout(function () { btn.classList.remove('radar-share-flash'); }, 1600);
+        } else {
+          var label2 = btn.getAttribute('data-copy-label') || 'Copy';
+          btn.textContent = 'Copied';
+          setTimeout(function () { btn.textContent = label2; }, 1600);
+        }
       } catch {
-        btn.textContent = 'Failed';
-        setTimeout(function () { btn.textContent = label; }, 1600);
+        if (iconButton) {
+          btn.classList.add('radar-share-flash');
+          setTimeout(function () { btn.classList.remove('radar-share-flash'); }, 1600);
+        } else {
+          var label3 = btn.getAttribute('data-copy-label') || 'Copy';
+          btn.textContent = 'Failed';
+          setTimeout(function () { btn.textContent = label3; }, 1600);
+        }
       }
+    }
+
+    async function shareRadarItem(it, btn) {
+      const text = formatRadarItemForClipboard(it);
+      const title = (it.title && String(it.title).trim()) || 'Radar';
+      const url = it.url && String(it.url).trim() ? String(it.url).trim() : undefined;
+      if (navigator.share) {
+        try {
+          const payload = { title: title, text: text };
+          if (url) payload.url = url;
+          await navigator.share(payload);
+          return;
+        } catch (e) {
+          if (e && e.name === 'AbortError') return;
+        }
+      }
+      await copyRadarPlainText(text, btn, true);
     }
 
     let lastRadarItems = [];
@@ -750,6 +846,14 @@
         const titleHtml = it.url
           ? '<h3><a href="' + escAttr(it.url) + '" target="_blank" rel="noopener noreferrer">' + esc(it.title) + '</a></h3>'
           : '<h3>' + esc(it.title) + '</h3>';
+        const vLat = it.venue_lat;
+        const vLon = it.venue_lon;
+        const hasRide = Number.isFinite(Number(vLat)) && Number.isFinite(Number(vLon));
+        const dropAddr = formatRadarAddressLine(it);
+        const uberUrl = hasRide ? buildUberRideUrl(vLat, vLon, dropAddr) : '';
+        const rideChip = hasRide
+          ? '<a class="radar-chip radar-chip-ride" href="' + escAttr(uberUrl) + '">Ride there</a>'
+          : '<span class="radar-chip radar-chip-ride" aria-disabled="true" title="No pin for this result — try Ideas with a clearer address or use Find places.">Ride there</span>';
         return (
           '<div class="card" data-idx="' + idx + '">' +
           titleHtml +
@@ -760,22 +864,23 @@
           (it.summary ? '<div class="summary">' + esc(it.summary) + '</div>' : '') +
           buildDuePickerHtml(idx, it) +
           '<div class="card-actions">' +
-          '<div class="card-actions-primary">' +
-          '<button type="button" class="btn btn-small add-task-btn" data-idx="' + idx + '">Add task</button>' +
-          '</div>' +
-          '<button type="button" class="btn btn-small radar-copy-btn" data-idx="' + idx + '" data-copy-label="Copy" aria-label="Copy this result to clipboard">Copy</button>' +
+          rideChip +
+          '<button type="button" class="radar-chip radar-chip-icon radar-share-btn" data-idx="' + idx + '" aria-label="Share">' +
+          RADAR_SHARE_SVG +
+          '</button>' +
+          '<button type="button" class="btn btn-small add-task-btn" data-idx="' + idx + '" style="margin-left:auto">Add task</button>' +
           '</div></div>'
         );
       }).join('');
 
       bindDuePickerListeners();
 
-      document.querySelectorAll('.radar-copy-btn').forEach(function (btn) {
+      document.querySelectorAll('.radar-share-btn').forEach(function (btn) {
         btn.addEventListener('click', function () {
           const idx = parseInt(btn.getAttribute('data-idx'), 10);
           const it = lastRadarItems[idx];
           if (!it) return;
-          copyRadarPlainText(formatRadarItemForClipboard(it), btn);
+          shareRadarItem(it, btn);
         });
       });
 

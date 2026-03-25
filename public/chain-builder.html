@@ -934,9 +934,17 @@ function renderDeeplinkFields(cfg, i) {
         onchange="updateConfigField(${i}, 'body', this.value)">
     </div>`;
   if (kind === 'spotify') return `
+    <p class="field-note" style="font-size:12px;color:var(--muted);margin:0 0 10px 0;line-height:1.45">
+      Uses the same flow as EA chat <strong>Play …</strong> (search, genre seeds, remote start). If you fill both fields, the play query wins.
+    </p>
     <div class="field">
-      <label>Spotify URI or URL</label>
-      <input type="text" value="${esc(cfg.uri || '')}" placeholder="spotify:playlist:37i9dQZF1DX..."
+      <label>What to play</label>
+      <input type="text" value="${esc(cfg.query || '')}" placeholder="e.g. chill jazz, Discover Weekly, artist + song"
+        onchange="updateConfigField(${i}, 'query', this.value)">
+    </div>
+    <div class="field">
+      <label>Or exact Spotify link <span style="opacity:.4">(optional)</span></label>
+      <input type="text" value="${esc(cfg.uri || '')}" placeholder="spotify:playlist:… or https://open.spotify.com/…"
         onchange="updateConfigField(${i}, 'uri', this.value)">
     </div>`;
   if (kind === 'timer') return `
@@ -1079,7 +1087,10 @@ function attachDragHandlers() {
 // ---------------------------------------------------------------------------
 function stepSummary(s) {
   const cfg = s.action_config || {};
-  if (s.action_type === 'deeplink')       return cfg.destination || cfg.number || cfg.contact || cfg.uri || cfg.url || cfg.kind || 'deeplink';
+  if (s.action_type === 'deeplink') {
+    if (cfg.kind === 'spotify') return cfg.query?.trim() || cfg.uri || 'spotify';
+    return cfg.destination || cfg.number || cfg.contact || cfg.uri || cfg.url || cfg.kind || 'deeplink';
+  }
   if (s.action_type === 'shortcut')       return cfg.name || 'shortcut';
   if (s.action_type === 'message')        return cfg.text || 'message';
   if (s.action_type === 'weather_check')  return `weather — ${cfg.condition || 'check'}`;
