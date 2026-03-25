@@ -114,6 +114,10 @@
     }
     .seg button.on { background: rgba(138,180,255,0.2); color: var(--text); border-color: var(--hi); }
 
+    .mode-block { margin-bottom: 4px; }
+    .when-note { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.4; display: none; }
+    .when-note.visible { display: block; }
+
     .radar-working {
       display: none;
       margin-top: 16px;
@@ -156,7 +160,15 @@
   </header>
 
   <main>
-    <p class="hint">Find things to do near a verified spot using your interests. Uses web search — verify times and tickets on each link. Good after tapping your watch and opening EA.</p>
+    <p class="hint" id="radar-hint">Pick a mode below, then set location. <strong>Ideas</strong> uses web search (events, activities, inspiration). <strong>Find places</strong> uses Google Places (bars, restaurants, museums, etc.) — needs <code style="font-size:12px;color:#aaa">GOOGLE_PLACES_API_KEY</code> on the server.</p>
+
+    <div class="mode-block">
+      <label>Radar mode</label>
+      <div class="seg" id="radar-kind-seg">
+        <button type="button" data-k="ideas" class="on">Ideas</button>
+        <button type="button" data-k="places">Find places</button>
+      </div>
+    </div>
 
     <label>Location</label>
     <input type="text" id="address" placeholder="Street, city, or ZIP" autocomplete="street-address">
@@ -181,8 +193,9 @@
       <button type="button" data-w="weekend">This weekend</button>
       <button type="button" data-w="week">This week</button>
     </div>
+    <p class="when-note" id="when-note-places">For <strong>Find places</strong>, <em>Tonight</em> adds an “open now” filter. Other options don’t change the Places query yet.</p>
 
-    <label>Interests (comma or line — saved in Settings too)</label>
+    <label id="interests-label">Interests (comma or line — saved in Settings too)</label>
     <textarea id="interests" placeholder="mountain biking, photography, museums, art"></textarea>
 
     <div class="row" style="margin-top:18px">
@@ -205,6 +218,27 @@
     let selLon = null;
     let selLabel = '';
     let windowKey = 'tonight';
+    let radarKind = 'ideas';
+
+    const HINT_IDEAS = 'Ideas mode: exploratory things to do near a verified spot. Uses web search — verify times and tickets on each link.';
+    const HINT_PLACES = 'Find places: bars, restaurants, cafés, museums, etc. Describe what you want in the text box (e.g. “cocktail bar”, “ramen”, “modern art museum”). Uses Google Places on the server.';
+
+    function syncModeUi() {
+      document.querySelectorAll('#radar-kind-seg button').forEach(function (x) {
+        x.classList.toggle('on', x.getAttribute('data-k') === radarKind);
+      });
+      document.getElementById('radar-hint').textContent =
+        radarKind === 'places' ? HINT_PLACES : HINT_IDEAS;
+      document.getElementById('interests-label').textContent =
+        radarKind === 'places'
+          ? 'What to find (comma or line — e.g. sushi, wine bar, science museum)'
+          : 'Interests (comma or line — saved in Settings too)';
+      document.getElementById('interests').placeholder =
+        radarKind === 'places'
+          ? 'cocktail bar, italian dinner, contemporary art museum'
+          : 'mountain biking, photography, museums, art';
+      document.getElementById('when-note-places').classList.toggle('visible', radarKind === 'places');
+    }
 
     function showErr(t) {
       const el = document.getElementById('msg-err');
@@ -318,6 +352,14 @@
         windowKey = b.getAttribute('data-w');
       });
     });
+
+    document.querySelectorAll('#radar-kind-seg button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        radarKind = b.getAttribute('data-k') || 'ideas';
+        syncModeUi();
+      });
+    });
+    syncModeUi();
 
     function longDate(d) {
       return d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
@@ -563,6 +605,7 @@
       document.getElementById('radius').disabled = busy;
       document.getElementById('interests').disabled = busy;
       document.querySelectorAll('#when-seg button').forEach(function (b) { b.disabled = busy; });
+      document.querySelectorAll('#radar-kind-seg button').forEach(function (b) { b.disabled = busy; });
     }
 
     function renderRadarResponse(data) {
@@ -573,7 +616,11 @@
       }
       const items = data.items || [];
       if (!items.length) {
-        document.getElementById('results').innerHTML = '<div class="empty">No results with solid links. Try a wider radius, different window, or broader interests.</div>';
+        const emptyMsg =
+          data.radar_kind === 'places'
+            ? 'No places matched. Try different words (e.g. “tapas”, “brewery”), a wider radius, or turn off “open now” by picking Tomorrow instead of Tonight.'
+            : 'No results with solid links. Try a wider radius, different window, or broader interests.';
+        document.getElementById('results').innerHTML = '<div class="empty">' + esc(emptyMsg) + '</div>';
         return;
       }
       lastRadarItems = items;
@@ -649,7 +696,6 @@
       const interests = document.getElementById('interests').value.trim();
       const range_description = describeWindow(windowKey);
       const data = await apiPost({
-        mode: 'search',
         lat: selLat,
         lon: selLon,
         location_label: selLabel,
@@ -657,6 +703,7 @@
         range_description: range_description,
         interests: interests,
         window: windowKey,
+        radar_kind: radarKind,
       });
       renderRadarResponse(data);
     }
@@ -668,6 +715,13 @@
       document.querySelectorAll('#when-seg button').forEach(function (x) {
         x.classList.toggle('on', x.getAttribute('data-w') === when);
       });
+    }
+
+    function applyKindFromUrl(kind) {
+      if (kind === 'places' || kind === 'ideas') {
+        radarKind = kind;
+        syncModeUi();
+      }
     }
 
     async function resolveLocationForQuickRadar() {
@@ -727,7 +781,13 @@
         showErr('Verify an address or use your location first.');
         return;
       }
-      setWorking(true, 'Searching the web…', 'Interest radar uses search and maps — often 30–60 seconds. Keep this tab open.');
+      setWorking(
+        true,
+        radarKind === 'places' ? 'Finding places…' : 'Searching the web…',
+        radarKind === 'places'
+          ? 'Google Places usually responds in a few seconds.'
+          : 'Interest radar uses search and maps — often 30–60 seconds. Keep this tab open.'
+      );
       setRadarBusy(true);
       try {
         await executeRadarSearchCore();
@@ -764,6 +824,7 @@
       const p = new URLSearchParams(location.search);
       if (p.get('auto') !== '1' && p.get('quick') !== '1') return;
       applyWhenFromUrl(p.get('when'));
+      applyKindFromUrl(p.get('kind'));
       showErr('');
       document.getElementById('disclaimer').style.display = 'none';
       document.getElementById('results').innerHTML = '';
@@ -777,7 +838,13 @@
           showErr('Could not determine location — verify an address or tap Use my location, then Run radar.');
           return;
         }
-        setWorking(true, 'Searching the web…', 'Matching your interests near you — often 30–60 seconds. Keep this tab open.');
+        setWorking(
+          true,
+          radarKind === 'places' ? 'Finding places…' : 'Searching the web…',
+          radarKind === 'places'
+            ? 'Google Places near your location.'
+            : 'Matching your interests near you — often 30–60 seconds. Keep this tab open.'
+        );
         await executeRadarSearchCore();
       } catch (e) {
         showErr(e.message);
@@ -792,6 +859,6 @@
       await maybeAutoRunFromChip();
     })();
   </script>
-  <script src="/nav.js?v=radar5" defer></script>
+  <script src="/nav.js?v=radar6" defer></script>
 </body>
 </html>

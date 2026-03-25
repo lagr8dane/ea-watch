@@ -1,10 +1,11 @@
-// POST /api/interest-radar — geocode address or run Interest Radar (Claude + web search + distances).
+// POST /api/interest-radar — geocode / reverse / radar (ideas: Claude+web | places: Google Places Text Search).
 
 import { parse as parseCookies } from 'cookie';
 import { queryOne } from '../db/client.js';
 import { reverseGeocodeLabel } from '../lib/briefing-data.js';
 import { forwardGeocode, enrichItemsWithDistance } from '../lib/geocode.js';
 import { fetchRadarSuggestions, parseRadarInterests } from '../lib/interest-radar.js';
+import { fetchPlacesTextRadar, isPlacesRadarConfigured } from '../lib/places-radar.js';
 import { logUserEvent } from '../lib/user-event-log.js';
 
 async function getOwnerSession(req) {
@@ -68,7 +69,9 @@ export default async function handler(req, res) {
     const location_label = String(body.location_label || '').trim() || `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
     const radius_miles = Math.min(100, Math.max(5, num(body.radius_miles, 25)));
     const range_description = String(body.range_description || '').trim();
-    if (!range_description) {
+    const radar_kind = body.radar_kind === 'places' ? 'places' : 'ideas';
+
+    if (radar_kind === 'ideas' && !range_description) {
       return res.status(400).json({ error: 'range_description required' });
     }
 
@@ -81,12 +84,67 @@ export default async function handler(req, res) {
       interests = parseRadarInterests(row?.interest_radar_topics ?? '');
     }
     if (interests.length === 0) {
-      return res.status(400).json({
-        error: 'Add at least one interest (in the form or Settings → Interest radar topics).',
-      });
+      const hint =
+        radar_kind === 'places'
+          ? 'Describe what to find (e.g. cocktail bar, sushi, museum) in the box or save defaults in Settings → Interest radar.'
+          : 'Add at least one interest (in the form or Settings → Interest radar topics).';
+      return res.status(400).json({ error: hint });
     }
 
     const windowKey = String(body.window || 'week').slice(0, 32);
+
+    if (radar_kind === 'places') {
+      if (!isPlacesRadarConfigured()) {
+        return res.status(503).json({
+          error:
+            'Find places needs GOOGLE_PLACES_API_KEY on the server. Add it to your deployment environment, or switch to Ideas mode.',
+        });
+      }
+
+      const openNow = windowKey === 'tonight';
+      const textQuery = interests.join(' ');
+      const rawItems = await fetchPlacesTextRadar({
+        lat,
+        lon,
+        radiusMiles: radius_miles,
+        textQuery,
+        openNow,
+      });
+
+      const items = await enrichItemsWithDistance(rawItems, {
+        lat,
+        lon,
+        locationLabel: location_label,
+      });
+
+      await logUserEvent(
+        session.token,
+        'ea_interest_radar',
+        {
+          radar_kind: 'places',
+          window: windowKey,
+          radius_miles,
+          item_count: items.length,
+          interest_count: interests.length,
+        },
+        'success'
+      );
+
+      return res.status(200).json({
+        version: 1,
+        radar_kind: 'places',
+        location_label,
+        lat,
+        lon,
+        radius_miles,
+        window: windowKey,
+        range_description: range_description || `Places near ${location_label}`,
+        interests,
+        items,
+        disclaimer:
+          'Results from Google Places. Hours and busy times can change — confirm on Maps or the venue site before you go.',
+      });
+    }
 
     const { items: rawItems } = await fetchRadarSuggestions({
       locationLabel: location_label,
@@ -105,6 +163,7 @@ export default async function handler(req, res) {
       session.token,
       'ea_interest_radar',
       {
+        radar_kind: 'ideas',
         window: windowKey,
         radius_miles,
         item_count: items.length,
@@ -115,6 +174,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       version: 1,
+      radar_kind: 'ideas',
       location_label,
       lat,
       lon,
