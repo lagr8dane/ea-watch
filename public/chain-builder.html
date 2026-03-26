@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>EA — Chains</title>
 <script src="/shell-pref.js?v=1"></script>
-  <link rel="stylesheet" href="/shell.css?v=2">
+  <link rel="stylesheet" href="/shell.css?v=3">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
 
@@ -43,7 +43,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 20px 16px;
+    padding: calc(20px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 16px max(20px, env(safe-area-inset-left, 0px));
     border-bottom: 1px solid var(--border);
     position: sticky;
     top: 0;
@@ -442,10 +442,10 @@
     </div>
     <div style="display:flex;align-items:center;gap:8px;">
       <button class="new-btn" onclick="openNew()">+ New</button>
-      <button onclick="navOpen()" style="background:none;border:none;cursor:pointer;padding:6px;display:flex;flex-direction:column;gap:5px;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent;">
-        <span style="display:block;width:20px;height:1.5px;background:#888;border-radius:1px;"></span>
-        <span style="display:block;width:20px;height:1.5px;background:#888;border-radius:1px;"></span>
-        <span style="display:block;width:20px;height:1.5px;background:#888;border-radius:1px;"></span>
+      <button type="button" class="nav-menu-btn" onclick="navOpen()" aria-label="Open menu">
+        <span class="nav-menu-line" aria-hidden="true"></span>
+        <span class="nav-menu-line" aria-hidden="true"></span>
+        <span class="nav-menu-line" aria-hidden="true"></span>
       </button>
     </div>
   </header>

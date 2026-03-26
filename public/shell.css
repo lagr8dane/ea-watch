@@ -1,6 +1,7 @@
 /* EA Watch — shared column layout. Include on every full-page surface. */
 :root {
   --shell-max-width: 640px;
+  --shell-focus-ring: rgba(138, 180, 255, 0.88);
 }
 
 /* Optional: <html data-shell-max="720"> widens the column */
@@ -47,4 +48,187 @@ body.has-app-shell {
   padding: max(24px, env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px))
     max(24px, env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
   box-sizing: border-box;
+}
+
+/* ── Reactive UX: tap targets, keyboard focus, motion (all .app-shell + chain #panel) ── */
+.app-shell .nav-menu-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 10px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-shell .nav-menu-btn .nav-menu-line {
+  display: block;
+  width: 20px;
+  height: 1.5px;
+  background: #888;
+  border-radius: 1px;
+}
+
+body.has-app-shell .app-shell > header .nav-btn {
+  min-width: 44px !important;
+  min-height: 44px !important;
+  box-sizing: border-box;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+}
+
+body.has-app-shell .app-shell > header .add-btn,
+body.has-app-shell .app-shell > header .save-btn,
+body.has-app-shell .app-shell > header .new-btn,
+body.has-app-shell .app-shell > header .refresh-btn {
+  min-height: 44px !important;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.has-app-shell .app-shell .tab {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+body.has-app-shell .app-shell .filter-btn {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+body.has-app-shell .app-shell .cal-nav button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+body.has-app-shell .app-shell .radar-chip {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+body.has-app-shell .app-shell .task-del {
+  min-width: 44px;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+body.has-app-shell .app-shell .collapsible-head {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+body.has-app-shell .app-shell details.tap-sub > summary {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+body.has-app-shell .app-shell .danger-btn {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+body.has-app-shell .app-shell .pick-item {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+body.has-app-shell .app-shell main .btn.btn-primary,
+body.has-app-shell .app-shell main button.btn:not(.btn-small) {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+body.has-app-shell .app-shell--centered .style-toggle button {
+  min-height: 44px;
+}
+
+body.has-app-shell .app-shell--centered .actions .btn {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+body.has-app-shell .app-shell--centered .scenario-btn {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+body.has-app-shell .app-shell--centered button.submit {
+  min-height: 44px;
+}
+
+body.has-app-shell #panel > .panel-header {
+  padding-top: calc(20px + env(safe-area-inset-top, 0px)) !important;
+  padding-left: max(20px, env(safe-area-inset-left, 0px)) !important;
+  padding-right: max(20px, env(safe-area-inset-right, 0px)) !important;
+  box-sizing: border-box;
+}
+
+body.has-app-shell #panel .btn-ghost,
+body.has-app-shell #panel .btn-primary {
+  min-height: 44px;
+  min-width: 44px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.has-app-shell #panel .step-header {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+body.has-app-shell #panel .add-step-btn {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+body.has-app-shell #panel .step-delete {
+  min-width: 44px;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+body.has-app-shell .app-shell button:focus-visible,
+body.has-app-shell .app-shell a:focus-visible,
+body.has-app-shell .app-shell input:focus-visible,
+body.has-app-shell .app-shell select:focus-visible,
+body.has-app-shell .app-shell textarea:focus-visible,
+body.has-app-shell .app-shell summary:focus-visible,
+body.has-app-shell #panel button:focus-visible,
+body.has-app-shell #panel a:focus-visible,
+body.has-app-shell #panel input:focus-visible,
+body.has-app-shell #panel select:focus-visible,
+body.has-app-shell #panel textarea:focus-visible,
+body.has-app-shell #panel summary:focus-visible {
+  outline: 2px solid var(--shell-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.has-app-shell .app-shell,
+  body.has-app-shell .app-shell *,
+  body.has-app-shell .app-shell *::before,
+  body.has-app-shell .app-shell *::after,
+  body.has-app-shell #panel,
+  body.has-app-shell #panel *,
+  body.has-app-shell #panel *::before,
+  body.has-app-shell #panel *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

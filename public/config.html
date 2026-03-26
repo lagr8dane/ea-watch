@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0a0a0a">
   <title>EA Config</title>
   <script src="/shell-pref.js?v=1"></script>
-  <link rel="stylesheet" href="/shell.css?v=2">
+  <link rel="stylesheet" href="/shell.css?v=3">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -39,7 +39,7 @@
       top: 0;
       background: var(--bg);
       border-bottom: 1px solid var(--border);
-      padding: 16px 20px;
+      padding: calc(16px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px)) 16px max(20px, env(safe-area-inset-left, 0px));
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -93,7 +93,7 @@
     /* Sections */
     .section {
       margin: 28px 0 0;
-      padding: 0 20px;
+      padding: 0 max(20px, env(safe-area-inset-right, 0px)) 0 max(20px, env(safe-area-inset-left, 0px));
     }
 
     .section-group-title {
@@ -102,7 +102,7 @@
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--muted);
-      margin: 36px 20px 8px;
+      margin: 36px max(20px, env(safe-area-inset-right, 0px)) 8px max(20px, env(safe-area-inset-left, 0px));
       padding-left: 4px;
     }
     .section-group-title.first {
@@ -299,10 +299,10 @@
     <h1>Settings</h1>
     <div style="display:flex;align-items:center;gap:8px;">
       <button class="save-btn" id="save-btn" onclick="save()">Save</button>
-      <button onclick="navOpen()" style="background:none;border:none;cursor:pointer;padding:6px;display:flex;flex-direction:column;gap:5px;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent;">
-        <span style="display:block;width:20px;height:1.5px;background:#888;border-radius:1px;"></span>
-        <span style="display:block;width:20px;height:1.5px;background:#888;border-radius:1px;"></span>
-        <span style="display:block;width:20px;height:1.5px;background:#888;border-radius:1px;"></span>
+      <button type="button" class="nav-menu-btn" onclick="navOpen()" aria-label="Open menu">
+        <span class="nav-menu-line" aria-hidden="true"></span>
+        <span class="nav-menu-line" aria-hidden="true"></span>
+        <span class="nav-menu-line" aria-hidden="true"></span>
       </button>
     </div>
   </header>

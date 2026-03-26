@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0a0a0a">
   <title>EA — Tasks</title>
   <script src="/shell-pref.js?v=1"></script>
-  <link rel="stylesheet" href="/shell.css?v=2">
+  <link rel="stylesheet" href="/shell.css?v=3">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -25,7 +25,7 @@
 
     header {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 18px; border-bottom: 1px solid var(--border);
+      padding: calc(16px + env(safe-area-inset-top, 0px)) max(18px, env(safe-area-inset-right, 0px)) 12px max(18px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--border);
       position: sticky; top: 0; background: var(--bg); z-index: 5;
     }
     .header-left { display: flex; align-items: center; gap: 12px; }
@@ -37,7 +37,7 @@
     .add-btn { font-size: 14px; font-weight: 600; background: var(--text); color: var(--bg); border-radius: 20px; padding: 8px 16px; }
 
     .tabs {
-      display: flex; gap: 0; padding: 0 18px; border-bottom: 1px solid var(--border);
+      display: flex; gap: 0; padding: 0 max(18px, env(safe-area-inset-right, 0px)) 0 max(18px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--border);
     }
     .tab {
       flex: 1; padding: 14px; text-align: center; font-size: 14px; font-weight: 500;
@@ -46,7 +46,7 @@
     }
     .tab.active { color: var(--text); border-bottom-color: var(--hi); }
 
-    .panel { display: none; padding: 16px 18px; }
+    .panel { display: none; padding: 16px max(18px, env(safe-area-inset-right, 0px)) 16px max(18px, env(safe-area-inset-left, 0px)); }
     .panel.active { display: block; }
 
     .section-title {
