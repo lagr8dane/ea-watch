@@ -122,7 +122,17 @@
     .nav-menu-btn:focus-visible,
     .send-btn:focus-visible,
     .voice-btn:focus-visible,
+    .ea-intent-pill {
+      font-size: 12px;
+      padding: 10px 8px;
+      text-align: center;
+      line-height: 1.25;
+      justify-content: center;
+      hyphens: auto;
+    }
+
     .ea-chip:focus-visible,
+    .ea-intent-pill:focus-visible,
     .action-pill:focus-visible,
     .chain-btn:focus-visible {
       outline: 2px solid var(--hi);
@@ -259,7 +269,22 @@
     .typing-dot:nth-child(2) { animation-delay: 0.2s; }
     .typing-dot:nth-child(3) { animation-delay: 0.4s; }
 
-    /* Quick actions — under greeting */
+    /* Intent entry — max ~2 rows (3+2 grid on typical phone) */
+    .ea-intent-grid {
+      align-self: stretch;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      max-width: 100%;
+      padding: 2px 2px 6px;
+    }
+    @media (max-width: 340px) {
+      .ea-intent-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    /* Quick actions — under greeting (routine chips etc.) */
     .ea-quick-chips {
       align-self: flex-start;
       display: flex;
@@ -926,59 +951,119 @@
       } catch {}
     }
 
-    function appendQuickChips() {
-      const messagesEl = document.getElementById('messages');
-      if (document.getElementById('ea-quick-chips')) return;
-      const bar = document.createElement('div');
-      bar.id = 'ea-quick-chips';
-      bar.className = 'ea-quick-chips';
-      bar.setAttribute('role', 'toolbar');
-      bar.setAttribute('aria-label', 'Quick actions');
-      const chips = [
-        { label: 'Briefing', text: 'morning briefing' },
-        { label: 'News', text: 'top news' },
-        { label: 'Weather', text: 'weather' },
-        { label: 'Mindful', text: 'mindful moment' },
-        { label: 'Inspire me', text: 'inspire me' },
-        { label: 'Routines', text: 'routines' },
-        { label: 'Tasks', text: 'my tasks' },
-      ];
-      if (!isShell) {
-        chips.push({ label: 'Radar', kind: 'radar' });
+    const AIS_STORAGE_KEY = 'ea_ais_v1';
+
+    function setActiveIntentSession(intentKey) {
+      try {
+        sessionStorage.setItem(
+          AIS_STORAGE_KEY,
+          JSON.stringify({ intent: intentKey, ts: Date.now() })
+        );
+      } catch (_) {}
+    }
+
+    function navigateRadarIntent() {
+      const qs = new URLSearchParams({ auto: '1', when: 'tonight' });
+      if (urlDebug) qs.set('debug', '1');
+      window.location.href = '/interest-radar?' + qs.toString();
+    }
+
+    function runIntentPill(key) {
+      if (isTyping) return;
+      setActiveIntentSession(key);
+      if (key === 'do') {
+        sendChipMessage('routines');
+        return;
       }
-      for (const c of chips) {
+      if (key === 'explore') {
+        if (isShell) sendChipMessage('inspire me');
+        else navigateRadarIntent();
+        return;
+      }
+      if (key === 'plan') {
+        sendChipMessage('my tasks');
+        return;
+      }
+      if (key === 'reset') {
+        sendChipMessage('mindful moment');
+        return;
+      }
+      if (key === 'see') {
+        sendChipMessage('morning briefing');
+      }
+    }
+
+    /** Deterministic text → route key (null = pass through to /api/ea as “Do something”). */
+    function classifyIntentFromText(raw) {
+      const lower = String(raw || '')
+        .trim()
+        .toLowerCase();
+      const skip = new Set([
+        'inspire me',
+        'morning briefing',
+        'mindful moment',
+        'my tasks',
+        'routines',
+      ]);
+      if (skip.has(lower)) return null;
+      if (lower.includes('inspire')) return 'explore_inspire';
+      if (
+        lower.includes("what's going on") ||
+        lower.includes('whats going on') ||
+        lower.includes('what’s going on') ||
+        /\bnews\b/.test(lower) ||
+        /\bweather\b/.test(lower)
+      ) {
+        return 'see';
+      }
+      if (/\bbreak\b|\breset\b/.test(lower)) return 'reset';
+      if (/\bplan\b|\borganize\b/.test(lower)) return 'plan';
+      if (/\bidea\b|\bwhere\b|\bfind\b/.test(lower)) return 'explore_nav';
+      if (/\bfocus\b|\btimer\b|\bdo\b/.test(lower)) return null;
+      return null;
+    }
+
+    function appendIntentEntryPills(stack) {
+      if (!stack || document.getElementById('ea-intent-entry')) return;
+      const grid = document.createElement('div');
+      grid.id = 'ea-intent-entry';
+      grid.className = 'ea-intent-grid';
+      grid.setAttribute('role', 'toolbar');
+      grid.setAttribute('aria-label', 'What you need right now');
+      const pills = [
+        { key: 'do', label: 'Do something' },
+        { key: 'explore', label: 'Explore' },
+        { key: 'plan', label: 'Plan' },
+        { key: 'reset', label: 'Reset' },
+        { key: 'see', label: "See what's going on" },
+      ];
+      for (const p of pills) {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'ea-chip';
-        btn.textContent = c.label;
-        if (c.kind === 'radar') {
-          btn.title = 'Interest radar — your location & saved interests';
-          btn.addEventListener('click', () => {
-            const qs = new URLSearchParams({ auto: '1', when: 'tonight' });
-            if (urlDebug) qs.set('debug', '1');
-            window.location.href = '/interest-radar?' + qs.toString();
-          });
-        } else {
-          btn.addEventListener('click', () => sendChipMessage(c.text));
-        }
-        bar.appendChild(btn);
+        btn.className = 'ea-chip ea-intent-pill';
+        btn.textContent = p.label;
+        btn.addEventListener('click', () => runIntentPill(p.key));
+        grid.appendChild(btn);
       }
-      messagesEl.appendChild(bar);
-      scrollBottom();
+      stack.appendChild(grid);
     }
 
     function showGreetingAndChips() {
       const hour = new Date().getHours();
       const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-      const el = appendMsg('ea', `${greet}! How can I help?`);
-      appendQuickChips();
+      const el = appendMsg('ea', 'What do you need right now?');
+      const row = el && el.closest('.msg-row');
+      const stack = row && row.querySelector('.ea-msg-stack');
+      appendIntentEntryPills(stack);
       loadOwnerName()
         .then(() => {
-          if (ownerFirstName && el) {
-            el.textContent = `${greet}, ${ownerFirstName}! How can I help?`;
+          const slot = el && el.querySelector('.ea-stream-text');
+          if (ownerFirstName && slot) {
+            slot.textContent = `${greet}, ${ownerFirstName}.\n\nWhat do you need right now?`;
           }
         })
         .catch(() => {});
+      scrollBottom();
     }
 
     async function sendChipMessage(text) {
@@ -987,7 +1072,7 @@
       input.value = text;
       input.style.height = 'auto';
       document.getElementById('send-btn').disabled = false;
-      await send();
+      await send({ skipClassify: true });
     }
 
     /** Chips under an EA reply — tap sends `trigger` as the next user message. */
@@ -1521,10 +1606,44 @@
 
     // --- Send ---
 
-    async function send() {
+    async function send(opts) {
+      opts = opts || {};
       const input = document.getElementById('input');
-      const text  = input.value.trim();
+      const text = input.value.trim();
       if (!text || isTyping) return;
+
+      if (!opts.skipClassify) {
+        const cls = classifyIntentFromText(text);
+        if (cls === 'explore_nav') {
+          input.value = '';
+          input.style.height = 'auto';
+          document.getElementById('send-btn').disabled = true;
+          setActiveIntentSession('explore');
+          if (isShell) {
+            input.value = 'inspire me';
+            autoResize(input);
+            document.getElementById('send-btn').disabled = !input.value.trim();
+            return send({ skipClassify: true });
+          }
+          navigateRadarIntent();
+          return;
+        }
+        const routeLiteral = {
+          see: 'morning briefing',
+          reset: 'mindful moment',
+          plan: 'my tasks',
+          explore_inspire: 'inspire me',
+        };
+        if (routeLiteral[cls]) {
+          setActiveIntentSession(
+            cls === 'explore_inspire' ? 'explore' : cls === 'see' ? 'see' : cls
+          );
+          input.value = routeLiteral[cls];
+          autoResize(input);
+          return send({ skipClassify: true });
+        }
+        setActiveIntentSession('do');
+      }
 
       input.value = '';
       input.style.height = 'auto';
