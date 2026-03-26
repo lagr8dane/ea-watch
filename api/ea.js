@@ -480,9 +480,13 @@ async function handleClockIntent(res, intent, sessionId, debug) {
       return;
     }
     const len = formatTimerLength(intent.minutes);
+    const minLabel =
+      Math.abs(intent.minutes - Math.round(intent.minutes)) < 0.001
+        ? String(Math.round(intent.minutes))
+        : String(Math.round(intent.minutes * 10) / 10);
     sendText(
       res,
-      `Here is a ${len} timer in Clock. Tap the button below when you are ready. iOS may still ask you to tap Start on the timer screen.`
+      `Browsers can’t reliably pre-fill the Clock timer (Safari often shows an invalid link). Start a ${len} countdown on this page, or try opening the Clock app below.`
     );
     res.write(
       `data: ${JSON.stringify({
@@ -491,8 +495,9 @@ async function handleClockIntent(res, intent, sessionId, debug) {
             type: 'deeplink',
             url,
             embed: true,
+            minutes: intent.minutes,
             pillClass: 'action-pill-timer',
-            label: '⏱ Open timer',
+            label: `⏱ ${minLabel} min — run here`,
           },
         ],
       })}\n\n`

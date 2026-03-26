@@ -989,6 +989,85 @@
       background: rgba(255, 200, 120, 0.18);
     }
 
+    button.action-pill {
+      cursor: pointer;
+      font-family: inherit;
+      border-style: solid;
+    }
+
+    .ea-timer-action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      width: 100%;
+      margin-top: 6px;
+    }
+
+    .ea-live-timer {
+      position: fixed;
+      left: 50%;
+      bottom: max(96px, calc(env(safe-area-inset-bottom, 0px) + 88px));
+      transform: translateX(-50%);
+      width: min(360px, calc(100vw - 24px));
+      z-index: 45;
+      display: none;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: #1a1e2e;
+      border: 1px solid rgba(138, 180, 255, 0.35);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+      font-size: 15px;
+      color: var(--text);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .ea-live-timer.is-visible {
+      display: flex;
+    }
+
+    .ea-live-timer-digits {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      font-size: 20px;
+      letter-spacing: 0.04em;
+      color: #b8d9ff;
+    }
+
+    .ea-live-timer-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .ea-live-timer-actions button {
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .ea-live-timer-close {
+      min-width: 36px;
+      padding: 6px 8px;
+      border: none !important;
+      background: transparent !important;
+      color: var(--muted) !important;
+      font-size: 22px;
+      line-height: 1;
+    }
+
     .ea-pending-bar {
       flex-shrink: 0;
       padding: 12px max(16px, env(safe-area-inset-right, 0px)) 12px max(16px, env(safe-area-inset-left, 0px));
@@ -1347,7 +1426,11 @@
           rows: [
             { label: 'Focus', sub: 'Routines', action: () => sendChipMessage('routines') },
             { label: 'Quick task', sub: 'Add a task', action: () => sendChipMessage('remind me to follow up') },
-            { label: 'Start timer', sub: '10 minutes', action: () => sendChipMessage('set a timer for 10 minutes') },
+            {
+              label: 'Start timer',
+              sub: '10 min in this page',
+              action: () => startEaWebTimer(10),
+            },
             { label: 'Run a routine', sub: 'Pick from list', action: () => sendChipMessage('routines') },
           ],
         },
@@ -2477,12 +2560,176 @@
       return anchorEl.closest?.('.mb-panel') || anchorEl;
     }
 
+    const eaLiveTimer = { intervalId: null, endAt: 0, pausedLeftMs: null, root: null };
+
+    function tryOpenClockAppTimer(url) {
+      const u = url && String(url).startsWith('clock-timer') ? url : 'clock-timer://';
+      try {
+        const w = window.open(u, '_blank', 'noopener,noreferrer');
+        if (w) w.opener = null;
+      } catch (_) {}
+      setTimeout(() => {
+        try {
+          window.location.href = u;
+        } catch (_) {}
+      }, 50);
+    }
+
+    function formatCountdownMs(ms) {
+      const s = Math.max(0, Math.ceil(ms / 1000));
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return m > 0 ? `${m}:${String(r).padStart(2, '0')}` : `0:${String(r).padStart(2, '0')}`;
+    }
+
+    function stopEaLiveTimerInterval() {
+      if (eaLiveTimer.intervalId != null) {
+        clearInterval(eaLiveTimer.intervalId);
+        eaLiveTimer.intervalId = null;
+      }
+    }
+
+    function hideEaLiveTimer() {
+      stopEaLiveTimerInterval();
+      eaLiveTimer.endAt = 0;
+      eaLiveTimer.pausedLeftMs = null;
+      if (eaLiveTimer.root) {
+        eaLiveTimer.root.classList.remove('is-visible');
+        const d = eaLiveTimer.root.querySelector('.ea-live-timer-digits');
+        const pauseBtn = eaLiveTimer.root.querySelector('[data-ea-timer-pause]');
+        if (pauseBtn) pauseBtn.textContent = 'Pause';
+      }
+    }
+
+    function playEaTimerDoneChime() {
+      try {
+        if (navigator.vibrate) navigator.vibrate([120, 80, 120]);
+      } catch (_) {}
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.value = 880;
+        o.connect(g);
+        g.connect(ctx.destination);
+        g.gain.setValueAtTime(0.12, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+        o.start(ctx.currentTime);
+        o.stop(ctx.currentTime + 0.2);
+      } catch (_) {}
+    }
+
+    function ensureEaLiveTimerRoot() {
+      if (eaLiveTimer.root) return eaLiveTimer.root;
+      const el = document.createElement('div');
+      el.id = 'ea-live-timer';
+      el.className = 'ea-live-timer';
+      el.setAttribute('role', 'status');
+      el.innerHTML =
+        '<span class="ea-live-timer-digits">0:00</span>' +
+        '<div class="ea-live-timer-actions">' +
+        '<button type="button" data-ea-timer-pause>Pause</button>' +
+        '<button type="button" class="ea-live-timer-close" data-ea-timer-close aria-label="Close timer">×</button>' +
+        '</div>';
+      document.body.appendChild(el);
+      eaLiveTimer.root = el;
+      const digits = el.querySelector('.ea-live-timer-digits');
+      const pauseBtn = el.querySelector('[data-ea-timer-pause]');
+      pauseBtn.addEventListener('click', () => {
+        if (eaLiveTimer.pausedLeftMs != null) {
+          eaLiveTimer.endAt = Date.now() + eaLiveTimer.pausedLeftMs;
+          eaLiveTimer.pausedLeftMs = null;
+          pauseBtn.textContent = 'Pause';
+          runEaLiveTimerTick();
+        } else {
+          const left = eaLiveTimer.endAt - Date.now();
+          if (left <= 0) return;
+          eaLiveTimer.pausedLeftMs = left;
+          stopEaLiveTimerInterval();
+          pauseBtn.textContent = 'Resume';
+        }
+      });
+      el.querySelector('[data-ea-timer-close]').addEventListener('click', () => hideEaLiveTimer());
+      return el;
+    }
+
+    function runEaLiveTimerTick() {
+      stopEaLiveTimerInterval();
+      const digits = eaLiveTimer.root && eaLiveTimer.root.querySelector('.ea-live-timer-digits');
+      const tick = () => {
+        if (!digits || !eaLiveTimer.root) return;
+        if (eaLiveTimer.pausedLeftMs != null) return;
+        const left = eaLiveTimer.endAt - Date.now();
+        if (left <= 0) {
+          digits.textContent = '0:00';
+          stopEaLiveTimerInterval();
+          playEaTimerDoneChime();
+          return;
+        }
+        digits.textContent = formatCountdownMs(left);
+      };
+      tick();
+      eaLiveTimer.intervalId = setInterval(tick, 250);
+    }
+
+    /** Reliable countdown when Clock app URLs fail from Safari / macOS web. */
+    function startEaWebTimer(minutes) {
+      const m = Number(minutes);
+      if (!Number.isFinite(m) || m <= 0 || m > 24 * 60) return;
+      const totalMs = Math.round(m * 60 * 1000);
+      hideEaLiveTimer();
+      const root = ensureEaLiveTimerRoot();
+      eaLiveTimer.endAt = Date.now() + totalMs;
+      eaLiveTimer.pausedLeftMs = null;
+      root.classList.add('is-visible');
+      const pauseBtn = root.querySelector('[data-ea-timer-pause]');
+      if (pauseBtn) pauseBtn.textContent = 'Pause';
+      runEaLiveTimerTick();
+    }
+
     /**
      * Fire a deeplink or Siri Shortcut URL.
      * Renders a chip inside the EA message. Optional `action.embed`: show chip only, do not auto-navigate.
      */
     function fireAction(action, anchorEl) {
       const mount = deeplinkMessageMount(anchorEl);
+
+      if (
+        action.type === 'deeplink' &&
+        typeof action.url === 'string' &&
+        action.url.startsWith('clock-timer') &&
+        action.minutes != null
+      ) {
+        const mins = Number(action.minutes);
+        if (Number.isFinite(mins) && mins > 0) {
+          const row = document.createElement('div');
+          row.className = 'ea-timer-action-row';
+          const btnHere = document.createElement('button');
+          btnHere.type = 'button';
+          btnHere.className = 'action-pill action-pill-timer';
+          btnHere.textContent =
+            action.label || `⏱ ${Math.abs(mins - Math.round(mins)) < 0.001 ? Math.round(mins) : Math.round(mins * 10) / 10} min — run here`;
+          btnHere.addEventListener('click', () => startEaWebTimer(mins));
+          const aClock = document.createElement('a');
+          aClock.className = 'action-pill action-pill-clock';
+          aClock.textContent = 'Open Clock';
+          aClock.href = action.url || 'clock-timer://';
+          aClock.rel = 'noopener';
+          aClock.addEventListener('click', (e) => {
+            e.preventDefault();
+            tryOpenClockAppTimer(aClock.href);
+          });
+          row.appendChild(btnHere);
+          row.appendChild(aClock);
+          if (mount) mount.appendChild(row);
+          scrollBottom();
+          return;
+        }
+      }
+
       const label = action.label
         ? action.label
         : action.type === 'shortcut'
