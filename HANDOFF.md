@@ -31,7 +31,11 @@ A custom wristwatch with an NTAG213 anti-metal NFC chip in the case back. Anyone
 - OS delegation: `lib/actions/deeplinks.js`, `shortcuts.js`; conditionals `conditional.js`
 - **Deeplink `kind: url`** — arbitrary `https://` / `http://` (escape hatch). On iOS, **Apple Podcasts** and **Apple Music** share URLs (`podcasts.apple.com`, `music.apple.com`) typically open in the native apps (universal links). **Spotify** remains **`kind: spotify`** with URI or `open.spotify.com` URL.
 - **Chain builder UX:** changing **Deeplink kind** or **Action type** re-renders step fields so the **URL** input appears for `url` (fix landed post–V1 polish).
-- EA integration in `api/ea.js` — trigger match **after** routine picker; SSE for actions + chain controls
+- EA integration in `api/ea.js` — **routine picker** → **chain trigger match** → **Spotify** (only if no routine matched) → **briefing intents** → **clock** (timer/alarm) → **tasks** → else **Claude** stream. SSE for actions + chain controls.
+- **EA server-side intents (no raw URLs in prose for these):**
+  - **Tasks** — `lib/task-intent.js`: list/add/complete/delete when the user says things like *add task …*, *create a task to …*, *remind me to …* (see code for full phrases). `TASK_CHAT_RULES` stops the model from claiming a task was saved otherwise.
+  - **Timers** — `lib/clock-intent.js`: phrases that include *timer* / *countdown* / *set a timer* plus a duration → `buildDeeplink({ kind: 'timer' })` → client **embed** pill (`⏱ Open timer`) so the user taps; iOS may still require **Start** in Clock.
+  - **Alarms** — same parser: *set an alarm*, *wake me at …*, *alarm for/at …* → plain explanation that alarms cannot be set reliably from EA + optional **`clock-alarm://`** pill (`🕐 Clock`). `CLOCK_CHAT_RULES` applies to owner and shell sessions.
 - Action log `/action-log`
 
 ### Phase 3 + V1 — EA experience + radar + contact polish
@@ -115,7 +119,7 @@ npm run dev            # → http://localhost:3000
 - **Exports:** `query`, `queryOne`, `execute` from `db/client.js`.
 - **Briefing JSON:** **`/api/morning-briefing`** / panel fetch — not large JSON inside Claude SSE text.
 - **`api/ea.js`** imports `lib/briefing-data.js` directly — no HTTP self-call to `/api/briefing` in the same invocation.
-- **EA Q&A not persisted:** `/api/ea` does **not** store user questions or assistant answers in Turso. The client sends the last **~20** turns (sanitised `role` + `content`, capped length) per request; only **specific intents** call `logUserEvent` → `action_log` (tasks, briefings, routine menu, etc.) with JSON **metadata**, not a full chat dump.
+- **EA Q&A not persisted:** `/api/ea` does **not** store user questions or assistant answers in Turso. The client sends the last **~20** turns (sanitised `role` + `content`, capped length) per request; only **specific intents** call `logUserEvent` → `action_log` (tasks, briefings, routine menu, clock timer/alarm, Spotify, etc.) with JSON **metadata**, not a full chat dump.
 - **Third-party AI:** Anthropic receives conversation turns for each call; corporate retention is outside this codebase (document in README for owners).
 
 ---
@@ -123,7 +127,7 @@ npm run dev            # → http://localhost:3000
 ## File structure (high signal)
 
 ```
-api/ea.js                 Claude + chains + briefing + routine picker SSE
+api/ea.js                 Claude + chains + briefing + routine picker + task/clock/Spotify intents SSE
 api/morning-briefing.js   JSON panels
 api/interest-radar.js     Geocode, reverse, Ideas (Claude), Places (Google)
 api/config.js             Owner config (+ briefing + interest_radar_topics + stranger_* )
@@ -131,7 +135,9 @@ lib/briefing-data.js      Weather, news, location_label
 lib/geocode.js            Forward/reverse, radar distance enrichment
 lib/interest-radar.js     Ideas: Claude + web search
 lib/places-radar.js       Find places: Google Places searchText
-public/ea.html            Chat, chips, Copy, voice, panels
+lib/task-intent.js        EA chat: task phrase parsing
+lib/clock-intent.js       EA chat: timer vs alarm phrase parsing
+public/ea.html            Chat, chips, Copy, voice, panels, action pills (timer/clock/Spotify)
 public/chain-builder.html Routines UI (deeplink kinds incl. url; re-render on kind change)
 public/interest-radar.html
 public/config.html        Settings (grouped sections, tap-meet nested details)

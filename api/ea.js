@@ -11,6 +11,8 @@ import {
 import { fetchWeatherSnapshot, fetchNewsStories } from '../lib/briefing-data.js';
 import { parseDebugFlag, debugLog } from '../lib/debug-log.js';
 import { logUserEvent } from '../lib/user-event-log.js';
+import { buildDeeplink } from '../lib/actions/deeplinks.js';
+import { parseClockIntent } from '../lib/clock-intent.js';
 import { parseTaskIntent } from '../lib/task-intent.js';
 import { parseSpotifyIntent } from '../lib/spotify-intent.js';
 import {
@@ -46,6 +48,10 @@ FORMATTING: Never use markdown, headers (##), bullet points, bold (**), italics,
 const TASK_CHAT_RULES = `
 
 TASKS: The app only saves tasks when the user uses a task phrase such as create a task to …, add task …, remind me to …, or new task …. If they ask vaguely, tell them to say it in one of those forms — never claim you already saved a task.`;
+
+const CLOCK_CHAT_RULES = `
+
+TIMERS AND ALARMS: Never paste clock-timer, clock-alarm, or other raw URLs in your reply. Never tell the owner to copy, paste, or run a link for a timer or alarm. The app handles common timer and alarm phrases on its own. If their wording is unclear, suggest they say something like set a timer for ten minutes. For wake-up style alarms, say honestly that you cannot set those from here and they should use the Clock app.`;
 
 
 const BRIEFING_INTENTS = {
@@ -205,12 +211,14 @@ export default async function handler(req, res) {
       systemPrompt = `You are EA, a personal AI assistant for ${config?.display_name ?? 'the owner'}.
 You are direct, intelligent, and efficient. You help with tasks, answer questions, and orchestrate actions.
 Keep responses concise — this is a mobile interface. No unnecessary preamble.
-When the owner asks you to do something that requires a phone action (navigation, calls, timers, music),
-acknowledge it clearly and provide the relevant deeplink or instruction.`;
+When the owner asks for navigation, calls, or music, acknowledge clearly and give practical next steps when appropriate.
+Follow the TIMERS AND ALARMS rule below for timers and wake-up alarms.`;
     }
-    systemPrompt += FORMATTING_RULES + TASK_CHAT_RULES;
+    systemPrompt += FORMATTING_RULES + TASK_CHAT_RULES + CLOCK_CHAT_RULES;
     // Store display_name for briefing personalisation
     req._displayName = config?.display_name ?? null;
+  } else {
+    systemPrompt += CLOCK_CHAT_RULES;
   }
 
   // --- Parse request body ---
@@ -311,6 +319,12 @@ acknowledge it clearly and provide the relevant deeplink or instruction.`;
       const handled = await handleSpotifyIntent(res, spIntentNoDevice, session.owner_id, sessionId, debug);
       if (handled) return;
     }
+  }
+
+  const clockIntent = parseClockIntent(lastUserMessage);
+  if (clockIntent) {
+    await handleClockIntent(res, clockIntent, sessionId, debug);
+    return;
   }
 
   if (!isShell) {
@@ -434,6 +448,82 @@ function sendText(res, text) {
   for (let i = 0; i < words.length; i++) {
     const chunk = i < words.length - 1 ? words[i] + ' ' : words[i];
     res.write(`data: ${JSON.stringify({ delta: { text: chunk } })}\n\n`);
+  }
+}
+
+function formatTimerLength(minutes) {
+  const secs = Math.round(minutes * 60);
+  if (secs < 60) {
+    return secs === 1 ? 'one second' : `${secs} seconds`;
+  }
+  const m = minutes;
+  if (Math.abs(m - Math.round(m)) < 0.001) {
+    const mi = Math.round(m);
+    return mi === 1 ? 'one minute' : `${mi} minutes`;
+  }
+  return `about ${Math.round(minutes * 10) / 10} minutes`;
+}
+
+async function handleClockIntent(res, intent, sessionId, debug) {
+  if (intent.kind === 'timer') {
+    let url;
+    try {
+      url = buildDeeplink({ kind: 'timer', minutes: intent.minutes });
+    } catch (e) {
+      debugLog(debug, 'ea', 'timer deeplink', e?.message);
+      sendText(
+        res,
+        'I could not build that timer. Try saying set a timer for ten minutes or a five minute timer.'
+      );
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return;
+    }
+    const len = formatTimerLength(intent.minutes);
+    sendText(
+      res,
+      `Here is a ${len} timer in Clock. Tap the button below when you are ready. iOS may still ask you to tap Start on the timer screen.`
+    );
+    res.write(
+      `data: ${JSON.stringify({
+        actions: [
+          {
+            type: 'deeplink',
+            url,
+            embed: true,
+            pillClass: 'action-pill-timer',
+            label: '⏱ Open timer',
+          },
+        ],
+      })}\n\n`
+    );
+    await logUserEvent(sessionId, 'ea_clock_timer', { minutes: intent.minutes }, 'success');
+    res.write('data: [DONE]\n\n');
+    res.end();
+    return;
+  }
+
+  if (intent.kind === 'alarm') {
+    sendText(
+      res,
+      'I cannot set a wake-up style alarm for you from here in a reliable way. Open the Clock app and add it there. Tap below to open Clock if your phone allows it.'
+    );
+    res.write(
+      `data: ${JSON.stringify({
+        actions: [
+          {
+            type: 'deeplink',
+            url: 'clock-alarm://',
+            embed: true,
+            pillClass: 'action-pill-clock',
+            label: '🕐 Clock',
+          },
+        ],
+      })}\n\n`
+    );
+    await logUserEvent(sessionId, 'ea_clock_alarm', {}, 'success');
+    res.write('data: [DONE]\n\n');
+    res.end();
   }
 }
 

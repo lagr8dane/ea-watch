@@ -630,6 +630,22 @@
     .action-pill.action-pill-spotify:active {
       background: rgba(29, 185, 84, 0.2);
     }
+    .action-pill.action-pill-timer {
+      border-color: rgba(100, 180, 255, 0.45);
+      background: rgba(100, 180, 255, 0.1);
+      color: #b8d9ff;
+    }
+    .action-pill.action-pill-timer:active {
+      background: rgba(100, 180, 255, 0.18);
+    }
+    .action-pill.action-pill-clock {
+      border-color: rgba(255, 200, 120, 0.45);
+      background: rgba(255, 200, 120, 0.1);
+      color: #ffe0b0;
+    }
+    .action-pill.action-pill-clock:active {
+      background: rgba(255, 200, 120, 0.18);
+    }
   </style>
 </head>
 <body>
@@ -1699,6 +1715,7 @@
       if (url.startsWith('https://open.spotify.com')) return 'Open in Spotify';
       if (url.startsWith('shortcuts://')) return 'Shortcut';
       if (url.startsWith('clock-timer:'))  return 'Timer';
+      if (url.startsWith('clock-alarm:'))  return 'Clock';
       if (url.startsWith('App-Prefs:'))   return 'Settings';
       return 'Open';
     }

@@ -23,6 +23,7 @@ The same physical object. Two entirely different experiences, determined by iden
 | Stranger contact card (focus, accent, links, Instagram, optional .vcf) + `/contact` | ✅ |
 | Config app — grouped sections (You & card, Assistant, Access & safety, Device) | ✅ |
 | EA chat (Claude streaming, Web Speech input, plain-text formatting) | ✅ |
+| **EA intents** — tasks (`lib/task-intent.js`), timers/alarms (`lib/clock-intent.js` + embed pills; routines before Spotify “play …”) | ✅ |
 | **Routines** — `/chains`, CRUD, engine, deeplinks/shortcuts/conditionals | ✅ |
 | **Media in routines** — Deeplink **`url`** for **Apple Podcasts** / **Apple Music** share links (`podcasts.apple.com`, `music.apple.com`); **`spotify`** kind for Spotify URIs/URLs | ✅ |
 | **Routines picker** + **Tasks** chip | ✅ |
@@ -61,7 +62,7 @@ The same physical object. Two entirely different experiences, determined by iden
 ea-watch/
 ├── api/
 │   ├── tap.js, auth.js, device.js
-│   ├── ea.js                   # Claude stream + chains + briefing intents + routine picker
+│   ├── ea.js                   # Claude stream + chains + briefing + routine picker + task/clock/Spotify intents
 │   ├── morning-briefing.js     # JSON briefing panels
 │   ├── interest-radar.js       # Geocode + Ideas (Claude web) + Places (Google Text Search)
 │   ├── briefing.js
@@ -76,7 +77,7 @@ ea-watch/
 │   ├── geocode.js              # Photon + Open-Meteo; Nominatim; radar distances
 │   ├── interest-radar.js       # Claude web search + JSON items (Ideas)
 │   ├── places-radar.js         # Google Places API (New) text search (Find places)
-│   ├── chain-engine.js, action-log.js
+│   ├── chain-engine.js, action-log.js, task-intent.js, clock-intent.js
 │   └── actions/ (deeplinks, shortcuts, conditional)
 ├── db/
 ├── scripts/                    # db-init, phase migrations, stranger_instagram, …
