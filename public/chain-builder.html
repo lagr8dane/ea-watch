@@ -203,18 +203,24 @@
     flex-shrink: 0;
   }
 
-  /* ── Panel (chain editor) ── */
+  /* ── Panel (chain editor) ──
+     Anchor to the right edge so translateX(100%) fully clears the viewport.
+     (Centered max-width + translateX(100%) leaves a strip visible on wide screens.) */
   .panel {
     position: fixed;
-    inset: 0;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    left: auto;
+    width: min(100vw, 640px);
+    max-width: 640px;
+    box-sizing: border-box;
     background: var(--bg);
     z-index: 20;
     display: flex;
     flex-direction: column;
     transform: translateX(100%);
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    max-width: 640px;
-    margin: 0 auto;
     pointer-events: none;
   }
   .panel.open {
