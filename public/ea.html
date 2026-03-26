@@ -326,15 +326,17 @@
       background: var(--compose-surface);
       border: 1px solid rgba(255, 255, 255, 0.14);
       border-bottom: none;
-      border-radius: 18px 18px 0 0;
-      padding: 0 0 max(10px, env(safe-area-inset-bottom, 0px));
-      box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.5);
+      border-radius: 14px 14px 0 0;
+      padding: 0 0 max(8px, env(safe-area-inset-bottom, 0px));
+      box-shadow: 0 -6px 28px rgba(0, 0, 0, 0.42);
       transform: translateY(100%);
       transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+      margin-bottom: 0;
     }
 
     .intent-panel-mount.is-open .intent-panel-sheet {
       transform: translateY(0);
+      margin-bottom: 10px;
     }
 
     .intent-panel-handle {
@@ -342,7 +344,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 10px 0 6px;
+      padding: 5px 0 3px;
       cursor: grab;
       touch-action: none;
       -webkit-tap-highlight-color: transparent;
@@ -350,20 +352,20 @@
 
     .intent-panel-handle span {
       display: block;
-      width: 40px;
-      height: 5px;
-      border-radius: 3px;
-      background: rgba(255, 255, 255, 0.28);
+      width: 32px;
+      height: 3px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.32);
     }
 
     .intent-panel-title {
       flex-shrink: 0;
-      font-size: 17px;
+      font-size: 15px;
       font-weight: 600;
       color: var(--text);
-      padding: 4px 18px 14px;
+      padding: 0 16px 8px;
       margin: 0;
-      line-height: 1.25;
+      line-height: 1.2;
       letter-spacing: -0.02em;
     }
 
@@ -371,7 +373,7 @@
       flex: 1;
       min-height: 0;
       overflow-y: auto;
-      padding: 0 14px 12px;
+      padding: 0 12px 10px;
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -432,7 +434,7 @@
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 10px;
-      padding: 14px max(12px, env(safe-area-inset-left, 0px)) 6px max(12px, env(safe-area-inset-right, 0px));
+      padding: 9px max(12px, env(safe-area-inset-left, 0px)) 6px max(12px, env(safe-area-inset-right, 0px));
       background: var(--compose-surface);
       border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     }
