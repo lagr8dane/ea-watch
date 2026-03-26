@@ -157,8 +157,12 @@
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     max-width: 640px;
     margin: 0 auto;
+    pointer-events: none;
   }
-  .panel.open { transform: translateX(0); }
+  .panel.open {
+    transform: translateX(0);
+    pointer-events: auto;
+  }
 
   .panel-header {
     display: flex;
@@ -580,7 +584,6 @@ async function openEdit(id) {
   editingId = id;
   document.getElementById('panelTitle').textContent = 'Edit Chain';
   document.getElementById('deleteBtn').style.display = '';
-  document.getElementById('panel').classList.add('open');
 
   try {
     const res = await fetch(`/api/chains/${id}`);
@@ -592,6 +595,7 @@ async function openEdit(id) {
     document.getElementById('chainDesc').value = c.description || '';
     document.getElementById('chainEnabled').checked = c.enabled === 1;
     renderSteps();
+    document.getElementById('panel').classList.add('open');
   } catch {
     showToast('Failed to load chain', true);
     closePanel();
