@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <meta name="theme-color" content="#0a0a0a">
   <title>NFC Stub</title>
+  <script src="/shell-pref.js?v=1"></script>
+  <link rel="stylesheet" href="/shell.css?v=2">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -28,14 +30,17 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    body {
+    body.has-app-shell {
+      padding: 0;
+    }
+
+    .stub-inner {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      min-height: 100dvh;
-      padding: 32px 24px;
       gap: 32px;
+      width: 100%;
+      max-width: 400px;
     }
 
     .header {
@@ -196,7 +201,10 @@
     }
   </style>
 </head>
-<body>
+<body class="has-app-shell">
+
+  <div class="app-shell app-shell--centered">
+  <div class="stub-inner">
 
   <div class="header">
     <div class="dev-badge">Dev only</div>
@@ -259,6 +267,9 @@
   <!-- Log output -->
   <div class="log" id="log">Waiting for tap…</div>
 
+  </div>
+  </div>
+
   <script>
     function log(msg) {
       document.getElementById('log').textContent = msg;
@@ -298,7 +309,7 @@
       document.querySelectorAll('.scenario-btn').forEach(b => b.disabled = false);
     }
   </script>
-  <script src="/legal-footer.js?v=2" defer></script>
+  <script src="/legal-footer.js?v=3" defer></script>
 
 </body>
 </html>

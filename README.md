@@ -71,7 +71,7 @@ ea-watch/
 │   ├── config/public.js
 │   └── dev/tap.js
 ├── public/
-│   ├── ea.html, config.html, interest-radar.html, contact.html, privacy.html, terms.html, nav.js, legal-footer.js, …
+│   ├── ea.html, config.html, interest-radar.html, contact.html, privacy.html, terms.html, shell.css, nav.js, legal-footer.js, …
 ├── lib/
 │   ├── briefing-data.js        # Weather, news, reverse geocode label
 │   ├── geocode.js              # Photon + Open-Meteo; Nominatim; radar distances

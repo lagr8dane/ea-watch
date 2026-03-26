@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>EA — Chains</title>
+<script src="/shell-pref.js?v=1"></script>
+  <link rel="stylesheet" href="/shell.css?v=2">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
 
@@ -35,8 +37,7 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  /* ── Layout ── */
-  .app { display: flex; flex-direction: column; min-height: 100vh; max-width: 640px; margin: 0 auto; }
+  body.has-app-shell { min-height: 100dvh; }
 
   header {
     display: flex;
@@ -433,8 +434,8 @@
   }
 </style>
 </head>
-<body>
-<div class="app">
+<body class="has-app-shell">
+<div class="app-shell">
   <header>
     <div class="header-left">
       <h1>Routines</h1>
@@ -1140,6 +1141,6 @@ init();
       window.navClose = closeNav;
     })();
 </script>
-  <script src="/legal-footer.js?v=2" defer></script>
+  <script src="/legal-footer.js?v=3" defer></script>
 </body>
 </html>

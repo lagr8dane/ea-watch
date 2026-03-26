@@ -86,3 +86,14 @@ CREATE INDEX IF NOT EXISTS idx_devices_uid_code ON devices(uid, device_code);
 CREATE INDEX IF NOT EXISTS idx_sessions_token   ON sessions(token);
 CREATE INDEX IF NOT EXISTS idx_tap_log_uid      ON tap_log(uid);
 CREATE INDEX IF NOT EXISTS idx_auth_attempts_device ON auth_attempts(device_id, attempted_at);
+
+-- Queued cross-device continuation (one row per owner; see lib/pending-command.js)
+CREATE TABLE IF NOT EXISTS pending_commands (
+  owner_id        TEXT PRIMARY KEY,
+  payload         TEXT NOT NULL,
+  target_surface  TEXT NOT NULL DEFAULT 'phone',
+  version         INTEGER NOT NULL DEFAULT 1,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at      TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pending_commands_expires ON pending_commands(expires_at);

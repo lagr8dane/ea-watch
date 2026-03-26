@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <meta name="theme-color" content="#0a0a0a">
   <title>Marco Rota</title>
+  <script src="/shell-pref.js?v=1"></script>
+  <link rel="stylesheet" href="/shell.css?v=2">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -25,13 +27,8 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100dvh;
-      padding: 32px 24px;
+    body.has-app-shell {
+      padding: 0;
     }
 
     .card {
@@ -199,7 +196,8 @@
     .footer a:active { opacity: 0.85; }
   </style>
 </head>
-<body data-no-global-legal="1">
+<body class="has-app-shell" data-no-global-legal="1">
+  <div class="app-shell app-shell--centered">
   <div class="card">
 
     <div class="identity">
@@ -292,6 +290,7 @@
       <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
     </div>
 
+  </div>
   </div>
 
   <script>

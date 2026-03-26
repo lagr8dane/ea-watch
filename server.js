@@ -31,6 +31,7 @@ async function loadNamedHandler(path, name) {
 app.all('/api/tap',           async (req, res) => (await loadHandler('api/tap.js'))(req, res));
 app.all('/api/auth',          async (req, res) => (await loadHandler('api/auth.js'))(req, res));
 app.all('/api/ea',            async (req, res) => (await loadHandler('api/ea.js'))(req, res));
+app.all('/api/pending-command', async (req, res) => (await loadHandler('api/pending-command.js'))(req, res));
 app.all('/api/config',        async (req, res) => (await loadHandler('api/config.js'))(req, res));
 app.all('/api/config/public', async (req, res) => (await loadHandler('api/config/public.js'))(req, res));
 app.all('/api/device',        async (req, res) => (await loadHandler('api/device.js'))(req, res));

@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <meta name="theme-color" content="#0a0a0a">
   <title>EA Config</title>
+  <script src="/shell-pref.js?v=1"></script>
+  <link rel="stylesheet" href="/shell.css?v=2">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -289,7 +291,9 @@
     details.tap-sub .tap-sub-inner { padding-bottom: 2px; }
   </style>
 </head>
-<body>
+<body class="has-app-shell">
+
+  <div class="app-shell">
 
   <header>
     <h1>Settings</h1>
@@ -565,6 +569,23 @@
     </div>
   </div>
 
+  <p class="section-group-title">Display</p>
+
+  <div class="section">
+    <div class="section-title">Reading column</div>
+    <div class="section-body">
+      <div class="field">
+        <label for="shell_max_pref">Max width (this browser)</label>
+        <select id="shell_max_pref">
+          <option value="">Default (640px)</option>
+          <option value="560">Narrow (560px)</option>
+          <option value="720">Wide (720px)</option>
+        </select>
+      </div>
+      <div class="field-note">Saved in this browser only. Reload open tabs to apply.</div>
+    </div>
+  </div>
+
   <p class="section-group-title">Device</p>
 
   <div class="section">
@@ -572,6 +593,8 @@
     <div class="section-body">
       <button class="danger-btn" onclick="confirmTransfer()">Transfer ownership…</button>
     </div>
+  </div>
+
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@jaames/iro@5/dist/iro.min.js"></script>
@@ -836,6 +859,24 @@
 
     load();
 
+    (function initShellLayoutPref() {
+      const sel = document.getElementById('shell_max_pref');
+      if (!sel) return;
+      try {
+        sel.value = localStorage.getItem('ea_shell_max') || '';
+      } catch (e) {}
+      sel.addEventListener('change', function () {
+        try {
+          const v = sel.value;
+          if (v) localStorage.setItem('ea_shell_max', v);
+          else localStorage.removeItem('ea_shell_max');
+          if (v === '560' || v === '720') document.documentElement.setAttribute('data-shell-max', v);
+          else document.documentElement.removeAttribute('data-shell-max');
+          showToast('Layout saved for this browser. Reload other tabs to apply.', 4000);
+        } catch (e) {}
+      });
+    })();
+
     async function refreshSpotifyStatus() {
       const line = document.getElementById('spotify-status-line');
       const disc = document.getElementById('spotify-disconnect-btn');
@@ -912,6 +953,6 @@
       window.navClose = closeNav;
     })();
   </script>
-  <script src="/legal-footer.js?v=2" defer></script>
+  <script src="/legal-footer.js?v=3" defer></script>
 </body>
 </html>

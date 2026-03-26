@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>EA — Action Log</title>
+<script src="/shell-pref.js?v=1"></script>
+  <link rel="stylesheet" href="/shell.css?v=2">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
 
@@ -35,7 +37,7 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  .app { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; min-height: 100vh; }
+  body.has-app-shell { min-height: 100dvh; }
 
   /* ── Header ── */
   header {
@@ -288,8 +290,8 @@
   }
 </style>
 </head>
-<body>
-<div class="app">
+<body class="has-app-shell">
+<div class="app-shell">
   <header>
     <div class="header-left">
       <h1>Log</h1>
@@ -463,6 +465,8 @@ function formatActionLabel(type) {
     ea_task_edit: 'Task updated',
     ea_task_error: 'Task error',
     ea_interest_radar: 'Interest radar',
+    pending_command_set: 'Handoff queued',
+    pending_command_clear: 'Handoff cleared',
   };
   if (map[t]) return map[t];
   if (t.startsWith('ea_briefing_')) return 'Briefing';
@@ -529,6 +533,13 @@ function entryDetail(e, cfg) {
     if (cfg.window) parts.push(cfg.window);
     if (cfg.radius_miles != null) parts.push(cfg.radius_miles + ' mi');
     if (cfg.item_count != null) parts.push(cfg.item_count + ' picks');
+    return parts.join(' · ') || '';
+  }
+
+  if (e.action_type === 'pending_command_set') {
+    const parts = [];
+    if (cfg.kind) parts.push(cfg.kind);
+    if (cfg.target_surface) parts.push(cfg.target_surface);
     return parts.join(' · ') || '';
   }
 
@@ -599,6 +610,6 @@ loadLog();
       window.navClose = closeNav;
     })();
 </script>
-  <script src="/legal-footer.js?v=2" defer></script>
+  <script src="/legal-footer.js?v=3" defer></script>
 </body>
 </html>

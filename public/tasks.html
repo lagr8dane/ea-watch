@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <meta name="theme-color" content="#0a0a0a">
   <title>EA — Tasks</title>
+  <script src="/shell-pref.js?v=1"></script>
+  <link rel="stylesheet" href="/shell.css?v=2">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -18,7 +20,8 @@
       --ok: #6c9;
     }
     html, body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, sans-serif; min-height: 100%; }
-    body { padding-bottom: 48px; }
+    body.has-app-shell { padding-bottom: 0; }
+    .app-shell { padding-bottom: 8px; }
 
     header {
       display: flex; align-items: center; justify-content: space-between;
@@ -114,7 +117,8 @@
     .modal-actions .save { background: var(--text); color: var(--bg); }
   </style>
 </head>
-<body>
+<body class="has-app-shell">
+  <div class="app-shell">
   <header>
     <div class="header-left">
       <button type="button" class="nav-btn" onclick="navOpen()" aria-label="Menu">☰</button>
@@ -160,6 +164,8 @@
         <button type="button" class="save" onclick="saveModal()">Save</button>
       </div>
     </div>
+  </div>
+
   </div>
 
   <script>
@@ -429,6 +435,6 @@
       window.navClose = closeNav;
     })();
   </script>
-  <script src="/legal-footer.js?v=2" defer></script>
+  <script src="/legal-footer.js?v=3" defer></script>
 </body>
 </html>

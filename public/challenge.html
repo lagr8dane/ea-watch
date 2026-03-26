@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
   <meta name="theme-color" content="#0a0a0a">
   <title>EA</title>
+  <script src="/shell-pref.js?v=1"></script>
+  <link rel="stylesheet" href="/shell.css?v=2">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -25,13 +27,8 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100dvh;
-      padding: 48px 28px;
+    body.has-app-shell {
+      padding: 0;
     }
 
     .wrap {
@@ -156,7 +153,8 @@
     button.submit:disabled { opacity: 0.4; cursor: default; }
   </style>
 </head>
-<body>
+<body class="has-app-shell">
+  <div class="app-shell app-shell--centered">
   <div class="wrap">
     <div class="pulse-wrap"><div class="pulse"></div></div>
     <p class="phrase" id="phrase">Hey — it's been a while. What's the word?</p>
@@ -185,6 +183,7 @@
 
       <button class="submit" id="submit-btn" onclick="submit()">Continue</button>
     </div>
+  </div>
   </div>
 
   <script>
@@ -282,6 +281,6 @@
 
     init();
   </script>
-  <script src="/legal-footer.js?v=2" defer></script>
+  <script src="/legal-footer.js?v=3" defer></script>
 </body>
 </html>

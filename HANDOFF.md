@@ -144,7 +144,8 @@ public/config.html        Settings (grouped sections, tap-meet nested details)
 public/contact.html       Public card + optional .vcf (`/api/config/public`, URL helpers, no-store fetch)
 public/privacy.html       Privacy policy (nav + footer links from app shell)
 public/terms.html         Terms of service
-public/legal-footer.js    Injects visible Privacy · Terms (strip above EA input bar, else page footer)
+public/shell.css          Shared `.app-shell` column (default max 640px; `data-shell-max` on `<html>` to tune)
+public/legal-footer.js    Privacy · Terms strip inside `.app-shell` (after input bar on `/ea`; v3)
 ```
 
 ---
@@ -153,6 +154,7 @@ public/legal-footer.js    Injects visible Privacy · Terms (strip above EA input
 
 - **owner_config:** `briefing_interests`, `briefing_tickers`, `interest_radar_topics`, `stranger_*` including **`stranger_instagram`**, `stranger_focus`, `stranger_accent_hex`, etc. Run **`scripts/db-migrate-stranger-instagram.js`** on older DBs.
 - **Phase 2:** `chains`, `chain_steps`, `chain_state`, `action_log`.
+- **Pending handoff:** `pending_commands` (one row per `owner_id`) — migration **`scripts/db-migrate-pending-command.js`**; API **`/api/pending-command`**; EA shows banner on load when non-empty.
 - **`action_log`:** Audit / owner-visible log (`lib/action-log.js`, `lib/user-event-log.js`). Rows tie to **`session_id`** (session token); **`action_config`** is event-specific JSON — **not** a replacement for chat history storage.
 
 ---
