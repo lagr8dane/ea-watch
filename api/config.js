@@ -27,6 +27,12 @@ function migrationHintFromSqlError(message) {
   const map = {
     stranger_instagram: 'node --env-file=.env scripts/db-migrate-stranger-instagram.js',
     interest_radar_topics: 'node --env-file=.env scripts/db-migrate-interest-radar.js',
+    interest_radar_ride_handoff:
+      'node --env-file=.env scripts/db-migrate-ride-handoff.js',
+    interest_radar_ride_provider:
+      'node --env-file=.env scripts/db-migrate-radar-ride-maps-split.js',
+    interest_radar_maps_provider:
+      'node --env-file=.env scripts/db-migrate-radar-ride-maps-split.js',
     briefing_interests: 'node --env-file=.env scripts/db-migrate-briefing-settings.js',
     briefing_tickers: 'node --env-file=.env scripts/db-migrate-briefing-settings.js',
     avatar_url: 'node --env-file=.env scripts/db-migrate-avatar.js',
@@ -57,7 +63,8 @@ export default async function handler(req, res) {
                 stranger_bio, stranger_focus, stranger_accent_hex,
                 stranger_linkedin, stranger_instagram, stranger_calendly,
                 stranger_imessage, stranger_whatsapp, avatar_url,
-                briefing_interests, briefing_tickers, interest_radar_topics
+                briefing_interests, briefing_tickers, interest_radar_topics,
+                interest_radar_ride_provider, interest_radar_maps_provider
          FROM owner_config WHERE id = ?`,
         [ownerId]
       );
@@ -103,6 +110,14 @@ export default async function handler(req, res) {
         briefing_tickers:    b.briefing_tickers     ?? null,
         interest_radar_topics: b.interest_radar_topics ?? null,
       };
+
+      const rideP = String(b.interest_radar_ride_provider ?? 'uber').trim();
+      updates.interest_radar_ride_provider = ['uber', 'lyft'].includes(rideP) ? rideP : 'uber';
+
+      const mapsP = String(b.interest_radar_maps_provider ?? 'google_maps').trim();
+      updates.interest_radar_maps_provider = ['google_maps', 'apple_maps'].includes(mapsP)
+        ? mapsP
+        : 'google_maps';
 
       if (b.avatar_url !== undefined) updates.avatar_url = b.avatar_url ?? null;
       if (b.stranger_focus !== undefined) updates.stranger_focus = b.stranger_focus ?? null;

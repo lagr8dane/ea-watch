@@ -43,6 +43,10 @@ const FORMATTING_RULES = `
 
 FORMATTING: Never use markdown, headers (##), bullet points, bold (**), italics, or any special formatting. Respond in plain conversational sentences only. This is a mobile chat interface — plain text only.`;
 
+const TASK_CHAT_RULES = `
+
+TASKS: The app only saves tasks when the user uses a task phrase such as create a task to …, add task …, remind me to …, or new task …. If they ask vaguely, tell them to say it in one of those forms — never claim you already saved a task.`;
+
 
 const BRIEFING_INTENTS = {
   morning: ['morning briefing', 'good morning', 'morning routine', 'start my day', 'morning update'],
@@ -204,7 +208,7 @@ Keep responses concise — this is a mobile interface. No unnecessary preamble.
 When the owner asks you to do something that requires a phone action (navigation, calls, timers, music),
 acknowledge it clearly and provide the relevant deeplink or instruction.`;
     }
-    systemPrompt += FORMATTING_RULES;
+    systemPrompt += FORMATTING_RULES + TASK_CHAT_RULES;
     // Store display_name for briefing personalisation
     req._displayName = config?.display_name ?? null;
   }
@@ -232,18 +236,8 @@ acknowledge it clearly and provide the relevant deeplink or instruction.`;
   res.setHeader('Connection', 'keep-alive');
 
   // -------------------------------------------------------------------------
-  // Spotify (play / connect) — regex intent, no Claude; before chains
-  // -------------------------------------------------------------------------
-  if (!isShell) {
-    const spIntent = parseSpotifyIntent(lastUserMessage);
-    if (spIntent) {
-      const handled = await handleSpotifyIntent(res, spIntent, session.owner_id, sessionId, debug);
-      if (handled) return;
-    }
-  }
-
-  // -------------------------------------------------------------------------
   // Chain handling — runs before Claude for owner sessions only
+  // (Spotify "play …" runs after routine match so triggers like "play …" can be Apple Music chains.)
   // -------------------------------------------------------------------------
   if (!isShell && deviceId) {
 
@@ -284,6 +278,13 @@ acknowledge it clearly and provide the relevant deeplink or instruction.`;
       return sendChainResult(res, result);
     }
 
+    // 3b. Spotify (play / connect) — only if no routine matched this phrase
+    const spIntent = parseSpotifyIntent(lastUserMessage);
+    if (spIntent) {
+      const handled = await handleSpotifyIntent(res, spIntent, session.owner_id, sessionId, debug);
+      if (handled) return;
+    }
+
     // 4. Check for briefing intents
     const briefingIntent = detectBriefingIntent(lastUserMessage);
     if (briefingIntent) {
@@ -300,6 +301,15 @@ acknowledge it clearly and provide the relevant deeplink or instruction.`;
         sessionId,
         debug
       );
+    }
+  }
+
+  // Spotify when there is no device id (rare) — still allow play / connect
+  if (!isShell && !deviceId) {
+    const spIntentNoDevice = parseSpotifyIntent(lastUserMessage);
+    if (spIntentNoDevice) {
+      const handled = await handleSpotifyIntent(res, spIntentNoDevice, session.owner_id, sessionId, debug);
+      if (handled) return;
     }
   }
 

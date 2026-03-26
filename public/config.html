@@ -458,6 +458,23 @@
       <div class="field-note">
         Comma or newline, up to eight interests. Used only for Interest radar — not the same as <strong>News topics</strong> above.
       </div>
+      <div class="field">
+        <label>Ride there (Interest radar)</label>
+        <select id="interest_radar_ride_provider">
+          <option value="uber">Uber</option>
+          <option value="lyft">Lyft</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Open in Maps</label>
+        <select id="interest_radar_maps_provider">
+          <option value="google_maps">Google Maps</option>
+          <option value="apple_maps">Apple Maps</option>
+        </select>
+      </div>
+      <div class="field-note">
+        Each radar result shows <strong>two</strong> chips: <strong>Ride there</strong> (your ride app) and <strong>Open in Maps</strong> (your map app). Pick what you use on your phone — we do not detect iOS vs Android.
+      </div>
     </div>
   </div>
 
@@ -653,7 +670,9 @@
         const fields = [
           'display_name','title','session_window_mins','challenge_style',
           'challenge_phrase','alert_phone','alert_email','ea_personality',
-          'briefing_interests','briefing_tickers','interest_radar_topics',
+          'briefing_interests','briefing_tickers',          'interest_radar_topics',
+          'interest_radar_ride_provider',
+          'interest_radar_maps_provider',
           'stranger_focus','stranger_accent_hex',
           'stranger_bio','stranger_linkedin','stranger_instagram','stranger_calendly',
           'stranger_imessage','stranger_whatsapp'
@@ -702,6 +721,8 @@
         briefing_interests:  val('briefing_interests'),
         briefing_tickers:    val('briefing_tickers'),
         interest_radar_topics: val('interest_radar_topics'),
+        interest_radar_ride_provider: val('interest_radar_ride_provider'),
+        interest_radar_maps_provider: val('interest_radar_maps_provider'),
         stranger_focus:      val('stranger_focus'),
         stranger_accent_hex: val('stranger_accent_hex'),
         stranger_bio:        val('stranger_bio'),

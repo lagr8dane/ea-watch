@@ -120,6 +120,16 @@
       background: rgba(29, 185, 84, 0.12);
       color: #b4f0c8;
     }
+    .radar-chip-lyft {
+      border-color: rgba(233, 30, 99, 0.45);
+      background: rgba(233, 30, 99, 0.12);
+      color: #ffc2d4;
+    }
+    .radar-chip-maps {
+      border-color: rgba(138, 180, 255, 0.45);
+      background: rgba(138, 180, 255, 0.1);
+      color: #c8d8ff;
+    }
     .radar-chip-icon {
       padding: 8px 10px;
       min-width: 42px;
@@ -348,6 +358,9 @@
     let selLabel = '';
     let windowKey = 'tonight';
     let radarKind = 'ideas';
+    /** From Settings — no device auto-detect */
+    var radarRideProvider = 'uber';
+    var radarMapsProvider = 'google_maps';
 
     const HINT_IDEAS = 'Ideas mode: exploratory things to do near a verified spot. Uses web search — verify times and tickets on each link.';
     const HINT_PLACES = 'Find places: pick types below, add an optional note (e.g. sushi, rooftop), then run. Uses Google Places on the server.';
@@ -711,6 +724,40 @@
       return 'https://m.uber.com/ul/?' + q;
     }
 
+    function buildLyftRideUrl(lat, lon) {
+      const latN = Number(lat);
+      const lonN = Number(lon);
+      if (!Number.isFinite(latN) || !Number.isFinite(lonN)) return '';
+      return (
+        'https://lyft.com/ride?id=lyft&destination[latitude]=' +
+        encodeURIComponent(String(latN)) +
+        '&destination[longitude]=' +
+        encodeURIComponent(String(lonN))
+      );
+    }
+
+    function buildRideUrl(lat, lon, formattedAddress, provider) {
+      if (provider === 'lyft') return buildLyftRideUrl(lat, lon);
+      return buildUberRideUrl(lat, lon, formattedAddress);
+    }
+
+    function buildMapsUrl(lat, lon, mapsProvider) {
+      const latN = Number(lat);
+      const lonN = Number(lon);
+      if (!Number.isFinite(latN) || !Number.isFinite(lonN)) return '';
+      if (mapsProvider === 'apple_maps') {
+        return 'https://maps.apple.com/?daddr=' + encodeURIComponent(latN + ',' + lonN);
+      }
+      return (
+        'https://www.google.com/maps/dir/?api=1&destination=' +
+        encodeURIComponent(latN + ',' + lonN)
+      );
+    }
+
+    function rideThereChipClass(provider) {
+      return provider === 'lyft' ? 'radar-chip radar-chip-lyft' : 'radar-chip radar-chip-ride';
+    }
+
     var RADAR_SHARE_SVG =
       '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>';
 
@@ -850,10 +897,23 @@
         const vLon = it.venue_lon;
         const hasRide = Number.isFinite(Number(vLat)) && Number.isFinite(Number(vLon));
         const dropAddr = formatRadarAddressLine(it);
-        const uberUrl = hasRide ? buildUberRideUrl(vLat, vLon, dropAddr) : '';
+        const rp = radarRideProvider === 'lyft' ? 'lyft' : 'uber';
+        const mp = radarMapsProvider === 'apple_maps' ? 'apple_maps' : 'google_maps';
+        const rideUrl = hasRide ? buildRideUrl(vLat, vLon, dropAddr, rp) : '';
+        const mapsUrl = hasRide ? buildMapsUrl(vLat, vLon, mp) : '';
+        const rideCls = rideThereChipClass(rp);
+        const noPinTitle =
+          'No pin for this result — try Ideas with a clearer address or use Find places.';
         const rideChip = hasRide
-          ? '<a class="radar-chip radar-chip-ride" href="' + escAttr(uberUrl) + '">Ride there</a>'
-          : '<span class="radar-chip radar-chip-ride" aria-disabled="true" title="No pin for this result — try Ideas with a clearer address or use Find places.">Ride there</span>';
+          ? '<a class="' + rideCls + '" href="' + escAttr(rideUrl) + '">Ride there</a>'
+          : '<span class="' + rideCls + '" aria-disabled="true" title="' +
+            escAttr(noPinTitle) +
+            '">Ride there</span>';
+        const mapsChip = hasRide
+          ? '<a class="radar-chip radar-chip-maps" href="' + escAttr(mapsUrl) + '">Open in Maps</a>'
+          : '<span class="radar-chip radar-chip-maps" aria-disabled="true" title="' +
+            escAttr(noPinTitle) +
+            '">Open in Maps</span>';
         return (
           '<div class="card" data-idx="' + idx + '">' +
           titleHtml +
@@ -865,6 +925,7 @@
           buildDuePickerHtml(idx, it) +
           '<div class="card-actions">' +
           rideChip +
+          mapsChip +
           '<button type="button" class="radar-chip radar-chip-icon radar-share-btn" data-idx="' + idx + '" aria-label="Share">' +
           RADAR_SHARE_SVG +
           '</button>' +
@@ -1058,6 +1119,10 @@
         if (c.interest_radar_topics && ip && !ip.value.trim()) {
           ip.value = c.interest_radar_topics;
         }
+        const rp = c.interest_radar_ride_provider;
+        radarRideProvider = rp === 'lyft' ? 'lyft' : 'uber';
+        const mp = c.interest_radar_maps_provider;
+        radarMapsProvider = mp === 'apple_maps' ? 'apple_maps' : 'google_maps';
       } catch { /* ignore */ }
     }
 
