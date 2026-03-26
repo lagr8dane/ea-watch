@@ -666,7 +666,7 @@
       40%            { opacity: 1; }
     }
 
-    /* ── Morning briefing panels (/api/morning-briefing JSON) ── */
+    /* ── Briefing panels (/api/morning-briefing JSON) ── */
     .mb-wrap {
       align-self: stretch;
       max-width: 92%;
@@ -1649,7 +1649,7 @@
       if (intentId === 'reset' || intentId === 'now') {
         closeIntentPanel({ immediate: true, clearHighlight: true });
         if (intentId === 'reset') sendChipMessage('mindful moment');
-        else sendChipMessage('morning briefing');
+        else sendChipMessage('briefing');
         return;
       }
 
@@ -1722,6 +1722,7 @@
         .toLowerCase();
       const skip = new Set([
         'inspire me',
+        'briefing',
         'morning briefing',
         'mindful moment',
         'my tasks',
@@ -2178,12 +2179,12 @@
         const res = await fetch('/api/morning-briefing?' + qs.toString(), { credentials: 'same-origin' });
         hideTyping();
         if (res.status === 403) {
-          appendMsg('ea', 'Morning briefing isn\'t available in restricted mode.');
+          appendMsg('ea', 'Briefing isn\'t available in restricted mode.');
           setStatus('ready');
           return;
         }
         if (!res.ok) {
-          appendMsg('ea', 'Couldn\'t load the morning briefing. Try again.');
+          appendMsg('ea', 'Couldn\'t load the briefing. Try again.');
           setStatus('ready');
           return;
         }
@@ -2325,7 +2326,7 @@
           return;
         }
         const routeLiteral = {
-          now: 'morning briefing',
+          now: 'briefing',
           reset: 'mindful moment',
           plan: 'my tasks',
           explore_inspire: 'inspire me',
@@ -2487,7 +2488,7 @@
         }
 
         let assistantTranscript = full;
-        if (hadMorningBriefing) assistantTranscript = '(Morning briefing)';
+        if (hadMorningBriefing) assistantTranscript = '(Briefing)';
         else if (hadMindfulPanel) assistantTranscript = '(Mindful moment)';
         else if (hadTaskPanel) assistantTranscript = '(Tasks)';
         else if (hadRoutineChips) assistantTranscript = '(Routines)';

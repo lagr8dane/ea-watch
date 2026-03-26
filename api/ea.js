@@ -55,7 +55,7 @@ TIMERS AND ALARMS: Never paste clock-timer, clock-alarm, or other raw URLs in yo
 
 
 const BRIEFING_INTENTS = {
-  morning: ['morning briefing', 'good morning', 'morning routine', 'start my day', 'morning update'],
+  morning: ['morning briefing', 'daily briefing', 'good morning', 'morning routine', 'start my day', 'morning update'],
   weather: ["how's the weather", "what's the weather", 'weather today', 'weather forecast', 'weather update', "what's it like outside", 'is it nice out', 'how is the weather', 'what is the weather', 'the weather', 'weather report', 'weather briefing'],
   news:    ['top news', "what's the news", 'news today', 'news update', 'latest news', 'what happened today', 'headlines', 'what is the news', 'the news', 'news briefing'],
   mindful: ['mindful moment', 'mindful moments', 'mindfulness', 'grounding moment', 'pause and breathe', 'take a breath'],
@@ -975,8 +975,8 @@ ${headlines}
 Write each story as one clear sentence. Separate each story with a line break. No intro, no outro, just the three stories. Plain text only.`;
   }
 
-  // Morning briefing — full context
-  let prompt = `Deliver a personal morning briefing. Greeting to use: "${greeting}."\n\n`;
+  // Full briefing (weather / news / quote stack)
+  let prompt = `Deliver a personal briefing. Greeting to use: "${greeting}."\n\n`;
 
   if (weather) {
     prompt += `WEATHER DATA:\n${JSON.stringify(weather, null, 2)}\n\n`;

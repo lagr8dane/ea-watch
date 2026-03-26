@@ -36,7 +36,7 @@ export default async function handler(req, res) {
   );
   if (!session) return res.status(401).json({ error: 'Invalid or expired session' });
   if (session.is_shell === 1) {
-    return res.status(403).json({ error: 'Morning briefing is not available in restricted mode' });
+    return res.status(403).json({ error: 'Briefing is not available in restricted mode' });
   }
 
   const debug = parseDebugFlag(req, {});
@@ -277,7 +277,7 @@ Keep responses concise — mobile interface.`;
 async function generateBriefingQuote({ displayName, weather, systemPrompt }) {
   const firstName = displayName ? displayName.split(' ')[0] : 'the owner';
   const outdoor = weather?.outdoor_good;
-  const prompt = `Write one short motivational line for ${firstName}'s morning briefing.
+  const prompt = `Write one short motivational line for ${firstName}'s briefing.
 ${outdoor ? 'Weather is pleasant for being outside — you may mention it briefly.' : ''}
 One sentence only. No attribution. Plain text — no markdown, no bold.`;
 
