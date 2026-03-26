@@ -278,6 +278,7 @@
       position: relative;
       flex-shrink: 0;
       z-index: 15;
+      overflow: visible;
       background: var(--compose-bg);
       border-top: 1px solid rgba(255, 255, 255, 0.14);
       box-shadow:
@@ -285,15 +286,18 @@
         0 -12px 40px rgba(0, 0, 0, 0.55);
     }
 
+    /* Sheet lives in mount (z-index 1). Bar + input stay above so shadows / subpixels never clip pill icons. */
     .intent-panel-mount {
       position: absolute;
       left: 0;
       right: 0;
       bottom: 100%;
+      z-index: 1;
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
       pointer-events: none;
+      overflow: visible;
     }
 
     .intent-panel-mount.is-open {
@@ -318,7 +322,7 @@
 
     .intent-panel-sheet {
       position: relative;
-      z-index: 25;
+      z-index: 2;
       max-height: min(46vh, 340px);
       overflow: hidden;
       display: flex;
@@ -336,7 +340,7 @@
 
     .intent-panel-mount.is-open .intent-panel-sheet {
       transform: translateY(0);
-      margin-bottom: 12px;
+      margin-bottom: 18px;
     }
 
     .intent-panel-handle {
@@ -431,12 +435,15 @@
     }
 
     .intent-bar {
+      position: relative;
+      z-index: 6;
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 7px;
       padding: 7px max(10px, env(safe-area-inset-left, 0px)) 5px max(10px, env(safe-area-inset-right, 0px));
       background: var(--compose-surface);
       border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      overflow: visible;
     }
 
     @media (min-width: 420px) {
@@ -449,14 +456,18 @@
     }
 
     .intent-pill {
+      position: relative;
+      z-index: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       gap: 4px;
       min-height: 52px;
-      padding: 6px 4px;
+      padding: 8px 4px 7px;
       border-radius: 12px;
+      overflow: visible;
+      line-height: 1;
       border: 1px solid var(--intent-pill-edge);
       background: var(--intent-pill-bg);
       color: var(--intent-pill-text);
@@ -468,12 +479,11 @@
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
       transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s, box-shadow 0.15s;
-      box-shadow:
-        0 1px 0 rgba(255, 255, 255, 0.1) inset,
-        0 2px 6px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
     }
 
     .intent-pill svg {
+      display: block;
       width: 20px;
       height: 20px;
       stroke: var(--intent-pill-icon);
@@ -482,6 +492,7 @@
       stroke-linecap: round;
       stroke-linejoin: round;
       flex-shrink: 0;
+      overflow: visible;
     }
 
     .intent-pill-label {
@@ -504,7 +515,6 @@
       background: rgba(56, 88, 168, 0.42);
       box-shadow:
         0 0 0 1px rgba(138, 180, 255, 0.35),
-        0 1px 0 rgba(255, 255, 255, 0.12) inset,
         0 4px 16px rgba(0, 0, 0, 0.4);
     }
 
@@ -777,12 +787,15 @@
 
     /* Input bar */
     .input-bar {
+      position: relative;
+      z-index: 6;
       display: flex;
       align-items: flex-end;
       gap: 10px;
       padding: 10px max(16px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
       background: var(--compose-bg);
       flex-shrink: 0;
+      overflow: visible;
     }
 
     @media (min-width: 560px) {
@@ -1237,7 +1250,7 @@
     function intentBarHighlight(id) {
       intentUi.activeIntent = id;
       document.querySelectorAll('.intent-pill').forEach((btn) => {
-        const on = btn.getAttribute('data-intent') === id;
+        const on = id != null && btn.getAttribute('data-intent') === id;
         btn.classList.toggle('intent-pill--active', on);
         btn.setAttribute('aria-pressed', on ? 'true' : 'false');
       });
@@ -1254,38 +1267,73 @@
       };
     }
 
-    function closeIntentPanel() {
+    function purgeIntentPanelContent() {
+      const { title, options } = getIntentPanelEls();
+      if (title) title.textContent = '';
+      if (options) options.innerHTML = '';
+    }
+
+    /**
+     * @param {object} [opts]
+     * @param {boolean} [opts.immediate] Skip slide animation; use after picking an option or switching intents.
+     * @param {boolean} [opts.clearHighlight] Clear pill selection (default true). False when about to open another panel.
+     */
+    function closeIntentPanel(opts) {
+      opts = opts || {};
+      const immediate = !!opts.immediate;
+      const clearHighlight = opts.clearHighlight !== false;
       const { mount, sheet } = getIntentPanelEls();
       if (!mount || !sheet) return;
-      if (!intentUi.panelOpen) return;
+
       if (intentUi.closeTimer) {
         clearTimeout(intentUi.closeTimer);
         intentUi.closeTimer = null;
       }
+
+      if (!intentUi.panelOpen) {
+        if (immediate) {
+          purgeIntentPanelContent();
+          sheet.setAttribute('hidden', '');
+        }
+        if (clearHighlight) intentBarHighlight(null);
+        return;
+      }
+
       intentUi.panelOpen = false;
       intentUi.panelType = null;
       mount.classList.remove('is-open');
       mount.setAttribute('aria-hidden', 'true');
-      const finish = () => {
-        if (intentUi.panelOpen) return;
+
+      if (immediate) {
+        purgeIntentPanelContent();
         sheet.setAttribute('hidden', '');
-        intentUi.closeTimer = null;
-      };
+        if (clearHighlight) intentBarHighlight(null);
+        return;
+      }
+
       const reduce =
         typeof window.matchMedia === 'function' &&
         window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if (reduce) {
-        finish();
+        purgeIntentPanelContent();
+        sheet.setAttribute('hidden', '');
+        if (clearHighlight) intentBarHighlight(null);
         return;
       }
+
       let settled = false;
       const once = () => {
         if (settled) return;
         settled = true;
-        finish();
+        if (!intentUi.panelOpen) {
+          purgeIntentPanelContent();
+          sheet.setAttribute('hidden', '');
+        }
+        intentUi.closeTimer = null;
+        if (clearHighlight && !intentUi.panelOpen) intentBarHighlight(null);
       };
       sheet.addEventListener('transitionend', once, { once: true });
-      intentUi.closeTimer = setTimeout(once, 360);
+      intentUi.closeTimer = setTimeout(once, 380);
     }
 
     function openIntentPanel(type) {
@@ -1366,7 +1414,7 @@
         }
         btn.appendChild(main);
         btn.addEventListener('click', () => {
-          closeIntentPanel();
+          closeIntentPanel({ immediate: true, clearHighlight: true });
           row.action();
         });
         options.appendChild(btn);
@@ -1383,29 +1431,29 @@
 
     function onIntentBarTap(intentId) {
       if (isTyping) return;
-      setActiveIntentSession(intentId);
-      intentBarHighlight(intentId);
 
-      if (intentId === 'reset') {
-        closeIntentPanel();
-        sendChipMessage('mindful moment');
+      const panelKey = intentId === 'do' || intentId === 'plan' || intentId === 'explore' ? intentId : null;
+
+      if (panelKey && intentUi.panelOpen && intentUi.panelType === panelKey) {
+        closeIntentPanel({ immediate: true, clearHighlight: true });
         return;
       }
-      if (intentId === 'now') {
-        closeIntentPanel();
-        sendChipMessage('morning briefing');
+
+      setActiveIntentSession(intentId);
+
+      if (intentId === 'reset' || intentId === 'now') {
+        closeIntentPanel({ immediate: true, clearHighlight: true });
+        if (intentId === 'reset') sendChipMessage('mindful moment');
+        else sendChipMessage('morning briefing');
         return;
       }
-      if (intentId === 'do') {
-        openIntentPanel('do');
-        return;
-      }
-      if (intentId === 'plan') {
-        openIntentPanel('plan');
-        return;
-      }
-      if (intentId === 'explore') {
-        openIntentPanel('explore');
+
+      if (panelKey) {
+        if (intentUi.panelOpen) {
+          closeIntentPanel({ immediate: true, clearHighlight: false });
+        }
+        intentBarHighlight(intentId);
+        openIntentPanel(panelKey);
       }
     }
 
@@ -2005,6 +2053,7 @@
     }
 
     function clearChat() {
+      closeIntentPanel({ immediate: true, clearHighlight: true });
       document.getElementById('messages').innerHTML = '';
       messages.length = 0;
       showGreetingAndChips();
