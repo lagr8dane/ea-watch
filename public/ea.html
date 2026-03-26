@@ -122,17 +122,9 @@
     .nav-menu-btn:focus-visible,
     .send-btn:focus-visible,
     .voice-btn:focus-visible,
-    .ea-intent-pill {
-      font-size: 12px;
-      padding: 10px 8px;
-      text-align: center;
-      line-height: 1.25;
-      justify-content: center;
-      hyphens: auto;
-    }
-
+    .intent-pill:focus-visible,
+    .intent-panel-option:focus-visible,
     .ea-chip:focus-visible,
-    .ea-intent-pill:focus-visible,
     .action-pill:focus-visible,
     .chain-btn:focus-visible {
       outline: 2px solid var(--hi);
@@ -146,6 +138,10 @@
       }
       .voice-btn.listening {
         animation: none !important;
+      }
+      .intent-panel-sheet,
+      .intent-panel-backdrop {
+        transition: none !important;
       }
     }
 
@@ -269,19 +265,196 @@
     .typing-dot:nth-child(2) { animation-delay: 0.2s; }
     .typing-dot:nth-child(3) { animation-delay: 0.4s; }
 
-    /* Intent entry — max ~2 rows (3+2 grid on typical phone) */
-    .ea-intent-grid {
-      align-self: stretch;
+    /* ── Bottom compose: intent bar + input ── */
+    .ea-compose-stack {
+      position: relative;
+      flex-shrink: 0;
+      z-index: 15;
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+    }
+
+    .intent-panel-mount {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      pointer-events: none;
+    }
+
+    .intent-panel-mount.is-open {
+      pointer-events: auto;
+    }
+
+    .intent-panel-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 24;
+      background: rgba(0, 0, 0, 0.42);
+      opacity: 0;
+      transition: opacity 0.26s ease;
+      pointer-events: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .intent-panel-mount.is-open .intent-panel-backdrop {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .intent-panel-sheet {
+      position: relative;
+      z-index: 25;
+      max-height: min(46vh, 340px);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 16px 16px 0 0;
+      padding: 0 0 max(10px, env(safe-area-inset-bottom, 0px));
+      box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+      transform: translateY(100%);
+      transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .intent-panel-mount.is-open .intent-panel-sheet {
+      transform: translateY(0);
+    }
+
+    .intent-panel-handle {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 0 6px;
+      cursor: grab;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .intent-panel-handle span {
+      display: block;
+      width: 36px;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .intent-panel-title {
+      flex-shrink: 0;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      padding: 0 18px 10px;
+      margin: 0;
+      line-height: 1.3;
+    }
+
+    .intent-panel-options {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 0 12px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .intent-panel-option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      min-height: 48px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 500;
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.12s, border-color 0.12s;
+    }
+
+    .intent-panel-option:active {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .intent-panel-option svg {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      stroke: var(--hi);
+      fill: none;
+      stroke-width: 1.75;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .intent-bar {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
-      max-width: 100%;
-      padding: 2px 2px 6px;
+      gap: 6px;
+      padding: 8px max(12px, env(safe-area-inset-left, 0px)) 6px max(12px, env(safe-area-inset-right, 0px));
+      background: var(--bg);
     }
-    @media (max-width: 340px) {
-      .ea-intent-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+
+    @media (min-width: 420px) {
+      .intent-bar {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
       }
+    }
+
+    .intent-pill {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      min-height: 52px;
+      padding: 6px 4px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: #9a9aa8;
+      font-size: 10px;
+      font-weight: 600;
+      font-family: inherit;
+      letter-spacing: 0.02em;
+      line-height: 1.15;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+
+    .intent-pill svg {
+      width: 22px;
+      height: 22px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.75;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .intent-pill:active {
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .intent-pill.intent-pill--active {
+      border-color: rgba(138, 180, 255, 0.45);
+      color: var(--hi);
+      background: rgba(138, 180, 255, 0.1);
     }
 
     /* Quick actions — under greeting (routine chips etc.) */
@@ -545,8 +718,8 @@
       display: flex;
       align-items: flex-end;
       gap: 10px;
-      padding: 12px max(16px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
-      border-top: 1px solid var(--border);
+      padding: 10px max(16px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
       background: var(--bg);
       flex-shrink: 0;
     }
@@ -815,6 +988,16 @@
 
   <div class="messages" id="messages"></div>
 
+  <div class="ea-compose-stack" id="ea-compose-stack">
+    <div class="intent-panel-mount" id="intent-panel-mount" aria-hidden="true">
+      <div class="intent-panel-backdrop" id="intent-panel-backdrop" tabindex="-1" aria-hidden="true"></div>
+      <div class="intent-panel-sheet" id="intent-panel-sheet" role="dialog" aria-modal="true" aria-labelledby="intent-panel-title" hidden>
+        <div class="intent-panel-handle" id="intent-panel-handle" aria-hidden="true"><span></span></div>
+        <h2 class="intent-panel-title" id="intent-panel-title"></h2>
+        <div class="intent-panel-options" id="intent-panel-options"></div>
+      </div>
+    </div>
+    <nav class="intent-bar" id="intent-bar" aria-label="Intents"></nav>
   <div class="input-bar">
     <div class="input-wrap">
       <textarea id="input" rows="1" placeholder="Message EA…"
@@ -832,6 +1015,7 @@
         <path d="M12 19V5M5 12l7-7 7 7"/>
       </svg>
     </button>
+  </div>
   </div>
   </div>
 
@@ -962,38 +1146,265 @@
       } catch (_) {}
     }
 
-    function navigateRadarIntent() {
-      const qs = new URLSearchParams({ auto: '1', when: 'tonight' });
+    function goInterestRadar(opts) {
+      opts = opts || {};
+      const qs = new URLSearchParams({ auto: '1', when: opts.when || 'tonight' });
+      if (opts.kind) qs.set('kind', opts.kind);
       if (urlDebug) qs.set('debug', '1');
       window.location.href = '/interest-radar?' + qs.toString();
     }
 
-    function runIntentPill(key) {
+    /** Bottom intent bar + sheet (UI only). */
+    const intentUi = {
+      activeIntent: null,
+      panelOpen: false,
+      panelType: null,
+      closeTimer: null,
+    };
+
+    const INTENT_SVG = {
+      do: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>',
+      explore:
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8l2.2 6.5L12 17l-2.2-2.5L12 8z"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2"/></svg>',
+      plan: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+      reset:
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 019-9 9.75 9.75 0 016.74 2.74L21 8"/><path d="M21 3v5h-5M21 12a9 9 0 01-9 9 9.75 9.75 0 01-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>',
+      now: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
+    };
+
+    function intentBarHighlight(id) {
+      intentUi.activeIntent = id;
+      document.querySelectorAll('.intent-pill').forEach((btn) => {
+        const on = btn.getAttribute('data-intent') === id;
+        btn.classList.toggle('intent-pill--active', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    }
+
+    function getIntentPanelEls() {
+      return {
+        mount: document.getElementById('intent-panel-mount'),
+        backdrop: document.getElementById('intent-panel-backdrop'),
+        sheet: document.getElementById('intent-panel-sheet'),
+        title: document.getElementById('intent-panel-title'),
+        options: document.getElementById('intent-panel-options'),
+        handle: document.getElementById('intent-panel-handle'),
+      };
+    }
+
+    function closeIntentPanel() {
+      const { mount, sheet } = getIntentPanelEls();
+      if (!mount || !sheet) return;
+      if (!intentUi.panelOpen) return;
+      if (intentUi.closeTimer) {
+        clearTimeout(intentUi.closeTimer);
+        intentUi.closeTimer = null;
+      }
+      intentUi.panelOpen = false;
+      intentUi.panelType = null;
+      mount.classList.remove('is-open');
+      mount.setAttribute('aria-hidden', 'true');
+      const finish = () => {
+        if (intentUi.panelOpen) return;
+        sheet.setAttribute('hidden', '');
+        intentUi.closeTimer = null;
+      };
+      const reduce =
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduce) {
+        finish();
+        return;
+      }
+      let settled = false;
+      const once = () => {
+        if (settled) return;
+        settled = true;
+        finish();
+      };
+      sheet.addEventListener('transitionend', once, { once: true });
+      intentUi.closeTimer = setTimeout(once, 360);
+    }
+
+    function openIntentPanel(type) {
+      const { mount, sheet, title, options } = getIntentPanelEls();
+      if (!mount || !sheet || !title || !options) return;
+      const panels = {
+        do: {
+          title: 'Do',
+          rows: [
+            { label: 'Focus', sub: 'Routines', action: () => sendChipMessage('routines') },
+            { label: 'Quick task', sub: 'Add a task', action: () => sendChipMessage('remind me to follow up') },
+            { label: 'Start timer', sub: '10 minutes', action: () => sendChipMessage('set a timer for 10 minutes') },
+            { label: 'Run a routine', sub: 'Pick from list', action: () => sendChipMessage('routines') },
+          ],
+        },
+        plan: {
+          title: 'Plan',
+          rows: [
+            { label: 'Plan a trip', sub: 'Chat with EA', action: () => sendChipMessage('help me plan a trip') },
+            { label: 'Plan something later', sub: 'Schedule ahead', action: () => sendChipMessage('help me plan something for later this week') },
+            { label: 'Organize tasks', sub: 'Your list', action: () => sendChipMessage('my tasks') },
+          ],
+        },
+        explore: {
+          title: 'Explore',
+          rows: [
+            {
+              label: 'Nearby',
+              sub: 'Places radar',
+              action: () =>
+                isShell
+                  ? sendChipMessage('inspire me')
+                  : goInterestRadar({ when: 'tonight', kind: 'places' }),
+            },
+            {
+              label: 'Later today',
+              sub: 'Ideas for tonight',
+              action: () =>
+                isShell ? sendChipMessage('inspire me') : goInterestRadar({ when: 'tonight', kind: 'ideas' }),
+            },
+            {
+              label: 'This week',
+              sub: 'Broader window',
+              action: () =>
+                isShell ? sendChipMessage('inspire me') : goInterestRadar({ when: 'week', kind: 'ideas' }),
+            },
+          ],
+        },
+      };
+      const spec = panels[type];
+      if (!spec) return;
+
+      if (intentUi.closeTimer) {
+        clearTimeout(intentUi.closeTimer);
+        intentUi.closeTimer = null;
+      }
+
+      const wasOpen = intentUi.panelOpen;
+      intentUi.panelType = type;
+      intentUi.panelOpen = true;
+      title.textContent = spec.title;
+      options.innerHTML = '';
+      for (const row of spec.rows) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'intent-panel-option';
+        const main = document.createElement('span');
+        main.style.flex = '1';
+        main.style.minWidth = '0';
+        const t = document.createElement('span');
+        t.style.display = 'block';
+        t.textContent = row.label;
+        main.appendChild(t);
+        if (row.sub) {
+          const s = document.createElement('span');
+          s.style.display = 'block';
+          s.style.fontSize = '12px';
+          s.style.fontWeight = '400';
+          s.style.color = 'var(--muted)';
+          s.style.marginTop = '2px';
+          s.textContent = row.sub;
+          main.appendChild(s);
+        }
+        btn.appendChild(main);
+        btn.addEventListener('click', () => {
+          closeIntentPanel();
+          row.action();
+        });
+        options.appendChild(btn);
+      }
+
+      if (!wasOpen) {
+        sheet.removeAttribute('hidden');
+        mount.setAttribute('aria-hidden', 'false');
+        requestAnimationFrame(() => mount.classList.add('is-open'));
+      }
+      const first = options.querySelector('.intent-panel-option');
+      if (first) first.focus();
+    }
+
+    function onIntentBarTap(intentId) {
       if (isTyping) return;
-      setActiveIntentSession(key);
-      if (key === 'do') {
-        sendChipMessage('routines');
-        return;
-      }
-      if (key === 'explore') {
-        if (isShell) sendChipMessage('inspire me');
-        else navigateRadarIntent();
-        return;
-      }
-      if (key === 'plan') {
-        sendChipMessage('my tasks');
-        return;
-      }
-      if (key === 'reset') {
+      setActiveIntentSession(intentId);
+      intentBarHighlight(intentId);
+
+      if (intentId === 'reset') {
+        closeIntentPanel();
         sendChipMessage('mindful moment');
         return;
       }
-      if (key === 'see') {
+      if (intentId === 'now') {
+        closeIntentPanel();
         sendChipMessage('morning briefing');
+        return;
+      }
+      if (intentId === 'do') {
+        openIntentPanel('do');
+        return;
+      }
+      if (intentId === 'plan') {
+        openIntentPanel('plan');
+        return;
+      }
+      if (intentId === 'explore') {
+        openIntentPanel('explore');
       }
     }
 
-    /** Deterministic text → route key (null = pass through to /api/ea as “Do something”). */
+    function wireIntentBar() {
+      const bar = document.getElementById('intent-bar');
+      if (!bar || bar.dataset.wired === '1') return;
+      bar.dataset.wired = '1';
+      const defs = [
+        { id: 'do', label: 'Do' },
+        { id: 'explore', label: 'Explore' },
+        { id: 'plan', label: 'Plan' },
+        { id: 'reset', label: 'Reset' },
+        { id: 'now', label: 'Now' },
+      ];
+      for (const d of defs) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'intent-pill';
+        btn.setAttribute('data-intent', d.id);
+        btn.setAttribute('aria-pressed', 'false');
+        btn.setAttribute('aria-label', d.label);
+        btn.innerHTML = (INTENT_SVG[d.id] || '') + '<span>' + d.label + '</span>';
+        btn.addEventListener('click', () => onIntentBarTap(d.id));
+        bar.appendChild(btn);
+      }
+
+      const { backdrop, handle, sheet } = getIntentPanelEls();
+      backdrop?.addEventListener('click', () => closeIntentPanel());
+
+      let sy = 0;
+      let pulling = false;
+      handle?.addEventListener('touchstart', (e) => {
+        pulling = true;
+        sy = e.touches[0].clientY;
+      });
+      handle?.addEventListener('touchmove', (e) => {
+        if (!pulling || !intentUi.panelOpen) return;
+        const y = e.touches[0].clientY;
+        if (y - sy > 56) {
+          pulling = false;
+          closeIntentPanel();
+        }
+      });
+      handle?.addEventListener('touchend', () => {
+        pulling = false;
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && intentUi.panelOpen) {
+          e.preventDefault();
+          closeIntentPanel();
+        }
+      });
+    }
+
+    /** Deterministic text → route key (null = pass through to /api/ea). */
     function classifyIntentFromText(raw) {
       const lower = String(raw || '')
         .trim()
@@ -1014,7 +1425,7 @@
         /\bnews\b/.test(lower) ||
         /\bweather\b/.test(lower)
       ) {
-        return 'see';
+        return 'now';
       }
       if (/\bbreak\b|\breset\b/.test(lower)) return 'reset';
       if (/\bplan\b|\borganize\b/.test(lower)) return 'plan';
@@ -1023,38 +1434,10 @@
       return null;
     }
 
-    function appendIntentEntryPills(stack) {
-      if (!stack || document.getElementById('ea-intent-entry')) return;
-      const grid = document.createElement('div');
-      grid.id = 'ea-intent-entry';
-      grid.className = 'ea-intent-grid';
-      grid.setAttribute('role', 'toolbar');
-      grid.setAttribute('aria-label', 'What you need right now');
-      const pills = [
-        { key: 'do', label: 'Do something' },
-        { key: 'explore', label: 'Explore' },
-        { key: 'plan', label: 'Plan' },
-        { key: 'reset', label: 'Reset' },
-        { key: 'see', label: "See what's going on" },
-      ];
-      for (const p of pills) {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'ea-chip ea-intent-pill';
-        btn.textContent = p.label;
-        btn.addEventListener('click', () => runIntentPill(p.key));
-        grid.appendChild(btn);
-      }
-      stack.appendChild(grid);
-    }
-
     function showGreetingAndChips() {
       const hour = new Date().getHours();
       const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
       const el = appendMsg('ea', 'What do you need right now?');
-      const row = el && el.closest('.msg-row');
-      const stack = row && row.querySelector('.ea-msg-stack');
-      appendIntentEntryPills(stack);
       loadOwnerName()
         .then(() => {
           const slot = el && el.querySelector('.ea-stream-text');
@@ -1115,6 +1498,7 @@
     }
 
     window.addEventListener('load', () => {
+      wireIntentBar();
       requestLocation();
       showGreetingAndChips();
       consumeComposePrefill();
@@ -1625,18 +2009,18 @@
             document.getElementById('send-btn').disabled = !input.value.trim();
             return send({ skipClassify: true });
           }
-          navigateRadarIntent();
+          goInterestRadar({ when: 'tonight' });
           return;
         }
         const routeLiteral = {
-          see: 'morning briefing',
+          now: 'morning briefing',
           reset: 'mindful moment',
           plan: 'my tasks',
           explore_inspire: 'inspire me',
         };
         if (routeLiteral[cls]) {
           setActiveIntentSession(
-            cls === 'explore_inspire' ? 'explore' : cls === 'see' ? 'see' : cls
+            cls === 'explore_inspire' ? 'explore' : cls === 'now' ? 'now' : cls
           );
           input.value = routeLiteral[cls];
           autoResize(input);
