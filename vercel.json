@@ -13,6 +13,7 @@
     { "source": "/contact/setup",                 "destination": "/contact-setup.html" },
     { "source": "/ea",                            "destination": "/ea.html" },
     { "source": "/challenge",                     "destination": "/challenge.html" },
+    { "source": "/sign-in",                       "destination": "/sign-in.html" },
     { "source": "/config",                        "destination": "/config.html" },
     { "source": "/chains",                        "destination": "/chain-builder.html" },
     { "source": "/action-log",                    "destination": "/action-log.html" },

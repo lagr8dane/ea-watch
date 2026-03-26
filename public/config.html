@@ -569,6 +569,31 @@
     </div>
   </div>
 
+  <div class="section">
+    <div class="section-title">Sign in on another browser</div>
+    <div class="section-body">
+      <p class="field-sub" style="margin-bottom:14px;line-height:1.45">
+        For a new laptop or tablet with no session yet: generate a link, open it on that device, then complete your usual challenge.
+        Each link works <strong>once</strong> and expires in <strong>30 minutes</strong>.
+      </p>
+      <button type="button" class="save-btn" id="magic-link-generate" style="margin-bottom:14px">Generate sign-in link</button>
+      <div id="magic-link-row" style="display:none">
+        <div class="field">
+          <label for="magic-link-url">Link</label>
+          <input type="text" id="magic-link-url" readonly autocomplete="off" style="font-size:13px;font-family:ui-monospace,monospace;">
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:4px">
+          <button type="button" class="save-btn" id="magic-link-copy">Copy link</button>
+          <button type="button" class="save-btn" id="magic-link-email" style="background:rgba(255,255,255,0.12);color:var(--text)">Open in mail app…</button>
+        </div>
+        <div class="field-note" style="margin-top:12px">
+          “Open in mail app” fills an email to your <strong>Alert email</strong> address using your system mail program (<code>mailto:</code>).
+          If that field is empty, add it above or copy the link yourself.
+        </div>
+      </div>
+    </div>
+  </div>
+
   <p class="section-group-title">Display</p>
 
   <div class="section">
@@ -725,6 +750,7 @@
 
       setupTapMeetPanel();
       openTapMeetFromHash();
+      if (window.__eaSyncMagicMail) window.__eaSyncMagicMail();
     }
 
     async function save() {
@@ -779,6 +805,7 @@
             document.getElementById(id).value = '';
           });
           showToast('Saved', 2500);
+          if (window.__eaSyncMagicMail) window.__eaSyncMagicMail();
         } else {
           const msg =
             data.hint ||
@@ -858,6 +885,76 @@
     }
 
     load();
+
+    (function initMagicLinkSection() {
+      const gen = document.getElementById('magic-link-generate');
+      const row = document.getElementById('magic-link-row');
+      const input = document.getElementById('magic-link-url');
+      const copyBtn = document.getElementById('magic-link-copy');
+      const mailBtn = document.getElementById('magic-link-email');
+      const alertEmail = document.getElementById('alert_email');
+      if (!gen || !row || !input || !copyBtn || !mailBtn) return;
+
+      function syncMailDisabled() {
+        mailBtn.disabled = !(alertEmail && alertEmail.value.trim());
+        mailBtn.style.opacity = mailBtn.disabled ? '0.45' : '';
+        mailBtn.style.cursor = mailBtn.disabled ? 'not-allowed' : '';
+      }
+      if (alertEmail) alertEmail.addEventListener('input', syncMailDisabled);
+      syncMailDisabled();
+      window.__eaSyncMagicMail = syncMailDisabled;
+
+      gen.addEventListener('click', async function () {
+        gen.disabled = true;
+        try {
+          const res = await fetch('/api/magic-link', { method: 'POST', credentials: 'same-origin' });
+          const data = await res.json().catch(function () { return {}; });
+          if (!res.ok) {
+            showToast(data.error || 'Could not create link');
+            return;
+          }
+          input.value = data.url || '';
+          row.style.display = 'block';
+          showToast('Link ready — copy it or send via mail.');
+        } catch (e) {
+          showToast('Could not create link');
+        } finally {
+          gen.disabled = false;
+        }
+      });
+
+      copyBtn.addEventListener('click', async function () {
+        const url = input.value.trim();
+        if (!url) return;
+        try {
+          await navigator.clipboard.writeText(url);
+          showToast('Copied');
+        } catch (e) {
+          input.select();
+          showToast('Select the link and copy (⌘C / Ctrl+C)');
+        }
+      });
+
+      mailBtn.addEventListener('click', function () {
+        const url = input.value.trim();
+        const email = alertEmail ? alertEmail.value.trim() : '';
+        if (!url) {
+          showToast('Generate a link first');
+          return;
+        }
+        if (!email) {
+          showToast('Add an alert email above first');
+          return;
+        }
+        var sub = encodeURIComponent('Sign in to EA Watch');
+        var body = encodeURIComponent(
+          'Open this link on the other device, then complete your challenge (passphrase / PIN).\n\n' +
+            url +
+            '\n\nLink expires in about 30 minutes and works once.'
+        );
+        window.location.href = 'mailto:' + encodeURIComponent(email) + '?subject=' + sub + '&body=' + body;
+      });
+    })();
 
     (function initShellLayoutPref() {
       const sel = document.getElementById('shell_max_pref');

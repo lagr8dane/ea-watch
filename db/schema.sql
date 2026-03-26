@@ -97,3 +97,14 @@ CREATE TABLE IF NOT EXISTS pending_commands (
   expires_at      TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_pending_commands_expires ON pending_commands(expires_at);
+
+-- One-time magic sign-in links (generated in Settings; see api/magic-link.js)
+CREATE TABLE IF NOT EXISTS magic_login_tokens (
+  token       TEXT PRIMARY KEY,
+  device_id   TEXT NOT NULL,
+  owner_id    TEXT NOT NULL,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_magic_login_expires ON magic_login_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_magic_login_owner_created ON magic_login_tokens(owner_id, created_at);

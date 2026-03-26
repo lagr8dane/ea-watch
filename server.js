@@ -30,6 +30,7 @@ async function loadNamedHandler(path, name) {
 // Phase 1 routes
 app.all('/api/tap',           async (req, res) => (await loadHandler('api/tap.js'))(req, res));
 app.all('/api/auth',          async (req, res) => (await loadHandler('api/auth.js'))(req, res));
+app.all('/api/magic-link',    async (req, res) => (await loadHandler('api/magic-link.js'))(req, res));
 app.all('/api/ea',            async (req, res) => (await loadHandler('api/ea.js'))(req, res));
 app.all('/api/pending-command', async (req, res) => (await loadHandler('api/pending-command.js'))(req, res));
 app.all('/api/config',        async (req, res) => (await loadHandler('api/config.js'))(req, res));
@@ -65,6 +66,7 @@ app.get('/contact',        (req, res) => res.sendFile(join(__dirname, 'public/co
 app.get('/contact/setup',  (req, res) => res.sendFile(join(__dirname, 'public/contact-setup.html')));
 app.get('/ea',             (req, res) => res.sendFile(join(__dirname, 'public/ea.html')));
 app.get('/challenge',      (req, res) => res.sendFile(join(__dirname, 'public/challenge.html')));
+app.get('/sign-in',        (req, res) => res.sendFile(join(__dirname, 'public/sign-in.html')));
 app.get('/config',         (req, res) => res.sendFile(join(__dirname, 'public/config.html')));
 app.get('/chains',         (req, res) => res.sendFile(join(__dirname, 'public/chain-builder.html')));
 app.get('/action-log',     (req, res) => res.sendFile(join(__dirname, 'public/action-log.html')));

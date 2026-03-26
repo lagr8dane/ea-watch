@@ -25,6 +25,7 @@ function migrationHintFromSqlError(message) {
   const raw = (m.match(/no such column:?\s*([\w."]+)/i) || [])[1] || '';
   const col = raw.replace(/^owner_config\./i, '').replace(/^"|"$/g, '');
   const map = {
+    magic_login_tokens: 'node --env-file=.env scripts/db-migrate-magic-login.js',
     stranger_instagram: 'node --env-file=.env scripts/db-migrate-stranger-instagram.js',
     interest_radar_topics: 'node --env-file=.env scripts/db-migrate-interest-radar.js',
     interest_radar_ride_handoff:

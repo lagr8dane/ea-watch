@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>Sign in — EA Watch</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; }
+    html, body {
+      min-height: 100%;
+      background: #0a0a0a;
+      color: #ccc;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      line-height: 1.5;
+    }
+    .box { max-width: 360px; }
+    h1 { color: #f0f0f0; font-size: 17px; font-weight: 600; margin-bottom: 10px; }
+    p { font-size: 14px; margin-bottom: 8px; }
+    a { color: #8ab4ff; }
+  </style>
+</head>
+<body>
+  <div class="box" id="msg">
+    <p>Loading…</p>
+  </div>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var err = params.get('error');
+      var t = params.get('t');
+      var box = document.getElementById('msg');
+
+      if (err === 'invalid') {
+        box.innerHTML =
+          '<h1>Link not valid</h1>' +
+          '<p>This sign-in link has expired, was already used, or is incorrect.</p>' +
+          '<p>Generate a new one from <strong>Settings</strong> on a signed-in device.</p>';
+        return;
+      }
+
+      if (t && /^[0-9a-f]{32}$/i.test(t)) {
+        window.location.replace('/api/magic-link?t=' + encodeURIComponent(t));
+        return;
+      }
+
+      box.innerHTML =
+        '<h1>Sign in</h1>' +
+        '<p>Open the link from your email or settings. If you need a link, open EA Watch on a device that is already signed in and use <strong>Settings → Sign in on another browser</strong>.</p>' +
+        '<p><a href="/contact">Contact card</a></p>';
+    })();
+  </script>
+</body>
+</html>
