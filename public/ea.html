@@ -20,6 +20,14 @@
       --hi:       #8ab4ff;
       --ea-msg:   #1c1c1c;
       --user-msg: #2a2a2a;
+      /* Compose dock — high contrast vs #0a chat bg */
+      --compose-bg:         #0e0e14;
+      --compose-surface:    #18181f;
+      --intent-pill-bg:     #26262f;
+      --intent-pill-bg-hover: #2e2e3a;
+      --intent-pill-text:   #f4f4f8;
+      --intent-pill-icon:   #d8dce8;
+      --intent-pill-edge:   rgba(255, 255, 255, 0.22);
     }
 
     html {
@@ -230,11 +238,11 @@
     }
 
     .msg.ea {
-      background: #181825;
-      border: 1px solid rgba(255,255,255,0.08);
+      background: #1a1a24;
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-bottom-left-radius: 4px;
-      color: #e8e8f0;
-      border-left: 2px solid rgba(100, 100, 200, 0.3);
+      color: #ececf2;
+      border-left: 2px solid rgba(120, 140, 220, 0.45);
     }
 
     .msg.user {
@@ -270,8 +278,11 @@
       position: relative;
       flex-shrink: 0;
       z-index: 15;
-      background: var(--bg);
-      border-top: 1px solid var(--border);
+      background: var(--compose-bg);
+      border-top: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow:
+        0 -1px 0 rgba(255, 255, 255, 0.06),
+        0 -12px 40px rgba(0, 0, 0, 0.55);
     }
 
     .intent-panel-mount {
@@ -312,12 +323,12 @@
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      background: var(--surface);
-      border: 1px solid var(--border);
+      background: var(--compose-surface);
+      border: 1px solid rgba(255, 255, 255, 0.14);
       border-bottom: none;
-      border-radius: 16px 16px 0 0;
+      border-radius: 18px 18px 0 0;
       padding: 0 0 max(10px, env(safe-area-inset-bottom, 0px));
-      box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.45);
+      box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.5);
       transform: translateY(100%);
       transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
     }
@@ -339,30 +350,31 @@
 
     .intent-panel-handle span {
       display: block;
-      width: 36px;
-      height: 4px;
-      border-radius: 2px;
-      background: rgba(255, 255, 255, 0.2);
+      width: 40px;
+      height: 5px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.28);
     }
 
     .intent-panel-title {
       flex-shrink: 0;
-      font-size: 15px;
+      font-size: 17px;
       font-weight: 600;
       color: var(--text);
-      padding: 0 18px 10px;
+      padding: 4px 18px 14px;
       margin: 0;
-      line-height: 1.3;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
     }
 
     .intent-panel-options {
       flex: 1;
       min-height: 0;
       overflow-y: auto;
-      padding: 0 12px 8px;
+      padding: 0 14px 12px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
       -webkit-overflow-scrolling: touch;
     }
 
@@ -371,23 +383,24 @@
       align-items: center;
       gap: 12px;
       width: 100%;
-      min-height: 48px;
-      padding: 12px 14px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: var(--surface2);
-      color: var(--text);
+      min-height: 52px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: var(--intent-pill-bg);
+      color: var(--intent-pill-text);
       font-size: 15px;
-      font-weight: 500;
+      font-weight: 600;
       font-family: inherit;
       text-align: left;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
-      transition: background 0.12s, border-color 0.12s;
+      transition: background 0.12s, border-color 0.12s, transform 0.1s;
     }
 
     .intent-panel-option:active {
-      background: rgba(255, 255, 255, 0.08);
+      background: var(--intent-pill-bg-hover);
+      transform: scale(0.99);
     }
 
     .intent-panel-option svg {
@@ -401,17 +414,35 @@
       stroke-linejoin: round;
     }
 
+    .intent-panel-option-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .intent-panel-option-sub {
+      display: block;
+      margin-top: 3px;
+      font-size: 12px;
+      font-weight: 400;
+      color: rgba(255, 255, 255, 0.52);
+      line-height: 1.35;
+    }
+
     .intent-bar {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 6px;
-      padding: 8px max(12px, env(safe-area-inset-left, 0px)) 6px max(12px, env(safe-area-inset-right, 0px));
-      background: var(--bg);
+      gap: 10px;
+      padding: 14px max(12px, env(safe-area-inset-left, 0px)) 6px max(12px, env(safe-area-inset-right, 0px));
+      background: var(--compose-surface);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     }
 
     @media (min-width: 420px) {
       .intent-bar {
         grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+        padding-left: max(14px, env(safe-area-inset-left, 0px));
+        padding-right: max(14px, env(safe-area-inset-right, 0px));
       }
     }
 
@@ -420,41 +451,70 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 4px;
-      min-height: 52px;
-      padding: 6px 4px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: #9a9aa8;
-      font-size: 10px;
+      gap: 7px;
+      min-height: 64px;
+      padding: 10px 5px;
+      border-radius: 14px;
+      border: 1px solid var(--intent-pill-edge);
+      background: var(--intent-pill-bg);
+      color: var(--intent-pill-text);
+      font-size: 12px;
       font-weight: 600;
       font-family: inherit;
-      letter-spacing: 0.02em;
-      line-height: 1.15;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
-      transition: background 0.12s, border-color 0.12s, color 0.12s;
+      transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s, box-shadow 0.15s;
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.1) inset,
+        0 2px 6px rgba(0, 0, 0, 0.35);
     }
 
     .intent-pill svg {
-      width: 22px;
-      height: 22px;
-      stroke: currentColor;
+      width: 24px;
+      height: 24px;
+      stroke: var(--intent-pill-icon);
       fill: none;
-      stroke-width: 1.75;
+      stroke-width: 2;
       stroke-linecap: round;
       stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    .intent-pill-label {
+      display: block;
+      max-width: 100%;
+      text-align: center;
+      line-height: 1.15;
+      word-break: break-word;
+      hyphens: auto;
     }
 
     .intent-pill:active {
-      background: rgba(255, 255, 255, 0.06);
+      transform: scale(0.98);
+      background: var(--intent-pill-bg-hover);
     }
 
     .intent-pill.intent-pill--active {
-      border-color: rgba(138, 180, 255, 0.45);
-      color: var(--hi);
-      background: rgba(138, 180, 255, 0.1);
+      border-color: rgba(138, 180, 255, 0.85);
+      color: #f0f6ff;
+      background: rgba(56, 88, 168, 0.42);
+      box-shadow:
+        0 0 0 1px rgba(138, 180, 255, 0.35),
+        0 1px 0 rgba(255, 255, 255, 0.12) inset,
+        0 4px 16px rgba(0, 0, 0, 0.4);
+    }
+
+    .intent-pill.intent-pill--active svg {
+      stroke: #e8f0ff;
+    }
+
+    @media (min-width: 420px) {
+      .intent-pill {
+        min-height: 66px;
+        font-size: 12px;
+      }
     }
 
     /* Quick actions — under greeting (routine chips etc.) */
@@ -719,8 +779,7 @@
       align-items: flex-end;
       gap: 10px;
       padding: 10px max(16px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-      background: var(--bg);
+      background: var(--compose-bg);
       flex-shrink: 0;
     }
 
@@ -733,18 +792,19 @@
 
     .input-wrap {
       flex: 1;
-      background: var(--surface);
-      border: 1px solid var(--border);
+      background: var(--compose-surface);
+      border: 1px solid rgba(255, 255, 255, 0.14);
       border-radius: 22px;
       display: flex;
       align-items: flex-end;
       padding: 10px 16px;
       gap: 8px;
-      transition: border-color 0.15s;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
 
     .input-wrap:focus-within {
-      border-color: rgba(255,255,255,0.15);
+      border-color: rgba(138, 180, 255, 0.45);
+      box-shadow: 0 0 0 1px rgba(138, 180, 255, 0.2);
     }
 
     textarea {
@@ -769,7 +829,7 @@
       border-radius: 50%;
       background: none;
       border: none;
-      color: var(--muted);
+      color: rgba(255, 255, 255, 0.62);
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -1291,19 +1351,14 @@
         btn.type = 'button';
         btn.className = 'intent-panel-option';
         const main = document.createElement('span');
-        main.style.flex = '1';
-        main.style.minWidth = '0';
+        main.className = 'intent-panel-option-main';
         const t = document.createElement('span');
         t.style.display = 'block';
         t.textContent = row.label;
         main.appendChild(t);
         if (row.sub) {
           const s = document.createElement('span');
-          s.style.display = 'block';
-          s.style.fontSize = '12px';
-          s.style.fontWeight = '400';
-          s.style.color = 'var(--muted)';
-          s.style.marginTop = '2px';
+          s.className = 'intent-panel-option-sub';
           s.textContent = row.sub;
           main.appendChild(s);
         }
@@ -1370,7 +1425,8 @@
         btn.setAttribute('data-intent', d.id);
         btn.setAttribute('aria-pressed', 'false');
         btn.setAttribute('aria-label', d.label);
-        btn.innerHTML = (INTENT_SVG[d.id] || '') + '<span>' + d.label + '</span>';
+        btn.innerHTML =
+          (INTENT_SVG[d.id] || '') + '<span class="intent-pill-label">' + d.label + '</span>';
         btn.addEventListener('click', () => onIntentBarTap(d.id));
         bar.appendChild(btn);
       }
