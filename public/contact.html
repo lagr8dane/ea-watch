@@ -37,6 +37,16 @@
       display: flex;
       flex-direction: column;
       gap: 32px;
+      border-radius: 20px;
+      padding: 8px 0 0;
+      transition: box-shadow 0.25s ease;
+    }
+
+    /* When settings provide an accent, make it visible beyond the thin rule */
+    html.has-contact-accent .card {
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent),
+        0 24px 56px -20px color-mix(in srgb, var(--accent) 38%, transparent);
     }
 
     /* Identity */
@@ -63,6 +73,14 @@
       color: var(--muted);
       overflow: hidden;
       flex-shrink: 0;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    html.has-contact-accent .avatar {
+      border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
+      box-shadow:
+        0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent),
+        0 12px 40px -8px color-mix(in srgb, var(--accent) 35%, transparent);
     }
 
     .avatar img {
@@ -102,6 +120,15 @@
       opacity: 0.85;
     }
 
+    html.has-contact-accent .accent-rule {
+      width: min(72px, 42vw);
+      height: 4px;
+      border-radius: 2px;
+      opacity: 1;
+      margin-top: 14px;
+      box-shadow: 0 0 28px 3px color-mix(in srgb, var(--accent) 42%, transparent);
+    }
+
     /* Actions */
     .actions {
       display: flex;
@@ -129,6 +156,14 @@
     .btn:active {
       background: #1e1e1e;
       border-color: rgba(255,255,255,0.14);
+    }
+
+    html.has-contact-accent .btn:hover {
+      border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+    }
+
+    html.has-contact-accent .btn:active {
+      border-color: color-mix(in srgb, var(--accent) 65%, var(--border));
     }
 
     .btn-icon {
@@ -161,6 +196,11 @@
     .btn-chevron {
       color: var(--muted);
       flex-shrink: 0;
+      transition: color 0.15s ease;
+    }
+
+    html.has-contact-accent .btn:hover .btn-chevron {
+      color: color-mix(in srgb, var(--accent) 75%, var(--muted));
     }
 
     /* Icon colors */
@@ -192,8 +232,14 @@
     .footer a {
       color: #666;
       text-decoration: none;
+      transition: color 0.15s ease;
     }
     .footer a:active { opacity: 0.85; }
+
+    html.has-contact-accent .footer a:hover,
+    html.has-contact-accent .footer a:focus-visible {
+      color: color-mix(in srgb, var(--accent) 70%, #888);
+    }
   </style>
 </head>
 <body class="has-app-shell" data-no-global-legal="1">
@@ -458,6 +504,7 @@
 
         if (c.accent_hex && /^#[0-9A-Fa-f]{6}$/.test(c.accent_hex)) {
           document.documentElement.style.setProperty('--accent', c.accent_hex);
+          document.documentElement.classList.add('has-contact-accent');
           document.getElementById('accent-rule').style.display = 'block';
         }
 
