@@ -293,6 +293,7 @@
       right: 0;
       bottom: 100%;
       z-index: 1;
+      isolation: isolate;
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
@@ -304,10 +305,11 @@
       pointer-events: auto;
     }
 
+    /* Must stay BELOW .intent-panel-sheet or taps hit the dimmer instead of options (z-index was 24 > sheet). */
     .intent-panel-backdrop {
       position: fixed;
       inset: 0;
-      z-index: 24;
+      z-index: 0;
       background: rgba(0, 0, 0, 0.42);
       opacity: 0;
       transition: opacity 0.26s ease;
@@ -322,7 +324,7 @@
 
     .intent-panel-sheet {
       position: relative;
-      z-index: 2;
+      z-index: 3;
       max-height: min(46vh, 340px);
       overflow: hidden;
       display: flex;
