@@ -100,17 +100,75 @@
 
   .chain-item {
     border-bottom: 1px solid var(--border);
-    cursor: pointer;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
     transition: background 0.1s;
   }
-  .chain-item:hover { background: var(--surface); }
   .chain-item:first-child { border-top: 1px solid var(--border); margin-top: 16px; }
+
+  .chain-item-edit-hit {
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .chain-item-edit-hit:hover .chain-item-inner { background: var(--surface); }
+  .chain-item-edit-hit:focus { outline: none; }
+  .chain-item-edit-hit:focus-visible {
+    outline: 2px solid var(--border-hi);
+    outline-offset: -2px;
+  }
 
   .chain-item-inner {
     display: flex;
     align-items: center;
-    padding: 16px 20px;
+    padding: 14px 12px 14px 20px;
     gap: 12px;
+    min-height: 56px;
+    box-sizing: border-box;
+  }
+
+  .chain-run-pill {
+    flex-shrink: 0;
+    align-self: center;
+    margin: 8px max(16px, env(safe-area-inset-right, 0px)) 8px 0;
+    min-height: 44px;
+    min-width: 72px;
+    padding: 0 16px;
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border: 1px solid var(--border-hi);
+    background: var(--text);
+    color: var(--bg);
+    cursor: pointer;
+    transition: opacity 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .chain-run-pill:hover:not(:disabled) { opacity: 0.9; }
+  .chain-run-pill:focus { outline: none; }
+  .chain-run-pill:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
+  .chain-run-pill:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    background: var(--surface);
+    color: var(--text-dim);
+    border-color: var(--border);
   }
 
   .chain-enabled-dot {
@@ -521,8 +579,52 @@ let dragSrc    = null;
 // ---------------------------------------------------------------------------
 // Init
 // ---------------------------------------------------------------------------
+const EA_COMPOSE_PREFILL_KEY = 'ea_compose_prefill';
+
 async function init() {
   await loadChains();
+  bindChainListUI();
+}
+
+function gotoEaRun(chainId) {
+  const c = chains.find(x => String(x.id) === String(chainId));
+  if (!c) return;
+  if (!c.enabled) {
+    showToast('Turn the routine on to run it.', true);
+    return;
+  }
+  const trigger = String(c.trigger_phrase || '').trim();
+  if (!trigger) {
+    showToast('Add a trigger phrase first.', true);
+    return;
+  }
+  try {
+    sessionStorage.setItem(EA_COMPOSE_PREFILL_KEY, JSON.stringify({ kind: 'routine_trigger', trigger }));
+  } catch {
+    showToast('Could not open EA.', true);
+    return;
+  }
+  window.location.href = '/ea';
+}
+
+function bindChainListUI() {
+  const list = document.getElementById('chainList');
+  if (!list || list.dataset.chainUiBound === '1') return;
+  list.dataset.chainUiBound = '1';
+  list.addEventListener('click', (e) => {
+    const runBtn = e.target.closest('.chain-run-pill');
+    if (runBtn && !runBtn.disabled) {
+      e.preventDefault();
+      gotoEaRun(runBtn.getAttribute('data-chain-id'));
+      return;
+    }
+    const editHit = e.target.closest('.chain-item-edit-hit');
+    if (editHit) {
+      const row = editHit.closest('.chain-item');
+      const id = row && row.getAttribute('data-chain-id');
+      if (id) openEdit(id);
+    }
+  });
 }
 
 async function loadChains() {
@@ -549,18 +651,27 @@ function renderChainList() {
     return;
   }
   list.className = 'chain-list';
-  list.innerHTML = chains.map(c => `
-    <div class="chain-item" onclick="openEdit('${c.id}')">
-      <div class="chain-item-inner">
-        <div class="chain-enabled-dot ${c.enabled ? '' : 'disabled'}"></div>
-        <div class="chain-item-text">
-          <div class="chain-name">${esc(c.name)}</div>
-          <div class="chain-meta">"${esc(c.trigger_phrase)}" · ${c.step_count || 0} step${c.step_count !== 1 ? 's' : ''}</div>
-        </div>
-        <div class="chain-arrow">›</div>
-      </div>
-    </div>
-  `).join('');
+  list.innerHTML = chains.map(c => {
+    const id = String(c.id);
+    const name = esc(c.name);
+    const runDisabled = !c.enabled ? ' disabled' : '';
+    const runLabel = esc((c.name && String(c.name).trim()) || c.trigger_phrase || 'routine');
+    return `
+    <div class="chain-item" data-chain-id="${id.replace(/"/g, '')}">
+      <button type="button" class="chain-item-edit-hit" aria-label="Edit routine: ${name}">
+        <span class="chain-item-inner">
+          <span class="chain-enabled-dot ${c.enabled ? '' : 'disabled'}" aria-hidden="true"></span>
+          <span class="chain-item-text">
+            <span class="chain-name">${name}</span>
+            <span class="chain-meta">"${esc(c.trigger_phrase)}" · ${c.step_count || 0} step${c.step_count !== 1 ? 's' : ''}</span>
+          </span>
+          <span class="chain-arrow" aria-hidden="true">›</span>
+        </span>
+      </button>
+      <button type="button" class="chain-run-pill" data-chain-id="${id.replace(/"/g, '')}"${runDisabled}
+        aria-label="Open EA with trigger for ${runLabel}">Run</button>
+    </div>`;
+  }).join('');
 }
 
 // ---------------------------------------------------------------------------

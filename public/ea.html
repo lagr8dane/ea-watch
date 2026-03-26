@@ -1032,6 +1032,7 @@
     window.addEventListener('load', () => {
       requestLocation();
       showGreetingAndChips();
+      consumeComposePrefill();
       refreshPendingHandoff();
     });
 
@@ -1496,6 +1497,26 @@
       el.style.height = 'auto';
       el.style.height = Math.min(el.scrollHeight, 120) + 'px';
       document.getElementById('send-btn').disabled = !el.value.trim();
+    }
+
+    /** Routines list (and similar) stash `{ kind, trigger }` here before navigating to /ea */
+    const EA_COMPOSE_PREFILL_KEY = 'ea_compose_prefill';
+
+    function consumeComposePrefill() {
+      try {
+        const raw = sessionStorage.getItem(EA_COMPOSE_PREFILL_KEY);
+        if (!raw) return;
+        sessionStorage.removeItem(EA_COMPOSE_PREFILL_KEY);
+        const data = JSON.parse(raw);
+        if (data.kind !== 'routine_trigger' || typeof data.trigger !== 'string') return;
+        const input = document.getElementById('input');
+        if (!input) return;
+        const t = data.trigger.trim();
+        if (!t) return;
+        input.value = t;
+        autoResize(input);
+        input.focus();
+      } catch {}
     }
 
     // --- Send ---
