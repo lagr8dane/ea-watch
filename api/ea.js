@@ -15,7 +15,7 @@ import { buildDeeplink } from '../lib/actions/deeplinks.js';
 import { parseClockIntent } from '../lib/clock-intent.js';
 import { parseTaskIntent } from '../lib/task-intent.js';
 import {
-  TASK_CLASSIFIER_MODEL_ID,
+  getTaskClassifierModelId,
   resolveContextDate,
   shouldTryAiTaskClassification,
   refineTaskIntentWithHaiku,
@@ -352,7 +352,7 @@ Follow the TIMERS AND ALARMS rule below for timers and wake-up alarms.`;
           sessionId,
           'ea_task_haiku',
           {
-            model: TASK_CLASSIFIER_MODEL_ID,
+            model: haiku.model,
             outcome: haiku.outcome,
             context_date: contextDate,
             line_preview: lastUserMessage.slice(0, 160),
@@ -371,7 +371,7 @@ Follow the TIMERS AND ALARMS rule below for timers and wake-up alarms.`;
           sessionId,
           'ea_task_haiku',
           {
-            model: TASK_CLASSIFIER_MODEL_ID,
+            model: getTaskClassifierModelId(),
             outcome: 'error',
             context_date: contextDate,
             line_preview: lastUserMessage.slice(0, 160),

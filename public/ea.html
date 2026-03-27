@@ -1247,6 +1247,49 @@
     }
     const messages = [];
     let   isTyping = false;
+
+    /** Persist EA ↔ user transcript in sessionStorage so leaving /ea (e.g. Tasks) keeps context for the tab session. */
+    const EA_CHAT_KEY = 'ea_chat_transcript_v1';
+    const EA_CHAT_MAX_MSGS = 40;
+
+    function persistEChat() {
+      try {
+        if (!messages.length) {
+          sessionStorage.removeItem(EA_CHAT_KEY);
+          return;
+        }
+        const items = messages.slice(-EA_CHAT_MAX_MSGS);
+        sessionStorage.setItem(
+          EA_CHAT_KEY,
+          JSON.stringify({ v: 1, shell: isShell ? 1 : 0, items })
+        );
+      } catch (_) {
+        /* quota / private mode */
+      }
+    }
+
+    function restoreEChat() {
+      try {
+        const raw = sessionStorage.getItem(EA_CHAT_KEY);
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        if (data.v !== 1 || !Array.isArray(data.items) || data.items.length === 0) return false;
+        if (!!data.shell !== isShell) return false;
+        const box = document.getElementById('messages');
+        if (box) box.innerHTML = '';
+        messages.length = 0;
+        for (const m of data.items) {
+          if (!m || (m.role !== 'user' && m.role !== 'assistant')) continue;
+          const c = String(m.content ?? '');
+          messages.push({ role: m.role, content: c });
+          appendMsg(m.role === 'assistant' ? 'ea' : 'user', c);
+        }
+        scrollBottom();
+        return messages.length > 0;
+      } catch (_) {
+        return false;
+      }
+    }
     let   recognition = null;
     let   userLat = null;
     let   userLon = null;
@@ -1812,10 +1855,12 @@
     window.addEventListener('load', () => {
       wireIntentBar();
       requestLocation();
-      showGreetingAndChips();
+      if (!restoreEChat()) showGreetingAndChips();
       consumeComposePrefill();
       refreshPendingHandoff();
     });
+
+    window.addEventListener('pagehide', () => persistEChat());
 
     // --- Message rendering ---
 
@@ -2260,6 +2305,9 @@
 
     function clearChat() {
       closeIntentPanel({ immediate: true, clearHighlight: true });
+      try {
+        sessionStorage.removeItem(EA_CHAT_KEY);
+      } catch (_) {}
       document.getElementById('messages').innerHTML = '';
       messages.length = 0;
       showGreetingAndChips();
@@ -2348,6 +2396,7 @@
 
       appendMsg('user', text);
       messages.push({ role: 'user', content: text });
+      persistEChat();
 
       isTyping = true;
       setStatus('thinking…');
@@ -2380,7 +2429,7 @@
               ? 'Your session expired. Tap your watch again to sign in, then come back to EA.'
               : 'Something went wrong. Try again.';
           appendMsg('ea', errMsg);
-          isTyping = false;
+          messages.push({ role: 'assistant', content: errMsg });
           setStatus('ready');
           return;
         }
@@ -2492,12 +2541,14 @@
         }
 
         let assistantTranscript = full;
-        if (hadMorningBriefing) assistantTranscript = '(Briefing)';
-        else if (hadMindfulPanel) assistantTranscript = '(Mindful moment)';
-        else if (hadTaskPanel) assistantTranscript = '(Tasks)';
-        else if (hadRoutineChips) assistantTranscript = '(Routines)';
-        else if (panelFetchKind === 'weather') assistantTranscript = '(Weather)';
-        else if (panelFetchKind === 'news') assistantTranscript = '(Headlines)';
+        const preferFull = (placeholder) =>
+          full && String(full).trim() ? full : placeholder;
+        if (hadMorningBriefing) assistantTranscript = preferFull('(Briefing)');
+        else if (hadMindfulPanel) assistantTranscript = preferFull('(Mindful moment)');
+        else if (hadTaskPanel) assistantTranscript = preferFull('(Tasks)');
+        else if (hadRoutineChips) assistantTranscript = preferFull('(Routines)');
+        else if (panelFetchKind === 'weather') assistantTranscript = preferFull('(Weather)');
+        else if (panelFetchKind === 'news') assistantTranscript = preferFull('(Headlines)');
 
         messages.push({
           role: 'assistant',
@@ -2506,12 +2557,15 @@
         setStatus('ready');
       } catch (e) {
         hideTyping();
-        appendMsg('ea', 'Connection lost. Try again.');
+        const errMsg = 'Connection lost. Try again.';
+        appendMsg('ea', errMsg);
+        messages.push({ role: 'assistant', content: errMsg });
         setStatus('ready');
+      } finally {
+        isTyping = false;
+        persistEChat();
+        input.focus();
       }
-
-      isTyping = false;
-      input.focus();
     }
 
     function setStatus(text) {
