@@ -464,6 +464,7 @@ function formatActionLabel(type) {
     ea_task_delete: 'Task removed',
     ea_task_edit: 'Task updated',
     ea_task_error: 'Task error',
+    ea_task_haiku: 'Task classifier (Haiku)',
     ea_interest_radar: 'Interest radar',
     pending_command_set: 'Handoff queued',
     pending_command_clear: 'Handoff cleared',
@@ -519,6 +520,15 @@ function entryDetail(e, cfg) {
   }
   if (e.action_type === 'ea_task_list') {
     return cfg.filter ? `${cfg.filter} · ${cfg.open_count ?? 0} open` : `${cfg.open_count ?? 0} open`;
+  }
+  if (e.action_type === 'ea_task_haiku') {
+    const parts = [];
+    if (cfg.outcome) parts.push(cfg.outcome);
+    if (cfg.title && cfg.outcome === 'add') parts.push(truncate(cfg.title, 56));
+    else if (cfg.line_preview && cfg.outcome && cfg.outcome !== 'add') {
+      parts.push(truncate(cfg.line_preview, 48));
+    }
+    return parts.join(' · ') || '';
   }
   if (e.action_type === 'ea_task_add' && cfg.title) return truncate(cfg.title, 72);
   if (e.action_type === 'ea_task_complete' && cfg.title) return truncate(cfg.title, 72);

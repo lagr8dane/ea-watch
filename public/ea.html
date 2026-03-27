@@ -1749,12 +1749,12 @@
     function showGreetingAndChips() {
       const hour = new Date().getHours();
       const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-      const el = appendMsg('ea', 'What do you need right now?');
+      const el = appendMsg('ea', 'How can I help?');
       loadOwnerName()
         .then(() => {
           const slot = el && el.querySelector('.ea-stream-text');
           if (ownerFirstName && slot) {
-            slot.textContent = `${greet}, ${ownerFirstName}.\n\nWhat do you need right now?`;
+            slot.textContent = `${greet}, ${ownerFirstName}.\n\nHow can I help?`;
           }
         })
         .catch(() => {});
@@ -2364,6 +2364,10 @@
             lat: userLat,
             lon: userLon,
             localHour: new Date().getHours(),
+            localDate: (() => {
+              const d = new Date();
+              return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            })(),
             debug: urlDebug,
           }),
         });

@@ -14,6 +14,12 @@ import { logUserEvent } from '../lib/user-event-log.js';
 import { buildDeeplink } from '../lib/actions/deeplinks.js';
 import { parseClockIntent } from '../lib/clock-intent.js';
 import { parseTaskIntent } from '../lib/task-intent.js';
+import {
+  TASK_CLASSIFIER_MODEL_ID,
+  resolveContextDate,
+  shouldTryAiTaskClassification,
+  refineTaskIntentWithHaiku,
+} from '../lib/task-intent-ai.js';
 import { parseSpotifyIntent } from '../lib/spotify-intent.js';
 import {
   spotifyConfigured,
@@ -30,6 +36,7 @@ import {
   findOpenTasksByTitle,
   buildTaskPanelPayload,
 } from '../lib/tasks.js';
+import { normalizeTaskTitleTypos } from '../lib/task-title-typos.js';
 
 const client = new Anthropic();
 
@@ -47,7 +54,7 @@ FORMATTING: Never use markdown, headers (##), bullet points, bold (**), italics,
 
 const TASK_CHAT_RULES = `
 
-TASKS: The app only saves tasks when the user uses a task phrase such as create a task to …, add task …, remind me to …, or new task …. If they ask vaguely, tell them to say it in one of those forms — never claim you already saved a task.`;
+TASKS: The app saves tasks when the user clearly asks to remember or add something (including many natural phrasings); a fast matcher and a small classifier may run before you. If their message is vague or not a todo, tell them to say something like remind me to … or add task … — never claim you already saved a task unless they used a clear todo phrase.`;
 
 const CLOCK_CHAT_RULES = `
 
@@ -328,7 +335,52 @@ Follow the TIMERS AND ALARMS rule below for timers and wake-up alarms.`;
   }
 
   if (!isShell) {
-    const taskIntent = parseTaskIntent(lastUserMessage);
+    let taskIntent = parseTaskIntent(lastUserMessage);
+    if (!taskIntent && shouldTryAiTaskClassification(lastUserMessage)) {
+      const contextDate = resolveContextDate(req.body ?? {});
+      try {
+        const haiku = await refineTaskIntentWithHaiku(
+          client,
+          lastUserMessage,
+          contextDate,
+          debug
+        );
+        taskIntent = haiku.intent
+          ? { ...haiku.intent, _taskSource: 'haiku' }
+          : null;
+        await logUserEvent(
+          sessionId,
+          'ea_task_haiku',
+          {
+            model: TASK_CLASSIFIER_MODEL_ID,
+            outcome: haiku.outcome,
+            context_date: contextDate,
+            line_preview: lastUserMessage.slice(0, 160),
+            ...(haiku.intent
+              ? {
+                  title: haiku.intent.title.slice(0, 120),
+                  due_at: haiku.intent.dueDate ?? null,
+                }
+              : {}),
+          },
+          'success'
+        );
+      } catch (err) {
+        debugLog(debug, 'ea', 'task ai classify', err?.message);
+        await logUserEvent(
+          sessionId,
+          'ea_task_haiku',
+          {
+            model: TASK_CLASSIFIER_MODEL_ID,
+            outcome: 'error',
+            context_date: contextDate,
+            line_preview: lastUserMessage.slice(0, 160),
+          },
+          'failed',
+          err?.message ?? String(err)
+        );
+      }
+    }
     if (taskIntent) {
       await handleTaskIntent(res, taskIntent, session.owner_id, sessionId, debug);
       return;
@@ -703,11 +755,13 @@ async function handleTaskIntent(res, intent, ownerId, sessionId, debug) {
       res.end();
       return;
     } else if (intent.action === 'add') {
+      const title = normalizeTaskTitleTypos(intent.title);
       const row = await createTask(ownerId, {
-        title: intent.title,
+        title,
         due_at: intent.dueDate || null,
         priority: intent.priority || 'normal',
       });
+      const fromHaiku = intent._taskSource === 'haiku';
       await logUserEvent(
         sessionId,
         'ea_task_add',
@@ -715,14 +769,22 @@ async function handleTaskIntent(res, intent, ownerId, sessionId, debug) {
           title: row.title.slice(0, 120),
           due_at: row.due_at,
           priority: row.priority,
-          source: 'ea_chat',
+          source: fromHaiku ? 'haiku' : 'ea_chat',
         },
         'success'
       );
-      sendText(
-        res,
-        `Added: ${row.title}${row.due_at ? ` (due ${row.due_at.slice(0, 10)})` : ''}. See everything at /tasks.`
-      );
+      const dueBit = row.due_at ? ` (due ${row.due_at.slice(0, 10)})` : '';
+      if (fromHaiku) {
+        sendText(
+          res,
+          `Got your message. This routing is new and EA is still learning how you phrase things, so bear with us. Here's what we understood: ${row.title}${dueBit}. We saved that as a task. If we got it wrong, say what you actually meant and we'll fix it. Full list at /tasks.`
+        );
+      } else {
+        sendText(
+          res,
+          `Added: ${row.title}${dueBit}. See everything at /tasks.`
+        );
+      }
     } else if (intent.action === 'complete') {
       const matches = await findOpenTasksByTitle(ownerId, intent.fragment);
       if (!matches.length) {
