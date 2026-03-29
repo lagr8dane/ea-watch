@@ -614,6 +614,38 @@
   <p class="section-group-title">Device</p>
 
   <div class="section">
+    <div class="section-title">NFC tag</div>
+    <div class="section-body">
+      <p class="field-note" style="margin-bottom:12px">
+        Read the tag’s <strong>UID</strong> with NFC Tools (or similar), pick a short <strong>device code</strong> (letters, numbers, hyphens), register here, then write a <strong>URI</strong> on the tag:
+        <code style="color:#c9d1d9">https://your-domain/?d=</code><em>device-code</em><code style="color:#c9d1d9">&amp;uid=</code><em>tag-uid</em>
+        — use your real app URL (same as where you open Settings). <code style="color:#c9d1d9">location.origin</code> below matches this page.
+      </p>
+      <div class="field">
+        <label for="nfc_uid">Tag UID (hex)</label>
+        <input type="text" id="nfc_uid" placeholder="e.g. 04A1B2C3D4E5F6" spellcheck="false" autocomplete="off" oninput="updateNfcUrlPreview()">
+      </div>
+      <div class="field">
+        <label for="nfc_device_code">Device code (<code>d</code>)</label>
+        <input type="text" id="nfc_device_code" placeholder="e.g. watch-001" spellcheck="false" autocomplete="off" oninput="updateNfcUrlPreview()">
+      </div>
+      <div class="field">
+        <label for="nfc_notes">Notes (optional)</label>
+        <input type="text" id="nfc_notes" placeholder="spare tag, metal sticker, …" autocomplete="off">
+      </div>
+      <p class="field-note" id="nfc_url_preview" style="margin-bottom:12px;word-break:break-all;color:#8ab4ff">
+        Fill device code and UID to see the tap URL.
+      </p>
+      <button type="button" class="save-btn" id="nfc-register-btn" onclick="registerNfcTag()">Register tag</button>
+      <p class="field-note" style="margin-top:16px;margin-bottom:8px"><strong>Registered tags</strong></p>
+      <div id="nfc-devices-list" class="field-note"></div>
+      <p class="field-note" style="margin-top:16px">
+        <strong>Test stranger (unregistered) flow:</strong> open <a href="/contact" style="color:#8ab4ff">/contact</a> or tap a URL with no <code style="color:#aaa">d</code>/<code style="color:#aaa">uid</code>, or use a UID you never registered. A wrong <code style="color:#aaa">d</code>+<code style="color:#aaa">uid</code> pair also shows the public card only.
+      </p>
+    </div>
+  </div>
+
+  <div class="section">
     <div class="section-title">Ownership</div>
     <div class="section-body">
       <button class="danger-btn" onclick="confirmTransfer()">Transfer ownership…</button>
@@ -705,6 +737,7 @@
           } else if (err.error) showToast(err.error, 6000);
           setupTapMeetPanel();
           openTapMeetFromHash();
+          refreshNfcDeviceList();
           return;
         }
         const c = await res.json().catch(() => null);
@@ -712,6 +745,7 @@
           showToast('Could not read settings from the server.', 6000);
           setupTapMeetPanel();
           openTapMeetFromHash();
+          refreshNfcDeviceList();
           return;
         }
 
@@ -750,7 +784,109 @@
 
       setupTapMeetPanel();
       openTapMeetFromHash();
+      refreshNfcDeviceList();
       if (window.__eaSyncMagicMail) window.__eaSyncMagicMail();
+    }
+
+    function escHtml(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function updateNfcUrlPreview() {
+      const el = document.getElementById('nfc_url_preview');
+      if (!el) return;
+      const d = val('nfc_device_code');
+      const u = (document.getElementById('nfc_uid')?.value ?? '').replace(/\s|:/g, '').toUpperCase();
+      if (!d || !u) {
+        el.textContent = 'Fill device code and UID to see the tap URL.';
+        return;
+      }
+      const base = location.origin.replace(/\/$/, '');
+      el.textContent = `${base}/?d=${encodeURIComponent(d)}&uid=${encodeURIComponent(u)}`;
+    }
+
+    async function refreshNfcDeviceList() {
+      const host = document.getElementById('nfc-devices-list');
+      if (!host) return;
+      try {
+        const res = await fetch('/api/device', { credentials: 'same-origin' });
+        if (!res.ok) {
+          host.innerHTML =
+            '<p class="field-note" style="color:#888">Sign in to list registered devices.</p>';
+          return;
+        }
+        const rows = await res.json();
+        if (!Array.isArray(rows) || !rows.length) {
+          host.innerHTML = '<p class="field-note" style="color:#888">No tags registered yet.</p>';
+          return;
+        }
+        host.innerHTML =
+          '<ul style="margin:0;padding-left:1.2em;color:#bbb;font-size:14px;line-height:1.5">' +
+          rows
+            .map(function (r) {
+              const active = r.active ? '' : ' <span style="color:#986">(inactive)</span>';
+              const n = r.notes ? ' — ' + escHtml(r.notes) : '';
+              return (
+                '<li><code style="color:#e8e8e8">' +
+                escHtml(r.uid) +
+                '</code> · <code style="color:#e8e8e8">' +
+                escHtml(r.device_code) +
+                '</code>' +
+                active +
+                n +
+                '</li>'
+              );
+            })
+            .join('') +
+          '</ul>';
+      } catch (e) {
+        host.innerHTML = '';
+      }
+    }
+
+    async function registerNfcTag() {
+      const uidRaw = document.getElementById('nfc_uid')?.value ?? '';
+      const uid = uidRaw.replace(/\s|:/g, '').toUpperCase();
+      const device_code = val('nfc_device_code');
+      const notes = val('nfc_notes');
+      if (!uid || !device_code) {
+        showToast('Tag UID and device code are required', 4000);
+        return;
+      }
+      if (!/^[0-9A-F]+$/i.test(uid) || uid.length < 4) {
+        showToast('UID should be hex from your NFC app (often 14 characters)', 5000);
+        return;
+      }
+      const btn = document.getElementById('nfc-register-btn');
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/device', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify({ uid, device_code, notes: notes || undefined }),
+        });
+        const data = await res.json().catch(function () {
+          return {};
+        });
+        if (res.status === 201) {
+          showToast('Tag registered', 2500);
+          document.getElementById('nfc_uid').value = '';
+          document.getElementById('nfc_notes').value = '';
+          updateNfcUrlPreview();
+          await refreshNfcDeviceList();
+        } else if (res.status === 409) {
+          showToast(data.error || 'This UID or code is already registered', 5000);
+        } else {
+          showToast(data.error || 'Registration failed', 5000);
+        }
+      } catch (e) {
+        showToast('Connection error', 4000);
+      }
+      btn.disabled = false;
     }
 
     async function save() {
